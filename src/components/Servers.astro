@@ -1,0 +1,892 @@
+---
+import SectionBg from './SectionBg.astro';
+import { DEFAULT_SERVERS, serverIp, type ServerRow } from '../lib/site-data';
+
+const serverRows: ServerRow[] = Astro.locals.servers ?? DEFAULT_SERVERS;
+
+const servers = serverRows
+  .filter(s => s.active !== false)
+  .map(s => {
+    const match = s.name.match(/^(#\d+)\s*(.*)$/);
+    return {
+      id: s.id,
+      mode: s.mode ?? '',
+      ip: serverIp(s),
+      desc: s.description ?? '',
+      num: match ? match[1] : '',
+      label: match ? match[2] : s.name,
+    };
+  });
+---
+
+<section id="servidores" class="servers-section">
+
+  <SectionBg variant="crosshair" glowPos="top-right" glowColor="#4ade80" />
+
+  <div class="container">
+
+    <div class="s-label fade-in">
+      <span class="s-label-line"></span>
+      <span class="s-label-text">// Servidores</span>
+    </div>
+    <h2 class="s-title fade-in">Elegí el servidor que quieras.</h2>
+    <p class="s-sub fade-in">Copiá el comando y pegalo directo en la consola de Counter-Strike 1.6.</p>
+
+    <!-- Barra de estado global: muestra cuando hay error de conexión -->
+    <div class="net-status" id="netStatus" aria-live="polite" hidden>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M1 6s4-4 11-4 11 4 11 4"/><path d="M1 12s4-4 11-4 11 4 11 4"/><line x1="1" y1="18" x2="5" y2="18"/><line x1="19" y1="18" x2="23" y2="18"/><line x1="12" y1="18" x2="12.01" y2="18"/>
+      </svg>
+      <span id="netStatusText">Sin conexión — los datos pueden estar desactualizados</span>
+      <button class="net-retry" id="netRetry" aria-label="Reintentar">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>
+        </svg>
+        Reintentar
+      </button>
+    </div>
+
+    <div class="servers-grid">
+      {servers.map((s, idx) => (
+        <div class="server-card fade-in-scale" style={`transition-delay:${idx * 70}ms`} data-server-id={s.id}>
+          <span class="corner corner-tl" aria-hidden="true"></span>
+          <span class="corner corner-tr" aria-hidden="true"></span>
+          <span class="corner corner-bl" aria-hidden="true"></span>
+          <span class="corner corner-br" aria-hidden="true"></span>
+
+          <!-- Indicador de refresco en la esquina superior derecha -->
+          <span class="refresh-indicator" data-refresh={s.id} aria-label="Actualizando..." aria-hidden="true"></span>
+
+          <div class="card-top">
+            <!-- Estado: inicia en "cargando" y JS lo actualiza -->
+            <span class="badge-status badge-loading" data-status={s.id}>
+              <span class="badge-dot"></span>
+              <span class="badge-label">Consultando...</span>
+            </span>
+            <span class="server-mode">{s.mode}</span>
+          </div>
+
+          <h3 class="server-name">
+            <span class="server-num">{s.num}</span> {s.label}
+          </h3>
+          <p class="server-desc">{s.desc}</p>
+
+          <div class="server-readout" aria-live="polite">
+            <!-- Mapa -->
+            <div class="readout-row">
+              <span class="readout-label">Mapa Actual:</span>
+              <span class="readout-value">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+                </svg>
+                <span class="map-name skeleton-text" data-map={s.id}>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+              </span>
+            </div>
+
+            <!-- Jugadores -->
+            <div class="readout-row">
+              <span class="readout-label">Jugadores:</span>
+              <span class="readout-value">
+                <span class="capacity-inline">
+                  <span class="capacity-track">
+                    <span class="capacity-fill" data-fill={s.id}></span>
+                  </span>
+                  <span class="capacity-val skeleton-text" data-players={s.id}>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+                </span>
+              </span>
+            </div>
+
+            <!-- Última actualización -->
+            <div class="readout-row">
+              <span class="readout-label">Actualizado:</span>
+              <span class="readout-value readout-updated">
+                <span class="skeleton-text" data-updated-text={s.id}>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+                <span class="stale-tag" data-stale={s.id} hidden title="Dato en caché, el servidor no respondió">· caché</span>
+              </span>
+            </div>
+          </div>
+
+          <!-- Acordeón de jugadores -->
+          <div class="players-section" data-players-section={s.id} style="display:none">
+            <button class="players-toggle" data-toggle={s.id} aria-expanded="false" aria-controls={`players-list-${s.id}`}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+              <span class="toggle-label">Ver jugadores</span>
+              <svg class="toggle-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+
+            <div class="players-list" id={`players-list-${s.id}`} data-players-list={s.id} aria-hidden="true">
+              <div class="players-inner" data-players-inner={s.id}></div>
+            </div>
+          </div>
+
+          <!-- Consola con IP -->
+          <div class="console-row">
+            <span class="console-prompt" aria-hidden="true">&gt;</span>
+            <code class="console-cmd">connect {s.ip}</code>
+            <span class="console-cursor" aria-hidden="true"></span>
+            <button
+              class="copy-btn"
+              data-ip={s.ip}
+              aria-label={`Copiar IP de ${s.label}`}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              <span class="copy-label">Copiar</span>
+            </button>
+          </div>
+
+        </div>
+      ))}
+    </div>
+
+  </div>
+</section>
+
+<style>
+  /* ── Sección ── */
+  .servers-section {
+    padding: var(--section-gap) 0;
+    border-top: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .servers-section .container {
+    position: relative;
+    z-index: 1;
+  }
+
+  .servers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--spacing-lg);
+  }
+
+  /* ── Barra de error de red ── */
+  .net-status {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 20px;
+    padding: 10px 16px;
+    border-radius: var(--radius);
+    background: rgba(239, 68, 68, 0.07);
+    border: 1px solid rgba(239, 68, 68, 0.22);
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    color: #f87171;
+    animation: fadeSlideDown 0.3s ease;
+  }
+
+  .net-status[hidden] { display: none; }
+
+  .net-retry {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: auto;
+    padding: 4px 10px;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: var(--radius);
+    color: #f87171;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    background: none;
+    cursor: pointer;
+    transition: background 0.18s, border-color 0.18s;
+  }
+
+  .net-retry:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.5);
+  }
+
+  @keyframes fadeSlideDown {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Card ── */
+  .server-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 32px 28px 26px;
+    position: relative;
+    transition: border-color 0.2s, transform 0.18s;
+  }
+
+  .server-card:hover {
+    border-color: var(--border-accent);
+    transform: translateY(-2px);
+  }
+
+  /* ── Indicador de refresco (spinner en esquina) ── */
+  .refresh-indicator {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 10px;
+    height: 10px;
+    border: 1.5px solid rgba(56, 182, 255, 0.2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity 0.25s;
+  }
+
+  .refresh-indicator.spinning {
+    opacity: 1;
+    animation: spin 0.7s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Corner brackets ── */
+  .corner {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border: 0 solid var(--border-accent);
+    transition: border-color 0.25s ease, transform 0.25s ease;
+    pointer-events: none;
+  }
+  .corner-tl { top: 10px;    left: 10px;  border-width: 2px 0 0 2px; }
+  .corner-tr { top: 10px;    right: 10px; border-width: 2px 2px 0 0; }
+  .corner-bl { bottom: 10px; left: 10px;  border-width: 0 0 2px 2px; }
+  .corner-br { bottom: 10px; right: 10px; border-width: 0 2px 2px 0; }
+
+  .server-card:hover .corner     { border-color: var(--accent); }
+  .server-card:hover .corner-tl  { transform: translate(-2px, -2px); }
+  .server-card:hover .corner-tr  { transform: translate(2px, -2px); }
+  .server-card:hover .corner-bl  { transform: translate(-2px, 2px); }
+  .server-card:hover .corner-br  { transform: translate(2px, 2px); }
+
+  /* ── Top row ── */
+  .card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+  }
+
+  /* ── Badges de estado ── */
+  .badge-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 0.67rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: color 0.3s;
+  }
+
+  .badge-online  { color: var(--green); }
+  .badge-offline { color: var(--muted); }
+  .badge-loading { color: var(--muted); }
+
+  .badge-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+
+  .badge-online  .badge-dot { background: var(--green); animation: pulse 2.5s infinite; }
+  .badge-offline .badge-dot { background: var(--muted); animation: none; }
+  .badge-loading .badge-dot { background: var(--muted); animation: pulseSlow 1.4s ease-in-out infinite; }
+
+  @keyframes pulseSlow {
+    0%, 100% { opacity: 0.3; }
+    50%       { opacity: 0.9; }
+  }
+
+  .server-mode {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    background: var(--accent-dark);
+    border: 1px solid var(--border-accent);
+    padding: 3px 9px;
+    border-radius: 2px;
+  }
+
+  /* ── Nombre y descripción ── */
+  .server-name {
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .server-num  { color: var(--accent); }
+
+  .server-desc {
+    font-size: 0.84rem;
+    color: var(--muted-2);
+    line-height: 1.6;
+    margin-bottom: 22px;
+  }
+
+  /* ── Skeleton shimmer ── */
+  .skeleton-text {
+    display: inline-block;
+    border-radius: 3px;
+    background: linear-gradient(
+      90deg,
+      var(--surface-2) 25%,
+      var(--border) 50%,
+      var(--surface-2) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.4s ease infinite;
+    color: transparent !important;
+    user-select: none;
+    pointer-events: none;
+    min-width: 40px;
+  }
+
+  .skeleton-text.loaded {
+    background: none;
+    animation: none;
+    color: inherit !important;
+  }
+
+  @keyframes shimmer {
+    from { background-position: 200% 0; }
+    to   { background-position: -200% 0; }
+  }
+
+  /* ── Panel de lectura ── */
+  .server-readout {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+
+  .readout-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 12px;
+  }
+
+  .readout-row + .readout-row { border-top: 1px solid var(--border); }
+
+  .readout-label {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .readout-value {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--text);
+    min-width: 0;
+  }
+
+  .map-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 130px;
+  }
+
+  .capacity-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .capacity-track {
+    display: block;
+    width: 60px;
+    height: 4px;
+    background: var(--surface-2);
+    border-radius: 2px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .capacity-fill {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.6s ease;
+  }
+
+  /* Barra roja si el servidor está lleno (>85%) */
+  .capacity-fill.full { background: #f87171; }
+
+  .capacity-val {
+    min-width: 34px;
+    text-align: right;
+    color: var(--muted-2);
+    flex-shrink: 0;
+  }
+
+  .capacity-val.has-data {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .readout-updated {
+    font-size: 0.74rem;
+    color: var(--muted-2);
+  }
+
+  .stale-tag {
+    color: #f59e0b;
+    cursor: help;
+  }
+
+  /* ── Players acordeón ── */
+  .players-section {
+    margin-bottom: 14px;
+  }
+
+  .players-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 7px 12px;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--muted-2);
+    cursor: pointer;
+    transition: color 0.18s, border-color 0.18s, background 0.18s;
+    text-align: left;
+  }
+
+  .players-toggle:hover {
+    color: var(--accent);
+    border-color: var(--border-accent);
+    background: var(--accent-dark);
+  }
+
+  .players-toggle[aria-expanded="true"] {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-bottom-color: transparent;
+    color: var(--accent);
+    border-color: var(--border-accent);
+    background: var(--accent-dark);
+  }
+
+  .toggle-label { flex: 1; }
+
+  .toggle-chevron {
+    transition: transform 0.22s ease;
+    flex-shrink: 0;
+  }
+
+  .players-toggle[aria-expanded="true"] .toggle-chevron {
+    transform: rotate(180deg);
+  }
+
+  .players-list {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.28s ease;
+    border: 1px solid var(--border-accent);
+    border-top: none;
+    border-radius: 0 0 var(--radius) var(--radius);
+    background: var(--accent-dark);
+  }
+
+  .players-list[aria-hidden="false"] {
+    max-height: 300px;
+  }
+
+  .players-inner {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 12px;
+  }
+
+  .player-tag {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 3px 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+  }
+
+  .players-empty {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    padding: 10px 12px;
+  }
+
+  /* ── Consola ── */
+  .console-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    transition: border-color 0.18s;
+  }
+
+  .server-card:hover .console-row { border-color: var(--border-accent); }
+
+  .console-prompt {
+    font-family: var(--font-mono);
+    font-size: 0.84rem;
+    color: var(--green);
+    flex-shrink: 0;
+  }
+
+  .console-cmd {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    color: var(--text);
+    flex: 1;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .console-cursor {
+    width: 6px;
+    height: 13px;
+    background: var(--accent);
+    flex-shrink: 0;
+    animation: blink 1s steps(1) infinite;
+  }
+
+  .console-row.copied .console-cursor {
+    background: var(--green);
+    animation: none;
+  }
+
+  .copy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--muted-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: none;
+    flex-shrink: 0;
+    transition: color 0.18s, border-color 0.18s, background 0.18s;
+  }
+
+  .copy-btn:hover {
+    color: var(--accent);
+    border-color: var(--border-accent);
+    background: var(--accent-dark);
+  }
+
+  .copy-btn.copied {
+    color: var(--green);
+    border-color: rgba(74, 222, 128, 0.28);
+    background: rgba(74, 222, 128, 0.05);
+  }
+
+  @keyframes blink  { 50% { opacity: 0; } }
+  @keyframes pulse  { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  @media (max-width: 540px) {
+    .servers-grid { grid-template-columns: 1fr; }
+    .server-card  { padding: 26px 22px 22px; }
+    .map-name     { max-width: 100px; }
+  }
+</style>
+
+<script>
+  const REFRESH_INTERVAL   = 30_000;
+  const RELATIVE_TIME_TICK = 5_000;
+  const MAX_RETRIES        = 3;
+
+  interface ServerStatus {
+    id: number;
+    online: boolean;
+    map?: string;
+    players?: number;
+    maxPlayers?: number;
+    updatedAt?: number;
+    stale?: boolean;
+    playerList?: string[];
+  }
+
+  // ── Utilidades ─────────────────────────────────────────────────────────
+  const lastUpdated = new Map<number, number>();
+  let fetchFailCount = 0;
+  let refreshTimer: ReturnType<typeof setInterval> | null = null;
+
+  function formatRelativeTime(ms: number): string {
+    const diff    = Math.max(0, Date.now() - ms);
+    const seconds = Math.round(diff / 1000);
+    if (seconds < 5)  return 'Recién';
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.round(seconds / 60);
+    if (minutes < 60) return `${minutes} min`;
+    return `${Math.round(minutes / 60)} h`;
+  }
+
+  function renderRelativeTimes() {
+    lastUpdated.forEach((ts, id) => {
+      const el = document.querySelector<HTMLElement>(`[data-updated-text="${id}"]`);
+      if (el) {
+        el.textContent = formatRelativeTime(ts);
+        el.classList.add('loaded');
+        el.classList.remove('skeleton-text');
+      }
+    });
+  }
+
+  function setSpinner(id: number, active: boolean) {
+    const el = document.querySelector<HTMLElement>(`[data-refresh="${id}"]`);
+    el?.classList.toggle('spinning', active);
+  }
+
+  function setNetStatus(show: boolean, message?: string) {
+    const bar  = document.getElementById('netStatus');
+    const text = document.getElementById('netStatusText');
+    if (!bar) return;
+    if (show) {
+      if (message && text) text.textContent = message;
+      bar.removeAttribute('hidden');
+    } else {
+      bar.setAttribute('hidden', '');
+    }
+  }
+
+  function markSkeleton(id: number, done: boolean) {
+    const targets = [
+      document.querySelector<HTMLElement>(`[data-map="${id}"]`),
+      document.querySelector<HTMLElement>(`[data-players="${id}"]`),
+      document.querySelector<HTMLElement>(`[data-updated-text="${id}"]`),
+    ];
+    targets.forEach(el => {
+      if (!el) return;
+      if (done) {
+        el.classList.remove('skeleton-text');
+        el.classList.add('loaded');
+      } else if (!el.classList.contains('loaded')) {
+        el.classList.add('skeleton-text');
+      }
+    });
+  }
+
+  // ── Acordeón jugadores ─────────────────────────────────────────────────
+  document.querySelectorAll('.players-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id   = btn.getAttribute('data-toggle');
+      const list = document.querySelector(`[data-players-list="${id}"]`);
+      if (!list) return;
+
+      const isOpen = btn.getAttribute('aria-expanded') === 'true';
+      btn.setAttribute('aria-expanded', String(!isOpen));
+      list.setAttribute('aria-hidden', String(isOpen));
+
+      const label = btn.querySelector('.toggle-label');
+      if (label) label.textContent = isOpen ? 'Ver jugadores' : 'Ocultar jugadores';
+    });
+  });
+
+  // ── Copiar IP ──────────────────────────────────────────────────────────
+  document.querySelectorAll<HTMLButtonElement>('.copy-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const ip = btn.getAttribute('data-ip');
+      if (!ip) return;
+      try {
+        await navigator.clipboard.writeText(`connect ${ip}`);
+        const lbl = btn.querySelector('.copy-label');
+        const row = btn.closest('.console-row');
+        btn.classList.add('copied');
+        row?.classList.add('copied');
+        if (lbl) lbl.textContent = '¡Copiado!';
+        // Toast global
+        if (typeof window.showToast === 'function') {
+          window.showToast(`connect ${ip} — copiado al portapapeles`, 'success', 2800);
+        }
+        setTimeout(() => {
+          btn.classList.remove('copied');
+          row?.classList.remove('copied');
+          if (lbl) lbl.textContent = 'Copiar';
+        }, 2200);
+      } catch {
+        if (typeof window.showToast === 'function') {
+          window.showToast('No se pudo copiar. Copiá la IP manualmente.', 'error');
+        }
+      }
+    });
+  });
+
+  // ── Fetch y render ─────────────────────────────────────────────────────
+  function applyServerData(server: ServerStatus) {
+    const badge   = document.querySelector(`[data-status="${server.id}"]`);
+    const players = document.querySelector<HTMLElement>(`[data-players="${server.id}"]`);
+    const fill    = document.querySelector<HTMLElement>(`[data-fill="${server.id}"]`);
+    const map     = document.querySelector<HTMLElement>(`[data-map="${server.id}"]`);
+    const stale   = document.querySelector<HTMLElement>(`[data-stale="${server.id}"]`);
+    const section = document.querySelector<HTMLElement>(`[data-players-section="${server.id}"]`);
+    const inner   = document.querySelector<HTMLElement>(`[data-players-inner="${server.id}"]`);
+
+    if (!badge) return;
+    const dot   = badge.querySelector('.badge-dot');
+    const label = badge.querySelector('.badge-label');
+
+    markSkeleton(server.id, true);
+
+    if (server.online) {
+      badge.className = 'badge-status badge-online';
+      if (label) label.textContent = 'En línea';
+
+      if (players) {
+        players.textContent = `${server.players}/${server.maxPlayers}`;
+        players.classList.add('has-data');
+      }
+
+      if (fill && server.maxPlayers) {
+        const pct = Math.min(100, ((server.players ?? 0) / server.maxPlayers) * 100);
+        fill.style.width = `${pct}%`;
+        fill.classList.toggle('full', pct > 85);
+      }
+
+      if (map) map.textContent = server.map ?? '–';
+      if (section) section.style.display = 'block';
+
+      if (inner) {
+        const list = server.playerList ?? [];
+        inner.innerHTML = list.length > 0
+          ? list.map(name => `<span class="player-tag">${name}</span>`).join('')
+          : '<span class="players-empty">Sin jugadores en este momento</span>';
+      }
+
+    } else {
+      badge.className = 'badge-status badge-offline';
+      if (label) label.textContent = 'Fuera de línea';
+
+      if (players) {
+        players.textContent = '–';
+        players.classList.remove('has-data');
+      }
+      if (fill) fill.style.width = '0%';
+      if (map)  map.textContent  = '–';
+      if (section) section.style.display = 'none';
+
+      // Cerrar acordeón si estaba abierto
+      const toggle = document.querySelector(`[data-toggle="${server.id}"]`);
+      const plist  = document.querySelector(`[data-players-list="${server.id}"]`);
+      if (toggle) toggle.setAttribute('aria-expanded', 'false');
+      if (plist)  plist.setAttribute('aria-hidden', 'true');
+    }
+
+    if (stale) stale.hidden = !server.stale;
+    if (typeof server.updatedAt === 'number') {
+      lastUpdated.set(server.id, server.updatedAt);
+    }
+  }
+
+  async function fetchServerStatus() {
+    // Mostrar spinners en todas las cards
+    document.querySelectorAll<HTMLElement>('[data-refresh]').forEach(el => {
+      el.classList.add('spinning');
+    });
+
+    try {
+      const res = await fetch('/api/servers.json', { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data: ServerStatus[] = await res.json();
+      data.forEach(applyServerData);
+
+      fetchFailCount = 0;
+      setNetStatus(false);
+    } catch (err) {
+      fetchFailCount++;
+      console.warn('[Servers] Fetch falló:', err);
+
+      if (fetchFailCount >= MAX_RETRIES) {
+        setNetStatus(true, 'No se pudo conectar con el servidor — los datos pueden estar desactualizados');
+        // Marcar skeletons como terminados para no dejar la UI en blanco
+        document.querySelectorAll<HTMLElement>('[data-status]').forEach(badge => {
+          const id = badge.getAttribute('data-status');
+          if (id) markSkeleton(Number(id), true);
+        });
+      }
+    } finally {
+      // Apagar spinners
+      document.querySelectorAll<HTMLElement>('[data-refresh]').forEach(el => {
+        el.classList.remove('spinning');
+      });
+      renderRelativeTimes();
+    }
+  }
+
+  // ── Botón reintentar ───────────────────────────────────────────────────
+  document.getElementById('netRetry')?.addEventListener('click', () => {
+    fetchFailCount = 0;
+    setNetStatus(false);
+    fetchServerStatus();
+  });
+
+  // ── Arranque lazy: fetch solo cuando la sección es visible ────────────
+  // Evita consumir red si el usuario nunca llega a scrollear hasta aquí.
+  const serversSection = document.getElementById('servidores');
+  const lazyObserver = new IntersectionObserver(entries => {
+    if (entries[0].isIntersecting) {
+      lazyObserver.disconnect();
+      fetchServerStatus();
+      refreshTimer = setInterval(fetchServerStatus, REFRESH_INTERVAL);
+    }
+  }, { threshold: 0.05 });
+
+  if (serversSection) {
+    lazyObserver.observe(serversSection);
+  } else {
+    fetchServerStatus();
+    refreshTimer = setInterval(fetchServerStatus, REFRESH_INTERVAL);
+  }
+
+  setInterval(renderRelativeTimes, RELATIVE_TIME_TICK);
+</script>

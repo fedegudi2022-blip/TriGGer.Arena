@@ -1,0 +1,594 @@
+---
+// SlidePanel — panel lateral que carga /admin o /usuario en iframe SAMEORIGIN.
+// El middleware permite X-Frame-Options: SAMEORIGIN en esas rutas.
+// Uso: window.openSlidePanel(url, titulo)
+//      window.closeSlidePanel()
+---
+
+<div id="slide-panel" class="sp-backdrop" aria-hidden="true" role="presentation">
+  <div
+    class="sp-panel"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="sp-panel-title"
+  >
+    <!-- ── Header ── -->
+    <div class="sp-header">
+      <div class="sp-header-left">
+        <div class="sp-logo-mark" aria-hidden="true">
+          <span class="sp-logo-inner"></span>
+        </div>
+        <div class="sp-title-group">
+          <span class="sp-eyebrow">TriGGer.Arena</span>
+          <span id="sp-panel-title" class="sp-title">Panel</span>
+        </div>
+      </div>
+
+      <div class="sp-header-right">
+        <!-- Botón abrir en nueva pestaña -->
+        <a
+          id="spOpenExternal"
+          href="#"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="sp-icon-btn"
+          title="Abrir en nueva pestaña"
+          aria-label="Abrir en nueva pestaña"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+        </a>
+
+        <div class="sp-sep" aria-hidden="true"></div>
+
+        <span class="sp-kbd" aria-hidden="true">ESC</span>
+
+        <button class="sp-close-btn" id="spCloseBtn" aria-label="Cerrar panel">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Barra de progreso ── -->
+    <div class="sp-progress-bar" aria-hidden="true">
+      <div class="sp-progress-fill" id="spProgress"></div>
+    </div>
+
+    <!-- ── Estado de carga ── -->
+    <div class="sp-loading" id="spLoading">
+      <div class="sp-spinner" aria-hidden="true">
+        <span class="sp-ring sp-ring--a"></span>
+        <span class="sp-ring sp-ring--b"></span>
+        <span class="sp-ring sp-ring--c"></span>
+        <span class="sp-ring-dot"></span>
+      </div>
+      <div class="sp-loading-info">
+        <span class="sp-loading-label">Cargando panel</span>
+        <span class="sp-loading-sub" id="spLoadingUrl"></span>
+      </div>
+    </div>
+
+    <!-- ── Error state ── -->
+    <div class="sp-error" id="spError" style="display:none">
+      <div class="sp-error-icon" aria-hidden="true">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+      </div>
+      <p class="sp-error-title">No se pudo cargar el panel</p>
+      <p class="sp-error-sub" id="spErrorMsg">Verificá que estés logueado e intentá de nuevo.</p>
+      <div class="sp-error-actions">
+        <button class="sp-retry-btn" id="spRetryBtn">Reintentar</button>
+        <a id="spErrorExternal" href="#" target="_blank" rel="noopener noreferrer" class="sp-open-btn">
+          Abrir en nueva pestaña
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+      </div>
+    </div>
+
+    <!-- ── Iframe ── -->
+    <iframe
+      id="spIframe"
+      class="sp-iframe"
+      src="about:blank"
+      title="Panel"
+      frameborder="0"
+      allow="clipboard-write; clipboard-read"
+      sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
+    ></iframe>
+  </div>
+</div>
+
+<!-- Overlay click-fuera -->
+<div class="sp-overlay" id="spOverlay" aria-hidden="true"></div>
+
+<style>
+  /* ── Overlay ── */
+  .sp-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 799;
+    background: rgba(0, 0, 0, 0);
+    transition: background 0.35s ease;
+  }
+  .sp-overlay.sp-open {
+    display: block;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(3px);
+  }
+
+  /* ── Backdrop (wrapper invisible) ── */
+  .sp-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 800;
+    pointer-events: none;
+  }
+  .sp-backdrop.sp-open { pointer-events: none; } /* el panel captura los clicks */
+
+  /* ── Panel ── */
+  .sp-panel {
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    width: min(90vw, 1100px);
+    background: #07090f;
+    border-left: 1px solid rgba(56, 182, 255, 0.14);
+    display: flex;
+    flex-direction: column;
+    transform: translateX(105%);
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s;
+    box-shadow: none;
+    overflow: hidden;
+    z-index: 800;
+    pointer-events: all;
+  }
+  .sp-backdrop.sp-open .sp-panel {
+    transform: translateX(0);
+    box-shadow:
+      -32px 0 80px rgba(0, 0, 0, 0.6),
+      -1px 0 0 rgba(56, 182, 255, 0.08);
+  }
+
+  /* ── Header ── */
+  .sp-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    height: 56px;
+    flex-shrink: 0;
+    border-bottom: 1px solid rgba(56, 182, 255, 0.1);
+    background: #0b0f1a;
+    position: relative;
+    z-index: 1;
+  }
+  /* Glow sutil en el header cuando el panel está abierto */
+  .sp-backdrop.sp-open .sp-header::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0; bottom: -1px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(56,182,255,0.3) 40%, rgba(56,182,255,0.5) 50%, rgba(56,182,255,0.3) 60%, transparent);
+    animation: sp-header-glow 3s ease-in-out infinite;
+  }
+  @keyframes sp-header-glow {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+
+  .sp-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .sp-header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Logo mark */
+  .sp-logo-mark {
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    border: 1px solid rgba(56,182,255,0.22);
+    background: rgba(56,182,255,0.06);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .sp-logo-inner {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #38b6ff;
+    box-shadow: 0 0 10px rgba(56,182,255,0.8);
+    animation: sp-pulse 2.5s ease-in-out infinite;
+  }
+  @keyframes sp-pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.5;transform:scale(0.75);} }
+
+  .sp-title-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .sp-eyebrow {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.52rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(56,182,255,0.45);
+  }
+  .sp-title {
+    font-family: var(--font-display, sans-serif);
+    font-size: 0.88rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #e2e8f0;
+    text-transform: uppercase;
+  }
+
+  /* Separador vertical */
+  .sp-sep {
+    width: 1px; height: 18px;
+    background: rgba(56,182,255,0.12);
+  }
+
+  /* Kbd hint */
+  .sp-kbd {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.58rem;
+    letter-spacing: 0.1em;
+    color: rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+
+  /* Botones icono del header */
+  .sp-icon-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px;
+    border-radius: 6px;
+    color: rgba(255,255,255,0.3);
+    border: 1px solid transparent;
+    background: none;
+    cursor: pointer;
+    text-decoration: none;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+  }
+  .sp-icon-btn:hover {
+    color: #38b6ff;
+    border-color: rgba(56,182,255,0.25);
+    background: rgba(56,182,255,0.06);
+  }
+
+  .sp-close-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px;
+    border-radius: 6px;
+    color: rgba(255,255,255,0.35);
+    background: none;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+  }
+  .sp-close-btn:hover {
+    color: #f87171;
+    border-color: rgba(248,113,113,0.25);
+    background: rgba(248,113,113,0.06);
+  }
+
+  /* ── Barra de progreso ── */
+  .sp-progress-bar {
+    height: 2px;
+    background: rgba(56,182,255,0.06);
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .sp-progress-fill {
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    width: 0%;
+    background: linear-gradient(90deg, #38b6ff, rgba(56,182,255,0.4));
+    box-shadow: 0 0 8px rgba(56,182,255,0.7);
+    transition: width 0.35s ease;
+  }
+  /* Indeterminado mientras carga */
+  .sp-progress-fill.sp-indeterminate {
+    width: 40% !important;
+    animation: sp-slide 1.6s ease-in-out infinite;
+  }
+  @keyframes sp-slide {
+    0%   { transform: translateX(-100%); }
+    50%  { transform: translateX(150%); }
+    100% { transform: translateX(150%); }
+  }
+
+  /* ── Loading ── */
+  .sp-loading {
+    position: absolute;
+    inset: 58px 0 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    background: #07090f;
+    z-index: 2;
+    transition: opacity 0.25s;
+  }
+  .sp-loading.sp-hidden { opacity: 0; pointer-events: none; }
+
+  /* Spinner triple anillo */
+  .sp-spinner {
+    position: relative;
+    width: 56px; height: 56px;
+    flex-shrink: 0;
+  }
+  .sp-ring {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    border: 1.5px solid transparent;
+  }
+  .sp-ring--a {
+    width: 56px; height: 56px;
+    border-top-color: #38b6ff;
+    animation: sp-spin 1.8s linear infinite;
+  }
+  .sp-ring--b {
+    width: 40px; height: 40px;
+    border-right-color: rgba(56,182,255,0.5);
+    animation: sp-spin 1.2s linear infinite reverse;
+  }
+  .sp-ring--c {
+    width: 24px; height: 24px;
+    border-bottom-color: rgba(56,182,255,0.25);
+    animation: sp-spin 2.2s linear infinite;
+  }
+  .sp-ring-dot {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 5px; height: 5px;
+    background: #38b6ff;
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(56,182,255,0.9);
+    animation: sp-pulse 2s ease-in-out infinite;
+  }
+  @keyframes sp-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+
+  .sp-loading-info { text-align: center; display: flex; flex-direction: column; gap: 4px; }
+  .sp-loading-label {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.65rem;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(56,182,255,0.6);
+  }
+  .sp-loading-sub {
+    font-size: 0.68rem;
+    color: rgba(255,255,255,0.2);
+    font-family: var(--font-mono, monospace);
+  }
+
+  /* ── Error ── */
+  .sp-error {
+    position: absolute;
+    inset: 58px 0 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: #07090f;
+    z-index: 2;
+    padding: 24px;
+    text-align: center;
+  }
+  .sp-error-icon {
+    width: 56px; height: 56px;
+    border-radius: 14px;
+    background: rgba(248,113,113,0.08);
+    border: 1px solid rgba(248,113,113,0.2);
+    display: flex; align-items: center; justify-content: center;
+    color: #f87171;
+    margin-bottom: 4px;
+  }
+  .sp-error-title { font-size: 0.95rem; font-weight: 700; color: #e2e8f0; }
+  .sp-error-sub { font-size: 0.78rem; color: rgba(255,255,255,0.35); max-width: 300px; line-height: 1.5; }
+  .sp-error-actions { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; justify-content: center; }
+
+  .sp-retry-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px;
+    border-radius: 7px;
+    font-size: 0.78rem; font-weight: 600;
+    color: #38b6ff;
+    background: rgba(56,182,255,0.08);
+    border: 1px solid rgba(56,182,255,0.25);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    font-family: inherit;
+  }
+  .sp-retry-btn:hover { background: rgba(56,182,255,0.15); border-color: rgba(56,182,255,0.45); }
+
+  .sp-open-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px;
+    border-radius: 7px;
+    font-size: 0.78rem; font-weight: 600;
+    color: rgba(255,255,255,0.4);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.15s;
+  }
+  .sp-open-btn:hover { background: rgba(255,255,255,0.07); }
+
+  /* ── Iframe ── */
+  .sp-iframe {
+    flex: 1;
+    width: 100%;
+    border: none;
+    background: #07090f;
+    opacity: 0;
+    transition: opacity 0.3s 0.05s;
+  }
+  .sp-iframe.sp-ready { opacity: 1; }
+
+  /* ── Responsive ── */
+  @media (max-width: 600px) {
+    .sp-panel { width: 100vw; border-left: none; }
+    .sp-kbd { display: none; }
+    .sp-sep { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sp-panel { transition: none; }
+    .sp-ring--a, .sp-ring--b, .sp-ring--c { animation: none; }
+  }
+</style>
+
+<script>
+  const backdrop   = document.getElementById('slide-panel')!;
+  const overlay    = document.getElementById('spOverlay')!;
+  const panel      = backdrop.querySelector('.sp-panel')!;
+  const titleEl    = document.getElementById('sp-panel-title')!;
+  const closeBtn   = document.getElementById('spCloseBtn')!;
+  const iframe     = document.getElementById('spIframe') as HTMLIFrameElement;
+  const loading    = document.getElementById('spLoading')!;
+  const errorEl    = document.getElementById('spError')!;
+  const errorMsg   = document.getElementById('spErrorMsg')!;
+  const progress   = document.getElementById('spProgress')!;
+  const loadingUrl = document.getElementById('spLoadingUrl')!;
+  const extLink    = document.getElementById('spOpenExternal') as HTMLAnchorElement;
+  const retryBtn   = document.getElementById('spRetryBtn')!;
+  const errExtLink = document.getElementById('spErrorExternal') as HTMLAnchorElement;
+
+  let currentUrl = '';
+
+  function showLoading() {
+    loading.classList.remove('sp-hidden');
+    loading.style.display = '';
+    errorEl.style.display = 'none';
+    iframe.classList.remove('sp-ready');
+    progress.classList.add('sp-indeterminate');
+    progress.style.width = '';
+  }
+
+  function showReady() {
+    loading.classList.add('sp-hidden');
+    iframe.classList.add('sp-ready');
+    progress.classList.remove('sp-indeterminate');
+    progress.style.width = '100%';
+    setTimeout(() => { progress.style.width = '0%'; }, 800);
+  }
+
+  function showError(msg?: string) {
+    loading.classList.add('sp-hidden');
+    errorEl.style.display = 'flex';
+    if (msg) errorMsg.textContent = msg;
+    progress.classList.remove('sp-indeterminate');
+    progress.style.width = '0%';
+  }
+
+  function openPanel(url: string, title: string) {
+    currentUrl = url;
+    titleEl.textContent = title;
+    extLink.href = url;
+    errExtLink.href = url;
+    loadingUrl.textContent = url.replace(window.location.origin, '');
+
+    // Mostrar overlay + panel
+    overlay.classList.add('sp-open');
+    backdrop.classList.add('sp-open');
+    backdrop.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+
+    showLoading();
+
+    // Pequeño delay para que la animación de slide inicie antes del fetch
+    setTimeout(() => {
+      iframe.src = url;
+    }, 60);
+  }
+
+  function closePanel() {
+    overlay.classList.remove('sp-open');
+    backdrop.classList.remove('sp-open');
+    backdrop.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+
+    setTimeout(() => {
+      iframe.src = 'about:blank';
+      showLoading();
+      errorEl.style.display = 'none';
+      progress.style.width = '0%';
+    }, 420);
+  }
+
+  // Iframe cargó
+  iframe.addEventListener('load', () => {
+    if (iframe.src === 'about:blank' || iframe.src === '') return;
+    // Verificar si el contenido se cargó (puede haber sido bloqueado)
+    try {
+      const innerDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!innerDoc || !innerDoc.body || innerDoc.body.innerHTML.trim() === '') {
+        showError('El panel no pudo cargarse correctamente. Probá abrirlo en una nueva pestaña.');
+        return;
+      }
+      showReady();
+    } catch (_) {
+      // Cross-origin block — no debería pasar con SAMEORIGIN pero por las dudas
+      showError('Acceso bloqueado. Usá el botón para abrir en nueva pestaña.');
+    }
+  });
+
+  iframe.addEventListener('error', () => {
+    showError('Error al cargar el panel. Verificá tu conexión.');
+  });
+
+  // Retry
+  retryBtn.addEventListener('click', () => {
+    errorEl.style.display = 'none';
+    showLoading();
+    iframe.src = 'about:blank';
+    setTimeout(() => { iframe.src = currentUrl; }, 100);
+  });
+
+  // Cerrar
+  closeBtn.addEventListener('click', closePanel);
+  overlay.addEventListener('click', closePanel);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && backdrop.classList.contains('sp-open')) closePanel();
+  });
+
+  // Exponer globalmente
+  (window as any).openSlidePanel  = openPanel;
+  (window as any).closeSlidePanel = closePanel;
+
+  // Escuchar mensajes del iframe (comunicación iframe → padre)
+  window.addEventListener('message', (e) => {
+    // Solo aceptar mensajes del mismo origen
+    if (e.origin !== window.location.origin) return;
+    const { type, payload } = e.data ?? {};
+    if (type === 'sp:close') {
+      closePanel();
+    } else if (type === 'sp:open') {
+      // El iframe quiere abrir otro panel (ej: desde /usuario abrir /admin)
+      openPanel(payload?.url ?? '', payload?.title ?? 'Panel');
+    } else if (type === 'sp:title') {
+      titleEl.textContent = payload?.title ?? '';
+    }
+  });
+</script>

@@ -1,0 +1,17 @@
+---
+export const prerender = false;
+import Layout from '../../layouts/Layout.astro';
+import Navbar from '../../components/Navbar.astro';
+import Footer from '../../components/Footer.astro';
+---
+<Layout title="Baneados — TriGGer.Arena" noindex>
+  <Navbar />
+  <main style="min-height:60vh; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:16px; text-align:center; padding: 80px 24px;">
+    <i class="ti ti-ban" style="font-size:48px; color: var(--accent);"></i>
+    <h1 style="font-family:var(--font-display); font-size:2rem; color:var(--text);">Lista de baneados</h1>
+    <p style="color:var(--muted-2); max-width:480px;">
+      Esta sección está en construcción. Próximamente podrás consultar la lista de jugadores sancionados.
+    </p>
+  </main>
+  <Footer />
+</Layout>

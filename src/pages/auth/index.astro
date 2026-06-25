@@ -1,0 +1,918 @@
+---
+export const prerender = false;
+import '@fontsource/rajdhani/600.css';
+import '@fontsource/rajdhani/700.css';
+import '@fontsource/inter/400.css';
+import '@fontsource/inter/500.css';
+import '@fontsource/inter/600.css';
+import '@fontsource/jetbrains-mono/500.css';
+import '@fontsource/jetbrains-mono/700.css';
+import { isOAuthConfigured } from '../../lib/auth';
+
+const user = Astro.locals.user;
+
+const rawNext = Astro.url.searchParams.get('next') ?? '';
+const next = (rawNext.startsWith('/') && !rawNext.startsWith('//')) ? rawNext : '';
+const errorParam = Astro.url.searchParams.get('error');
+
+if (user) {
+  return Astro.redirect(next || '/');
+}
+
+const googleEnabled = isOAuthConfigured('google');
+const discordEnabled = isOAuthConfigured('discord');
+---
+
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Acceso · TriGGer.Arena</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" type="image/webp" href="/trigger_fondo.webp" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" />
+</head>
+<body data-next={next}>
+
+  <!-- ── Background layers ── -->
+  <div class="bg-base"></div>
+  <div class="bg-radial"></div>
+  <div class="bg-grid"></div>
+  <div class="bg-scan"></div>
+  <div class="bg-vignette"></div>
+
+  <!-- ── Toast ── -->
+  <div id="toast" class="toast" role="alert" aria-live="polite">
+    <i id="toast-icon" class="ti ti-info-circle"></i>
+    <span id="toast-msg"></span>
+  </div>
+
+  <main class="page">
+
+    <!-- ── Logo ── -->
+    <a href="/" class="logo-link" tabindex="-1">
+      <div class="logo-img-wrap">
+        <img src="/trigger_fondo.webp" alt="TriGGer.Arena" width="64" height="64" />
+        <div class="logo-ring"></div>
+        <div class="logo-ring-2"></div>
+      </div>
+      <div class="logo-text">
+        <span class="logo-name">TRI<span class="logo-gg">GG</span>ER<span class="logo-dot">.</span>ARENA</span>
+        <span class="logo-tagline">// SISTEMA DE ACCESO</span>
+      </div>
+    </a>
+
+    <!-- ── Main card ── -->
+    <div class="card" id="main-card">
+      <!-- Corner brackets -->
+      <span class="corner c-tl"></span>
+      <span class="corner c-tr"></span>
+      <span class="corner c-bl"></span>
+      <span class="corner c-br"></span>
+      <!-- Top glow line -->
+      <div class="card-top-line"></div>
+      <!-- Inner glow -->
+      <div class="card-inner-glow"></div>
+
+      <!-- Error from server -->
+      {errorParam && (
+        <div class="server-error">
+          <i class="ti ti-alert-triangle"></i>
+          <span>{errorParam === 'unauthorized' ? 'Acceso no autorizado.' : errorParam}</span>
+        </div>
+      )}
+
+      <!-- ── OAUTH — siempre visible, funciona para login Y registro ── -->
+      <div class="oauth-section">
+        <p class="oauth-label">ACCESO RÁPIDO</p>
+        <div class="oauth-grid">
+          <button type="button" class="btn-oauth discord" data-provider="discord" disabled={!discordEnabled} title={discordEnabled ? undefined : 'No disponible en este momento'}>
+            <i class="ti ti-brand-discord-filled"></i>
+            <span>Discord</span>
+          </button>
+          <button type="button" class="btn-oauth google" data-provider="google" disabled={!googleEnabled} title={googleEnabled ? undefined : 'No disponible en este momento'}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M15.68 8.18c0-.57-.05-1.11-.14-1.64H8v3.1h4.3a3.67 3.67 0 01-1.59 2.41v2h2.57c1.5-1.38 2.4-3.42 2.4-5.87z" fill="#4285F4"/>
+              <path d="M8 16c2.16 0 3.97-.72 5.29-1.95l-2.57-2a4.8 4.8 0 01-2.72.76 4.8 4.8 0 01-4.52-3.32H.83v2.07A8 8 0 008 16z" fill="#34A853"/>
+              <path d="M3.48 9.49A4.82 4.82 0 013.23 8c0-.52.09-1.02.25-1.49V4.44H.83A8.01 8.01 0 000 8c0 1.29.31 2.51.83 3.56l2.65-2.07z" fill="#FBBC05"/>
+              <path d="M8 3.2c1.22 0 2.31.42 3.17 1.24l2.37-2.37A8 8 0 008 0 8 8 0 00.83 4.44l2.65 2.07A4.8 4.8 0 018 3.2z" fill="#EA4335"/>
+            </svg>
+            <span>Google</span>
+          </button>
+        </div>
+        <div class="oauth-note">
+          <i class="ti ti-info-circle-filled"></i>
+          Sirve para ingresar y para crear cuenta nueva
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div class="divider">
+        <span></span>
+        <span class="divider-text">O USÁ TU CUENTA</span>
+        <span></span>
+      </div>
+
+      <!-- ── Tabs ── -->
+      <nav class="tabs" role="tablist">
+        <button class="tab active" data-tab="login" role="tab" aria-selected="true">
+          <i class="ti ti-login-2"></i> INGRESAR
+        </button>
+        <button class="tab" data-tab="signup" role="tab" aria-selected="false">
+          <i class="ti ti-user-plus"></i> REGISTRARSE
+        </button>
+        <div class="tab-track"><div class="tab-thumb" id="tab-thumb"></div></div>
+      </nav>
+
+      <!-- ── LOGIN ── -->
+      <section id="panel-login" class="panel">
+        <form id="form-login" class="form" novalidate>
+
+          <div class="field">
+            <label class="field-label" for="login-email">EMAIL</label>
+            <div class="input-wrap">
+              <i class="ti ti-mail input-icon"></i>
+              <input type="email" id="login-email" name="email" placeholder="operador@arena.gg" autocomplete="email" required />
+            </div>
+            <p class="field-err" id="err-login-email"></p>
+          </div>
+
+          <div class="field">
+            <div class="field-label-row">
+              <label class="field-label" for="login-password">CONTRASEÑA</label>
+              <a href="/auth/reset" class="link-forgot">¿Perdiste el acceso?</a>
+            </div>
+            <div class="input-wrap">
+              <i class="ti ti-lock input-icon"></i>
+              <input type="password" id="login-password" name="password" placeholder="••••••••" autocomplete="current-password" required />
+              <button type="button" class="btn-eye" data-target="login-password" aria-label="Ver contraseña">
+                <i class="ti ti-eye"></i>
+              </button>
+            </div>
+            <p class="field-err" id="err-login-pass"></p>
+          </div>
+
+          <p class="form-err" id="err-login-form"></p>
+
+          <button type="submit" class="btn-primary">
+            <span class="btn-text">AUTENTICAR</span>
+            <div class="btn-loader"></div>
+          </button>
+
+        </form>
+      </section>
+
+      <!-- ── SIGNUP ── -->
+      <section id="panel-signup" class="panel hidden">
+        <form id="form-signup" class="form" novalidate>
+
+          <div class="field">
+            <label class="field-label" for="su-nick">NICKNAME (CS 1.6)</label>
+            <div class="input-wrap">
+              <i class="ti ti-at input-icon"></i>
+              <input type="text" id="su-nick" name="username" placeholder="Tu nick en el server" minlength="3" maxlength="24" autocomplete="username" required />
+            </div>
+            <p class="field-err" id="err-su-nick"></p>
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="su-email">EMAIL</label>
+            <div class="input-wrap">
+              <i class="ti ti-mail input-icon"></i>
+              <input type="email" id="su-email" name="email" placeholder="tu@email.com" autocomplete="email" required />
+            </div>
+            <p class="field-err" id="err-su-email"></p>
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="su-pass">CONTRASEÑA</label>
+            <div class="input-wrap">
+              <i class="ti ti-shield-lock input-icon"></i>
+              <input type="password" id="su-pass" name="password" placeholder="Mínimo 8 caracteres" autocomplete="new-password" required />
+              <button type="button" class="btn-eye" data-target="su-pass" aria-label="Ver contraseña">
+                <i class="ti ti-eye"></i>
+              </button>
+            </div>
+            <div class="strength-bar-wrap"><div class="strength-bar" id="strength-bar"></div></div>
+            <ul class="pass-reqs" id="pass-reqs">
+              <li data-req="length"><i class="ti ti-x req-x"></i><i class="ti ti-check req-ok"></i> 8+ caracteres</li>
+              <li data-req="upper"><i class="ti ti-x req-x"></i><i class="ti ti-check req-ok"></i> Una mayúscula</li>
+              <li data-req="number"><i class="ti ti-x req-x"></i><i class="ti ti-check req-ok"></i> Un número</li>
+            </ul>
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="su-confirm">CONFIRMAR CONTRASEÑA</label>
+            <div class="input-wrap">
+              <i class="ti ti-lock-check input-icon"></i>
+              <input type="password" id="su-confirm" name="confirm" placeholder="Repetí tu contraseña" autocomplete="new-password" required />
+              <button type="button" class="btn-eye" data-target="su-confirm" aria-label="Ver contraseña">
+                <i class="ti ti-eye"></i>
+              </button>
+            </div>
+            <p class="field-err" id="err-su-confirm"></p>
+          </div>
+
+          <p class="form-err" id="err-su-form"></p>
+
+          <button type="submit" class="btn-primary btn-success">
+            <span class="btn-text">CREAR PERFIL</span>
+            <div class="btn-loader"></div>
+          </button>
+
+        </form>
+      </section>
+
+      <!-- Footer -->
+      <div class="card-footer">
+        <i class="ti ti-shield-check"></i> CONEXIÓN CIFRADA · DATOS PROTEGIDOS
+      </div>
+    </div>
+
+    <!-- ── VERIFY EMAIL CARD ── -->
+    <div class="card card-success hidden" id="verify-card">
+      <span class="corner c-tl"></span>
+      <span class="corner c-tr"></span>
+      <span class="corner c-bl"></span>
+      <span class="corner c-br"></span>
+      <div class="card-top-line success-line"></div>
+
+      <div class="verify-body">
+        <div class="verify-icon"><i class="ti ti-mail-check"></i></div>
+        <h2 class="verify-title">¡VERIFICÁ TU EMAIL!</h2>
+        <p class="verify-desc">
+          Te mandamos un link de confirmación a<br />
+          <strong id="verify-addr"></strong>
+        </p>
+        <p class="verify-hint">Revisá también la carpeta de spam.</p>
+        <div class="verify-actions">
+          <button id="btn-resend" class="btn-secondary">
+            <i class="ti ti-send"></i>
+            <span class="resend-label">Reenviar correo</span>
+            <span class="resend-cd hidden" id="resend-cd"></span>
+          </button>
+          <button id="btn-back-login" class="btn-ghost">
+            <i class="ti ti-arrow-left"></i> Volver al ingreso
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <a href="/" class="back-home">
+      <i class="ti ti-arrow-narrow-left"></i> VOLVER AL INICIO
+    </a>
+
+  </main>
+
+  <style>
+    /* ── Tokens ── */
+    :root {
+      --bg:          #07090f;
+      --surface:     #0c1018;
+      --surface-2:   #0f1520;
+      --border:      #1a2540;
+      --border-a:    rgba(56, 182, 255, 0.22);
+      --accent:      #38b6ff;
+      --accent-glow: rgba(56, 182, 255, 0.18);
+      --accent-dim:  rgba(56, 182, 255, 0.08);
+      --success:     #38ffb6;
+      --success-dim: rgba(56, 255, 182, 0.12);
+      --error:       #f04646;
+      --error-dim:   rgba(240, 70, 70, 0.1);
+      --text:        #e8eeff;
+      --muted:       #5a7a9a;
+      --muted-2:     #8aa0c0;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100dvh; display: flex; align-items: center; justify-content: center; overflow-x: hidden; }
+
+    /* ── BG ── */
+    .bg-base    { position: fixed; inset: 0; background: var(--bg); z-index: -5; }
+    .bg-radial  { position: fixed; inset: 0; background: radial-gradient(ellipse 70% 50% at 50% -5%, rgba(56,182,255,0.13), transparent); z-index: -4; }
+    .bg-grid    {
+      position: fixed; inset: 0; z-index: -3;
+      background-image:
+        linear-gradient(rgba(56,182,255,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56,182,255,0.05) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+    .bg-scan    { position: fixed; inset: 0; z-index: -2; background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 4px); pointer-events: none; }
+    .bg-vignette{ position: fixed; inset: 0; z-index: -1; background: radial-gradient(ellipse 100% 100% at 50% 50%, transparent 60%, rgba(0,0,0,0.6)); pointer-events: none; }
+
+    /* ── PAGE ── */
+    .page {
+      width: 100%; max-width: 420px;
+      padding: 24px 16px 40px;
+      display: flex; flex-direction: column; align-items: center; gap: 20px;
+      z-index: 1;
+    }
+
+    /* ── LOGO ── */
+    .logo-link { text-decoration: none; color: inherit; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+    .logo-img-wrap { position: relative; width: 72px; height: 72px; }
+    .logo-img-wrap img { border-radius: 14px; position: relative; z-index: 2; border: 1px solid var(--border-a); }
+    .logo-ring   { position: absolute; inset: -5px; border: 1.5px solid var(--accent); border-radius: 18px; opacity: 0.35; animation: pulse 3s ease-in-out infinite; z-index: 1; }
+    .logo-ring-2 { position: absolute; inset: -10px; border: 1px solid var(--accent); border-radius: 22px; opacity: 0.1; animation: pulse 3s ease-in-out infinite 1s; z-index: 0; }
+    .logo-text  { text-align: center; display: flex; flex-direction: column; gap: 3px; }
+    .logo-name  { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 1.75rem; letter-spacing: 2px; line-height: 1; }
+    .logo-gg    { color: var(--accent); text-shadow: 0 0 24px rgba(56,182,255,0.6), 0 0 48px rgba(56,182,255,0.2); }
+    .logo-dot   { color: var(--muted); }
+    .logo-tagline { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: var(--muted); letter-spacing: 3px; }
+
+    /* ── CARD ── */
+    .card {
+      width: 100%;
+      background: linear-gradient(160deg, rgba(15,21,32,0.98) 0%, rgba(10,14,22,0.98) 100%);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      position: relative;
+      overflow: hidden;
+      box-shadow:
+        0 0 0 1px rgba(56,182,255,0.04),
+        0 20px 60px rgba(0,0,0,0.7),
+        inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+    .card-top-line {
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent 0%, var(--accent) 40%, rgba(56,182,255,0.5) 60%, transparent 100%);
+      box-shadow: 0 0 12px rgba(56,182,255,0.6);
+    }
+    .success-line {
+      background: linear-gradient(90deg, transparent 0%, var(--success) 40%, rgba(56,255,182,0.5) 60%, transparent 100%);
+      box-shadow: 0 0 12px rgba(56,255,182,0.5);
+    }
+    .card-inner-glow {
+      position: absolute; top: 0; left: 0; right: 0; height: 200px;
+      background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(56,182,255,0.07), transparent);
+      pointer-events: none;
+    }
+
+    /* HUD corners */
+    .corner { position: absolute; width: 14px; height: 14px; border: 0 solid rgba(56,182,255,0.45); }
+    .c-tl { top: 8px; left: 8px;   border-width: 1.5px 0 0 1.5px; }
+    .c-tr { top: 8px; right: 8px;  border-width: 1.5px 1.5px 0 0; }
+    .c-bl { bottom: 8px; left: 8px;  border-width: 0 0 1.5px 1.5px; }
+    .c-br { bottom: 8px; right: 8px; border-width: 0 1.5px 1.5px 0; }
+
+    /* Server error */
+    .server-error {
+      margin: 20px 24px 0;
+      background: var(--error-dim); border: 1px solid rgba(240,70,70,0.25);
+      border-radius: 4px; padding: 12px 14px;
+      font-size: 0.8rem; color: #f87171;
+      display: flex; align-items: center; gap: 10px;
+    }
+
+    /* ── OAUTH ── */
+    .oauth-section { padding: 24px 24px 0; display: flex; flex-direction: column; gap: 12px; }
+    .oauth-label  { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; letter-spacing: 3px; color: var(--muted); text-align: center; }
+    .oauth-grid   { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    .btn-oauth {
+      display: flex; align-items: center; justify-content: center; gap: 9px;
+      padding: 12px 16px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.88rem;
+      color: var(--text); cursor: pointer;
+      transition: all 0.2s;
+      position: relative; overflow: hidden;
+    }
+    .btn-oauth::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.03), transparent);
+      pointer-events: none;
+    }
+    .btn-oauth:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
+    .btn-oauth:active { transform: translateY(0); }
+    .btn-oauth:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .btn-oauth.discord { border-color: rgba(88, 101, 242, 0.3); }
+    .btn-oauth.discord i { color: #5865F2; font-size: 1.1rem; }
+    .btn-oauth.discord:hover { border-color: rgba(88,101,242,0.6); background: rgba(88,101,242,0.08); box-shadow: 0 6px 20px rgba(88,101,242,0.2); }
+
+    .btn-oauth.google { border-color: rgba(234, 67, 53, 0.25); }
+    .btn-oauth.google:hover { border-color: rgba(234,67,53,0.5); background: rgba(234,67,53,0.06); box-shadow: 0 6px 20px rgba(234,67,53,0.15); }
+
+    .oauth-note {
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      font-size: 0.72rem; color: var(--muted);
+      background: var(--accent-dim); border: 1px solid var(--border-a);
+      border-radius: 4px; padding: 8px 12px;
+    }
+    .oauth-note i { color: var(--accent); font-size: 0.85rem; }
+
+    /* ── DIVIDER ── */
+    .divider {
+      display: flex; align-items: center; gap: 12px;
+      padding: 20px 24px 0;
+    }
+    .divider span:not(.divider-text) { flex: 1; height: 1px; background: var(--border); }
+    .divider-text { font-family: 'JetBrains Mono', monospace; font-size: 0.58rem; letter-spacing: 2px; color: var(--muted); white-space: nowrap; }
+
+    /* ── TABS ── */
+    .tabs {
+      position: relative;
+      display: flex;
+      margin: 16px 24px 0;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 4px;
+      gap: 0;
+    }
+    .tab {
+      flex: 1; background: none; border: none;
+      padding: 11px 8px;
+      font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; font-weight: 700; letter-spacing: 1px;
+      color: var(--muted); cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+      position: relative; z-index: 2;
+      transition: color 0.25s;
+    }
+    .tab.active { color: var(--text); }
+    .tab-track { position: absolute; inset: 4px; pointer-events: none; }
+    .tab-thumb {
+      position: absolute; top: 0; left: 0;
+      width: calc(50% - 0px); height: 100%;
+      background: linear-gradient(135deg, rgba(56,182,255,0.12), rgba(56,182,255,0.05));
+      border: 1px solid var(--border-a);
+      border-radius: 2px;
+      transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1);
+      box-shadow: inset 0 1px 0 rgba(56,182,255,0.1);
+    }
+
+    /* ── PANELS ── */
+    .panel { padding: 20px 24px; }
+    .hidden { display: none !important; }
+
+    /* ── FORM ── */
+    .form { display: flex; flex-direction: column; gap: 16px; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field-label { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; font-weight: 700; letter-spacing: 1.5px; color: var(--muted); }
+    .field-label-row { display: flex; align-items: center; justify-content: space-between; }
+
+    .input-wrap { position: relative; }
+    .input-icon {
+      position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+      color: var(--muted); font-size: 1rem; pointer-events: none;
+    }
+    .input-wrap input {
+      width: 100%;
+      background: rgba(0,0,0,0.45);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 12px 40px 12px 38px;
+      color: var(--text);
+      font-family: 'Inter', sans-serif; font-size: 0.9rem;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+    .input-wrap input::placeholder { color: var(--muted); }
+    .input-wrap input:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: rgba(56,182,255,0.04);
+      box-shadow: 0 0 0 3px rgba(56,182,255,0.1), inset 0 1px 0 rgba(56,182,255,0.05);
+    }
+    .input-wrap input.err { border-color: var(--error); }
+
+    .btn-eye {
+      position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      padding: 6px; font-size: 1rem; line-height: 1;
+      transition: color 0.2s;
+    }
+    .btn-eye:hover { color: var(--accent); }
+
+    .field-err { color: var(--error); font-size: 0.72rem; min-height: 13px; }
+    .form-err {
+      color: var(--error); font-size: 0.78rem; text-align: center;
+      padding: 9px 12px;
+      background: var(--error-dim); border: 1px solid rgba(240,70,70,0.2);
+      border-radius: 4px; display: none;
+    }
+    .form-err.show { display: block; }
+
+    /* ── STRENGTH ── */
+    .strength-bar-wrap { height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; margin-top: 6px; }
+    .strength-bar { height: 100%; width: 0; border-radius: 2px; transition: width 0.3s, background-color 0.3s; }
+
+    .pass-reqs { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; }
+    .pass-reqs li { font-size: 0.7rem; color: var(--muted); display: flex; align-items: center; gap: 5px; transition: color 0.2s; }
+    .req-ok { display: none; }
+    .req-x  { display: inline; }
+    .pass-reqs li.met { color: var(--success); }
+    .pass-reqs li.met .req-ok { display: inline; }
+    .pass-reqs li.met .req-x  { display: none; }
+
+    /* ── BUTTONS ── */
+    .btn-primary {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, #38b6ff 0%, #1a9ee8 100%);
+      border: none; border-radius: 4px;
+      font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 1rem; letter-spacing: 2px;
+      color: #000; cursor: pointer;
+      position: relative; overflow: hidden;
+      transition: opacity 0.2s, transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 20px rgba(56,182,255,0.25);
+    }
+    .btn-primary::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+      pointer-events: none;
+    }
+    .btn-primary:hover:not(:disabled) { opacity: 0.92; transform: translateY(-1px); box-shadow: 0 8px 30px rgba(56,182,255,0.4); }
+    .btn-primary:active:not(:disabled) { transform: translateY(0); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary.btn-success {
+      background: linear-gradient(135deg, #38ffb6 0%, #1adea0 100%);
+      box-shadow: 0 4px 20px rgba(56,255,182,0.2);
+    }
+    .btn-primary.btn-success:hover:not(:disabled) { box-shadow: 0 8px 30px rgba(56,255,182,0.35); }
+
+    .btn-loader { display: none; width: 18px; height: 18px; border: 2.5px solid rgba(0,0,0,0.2); border-top-color: #000; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .loading .btn-text { display: none; }
+    .loading .btn-loader { display: block; }
+
+    .btn-secondary {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 12px;
+      background: rgba(56,182,255,0.06); border: 1px solid var(--border-a);
+      border-radius: 4px;
+      font-weight: 600; font-size: 0.85rem; color: var(--text);
+      cursor: pointer; transition: all 0.2s;
+    }
+    .btn-secondary:hover:not(:disabled) { background: rgba(56,182,255,0.1); }
+    .btn-secondary:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-ghost {
+      background: none; border: none; color: var(--muted);
+      font-size: 0.82rem; cursor: pointer; padding: 8px;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      transition: color 0.2s; width: 100%;
+    }
+    .btn-ghost:hover { color: var(--text); }
+
+    /* ── LINKS ── */
+    .link-forgot { font-family: 'JetBrains Mono', monospace; font-size: 0.62rem; color: var(--muted); text-decoration: none; transition: color 0.2s; letter-spacing: 0.5px; }
+    .link-forgot:hover { color: var(--accent); }
+
+    /* ── CARD FOOTER ── */
+    .card-footer {
+      border-top: 1px solid var(--border);
+      padding: 12px;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace; font-size: 0.58rem; letter-spacing: 1px;
+      color: var(--muted);
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+    }
+    .card-footer i { color: rgba(56,182,255,0.6); }
+
+    /* ── VERIFY CARD ── */
+    .card-success { border-color: rgba(56,255,182,0.15); }
+    .verify-body { padding: 40px 28px; display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; }
+    .verify-icon { width: 72px; height: 72px; border-radius: 50%; background: var(--success-dim); border: 1px solid rgba(56,255,182,0.25); display: flex; align-items: center; justify-content: center; font-size: 2rem; color: var(--success); }
+    .verify-title { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 1.4rem; letter-spacing: 2px; }
+    .verify-desc { color: var(--muted-2); font-size: 0.88rem; line-height: 1.65; }
+    .verify-desc strong { color: var(--text); font-weight: 600; }
+    .verify-hint { font-size: 0.78rem; color: var(--muted); }
+    .verify-actions { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 6px; }
+    .resend-cd { font-size: 0.78rem; color: var(--muted); margin-left: 4px; }
+
+    /* ── BACK HOME ── */
+    .back-home {
+      display: flex; align-items: center; gap: 7px;
+      font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; font-weight: 700; letter-spacing: 1px;
+      color: var(--muted); text-decoration: none;
+      transition: color 0.2s;
+    }
+    .back-home:hover { color: var(--accent); }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed; top: 20px; right: 20px; z-index: 999;
+      background: rgba(12, 16, 24, 0.97);
+      border: 1px solid var(--border);
+      border-radius: 4px; padding: 13px 16px;
+      display: flex; align-items: center; gap: 10px;
+      font-size: 0.84rem; max-width: 300px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+      transform: translateX(calc(100% + 24px));
+      transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+      backdrop-filter: blur(12px);
+    }
+    .toast.show { transform: translateX(0); }
+    .toast.t-success { border-color: rgba(56,255,182,0.3); }
+    .toast.t-success i { color: var(--success); }
+    .toast.t-error   { border-color: rgba(240,70,70,0.3); }
+    .toast.t-error i { color: var(--error); }
+    .toast.t-info i  { color: var(--accent); }
+
+    /* ── ANIMATIONS ── */
+    @keyframes pulse { 0%,100% { opacity: 0.35; transform: scale(1); } 50% { opacity: 0.55; transform: scale(1.03); } }
+    @keyframes spin  { to { transform: rotate(360deg); } }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 460px) {
+      .page { padding: 16px 12px 32px; }
+      .oauth-section, .divider, .tabs { margin-left: 0; margin-right: 0; }
+      .oauth-section { padding: 20px 20px 0; }
+      .divider { padding: 16px 20px 0; }
+      .tabs { margin: 14px 20px 0; }
+      .panel { padding: 18px 20px; }
+    }
+  </style>
+
+  <script>
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    function toast(msg: string, type: 'success'|'error'|'info' = 'info') {
+      const el = document.getElementById('toast')!;
+      const icon = document.getElementById('toast-icon')!;
+      const span = document.getElementById('toast-msg')!;
+      const icons = { success: 'ti-circle-check', error: 'ti-alert-circle', info: 'ti-info-circle' };
+      icon.className = `ti ${icons[type]}`;
+      span.textContent = msg;
+      el.className = `toast t-${type} show`;
+      setTimeout(() => el.className = `toast t-${type}`, 4500);
+    }
+
+    function loading(form: HTMLFormElement, on: boolean) {
+      const btn = form.querySelector<HTMLButtonElement>('.btn-primary')!;
+      btn.classList.toggle('loading', on);
+      btn.disabled = on;
+    }
+
+    function setErr(id: string, msg: string) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = msg;
+    }
+
+    function clearErrs(...ids: string[]) {
+      ids.forEach(id => setErr(id, ''));
+    }
+
+    function showFormErr(id: string, msg: string) {
+      const el = document.getElementById(id)!;
+      el.textContent = msg;
+      el.classList.add('show');
+    }
+
+    function clearFormErr(id: string) {
+      const el = document.getElementById(id)!;
+      el.textContent = '';
+      el.classList.remove('show');
+    }
+
+    function markInput(id: string, error: boolean) {
+      document.getElementById(id)?.classList.toggle('err', error);
+    }
+
+    // ── Tabs ─────────────────────────────────────────────────────────────────
+
+    const tabs = document.querySelectorAll<HTMLButtonElement>('.tab');
+    const thumb = document.getElementById('tab-thumb')!;
+    const panelLogin  = document.getElementById('panel-login')!;
+    const panelSignup = document.getElementById('panel-signup')!;
+
+    tabs.forEach((tab, i) => {
+      tab.addEventListener('click', () => {
+        const target = tab.dataset.tab as 'login' | 'signup';
+        tabs.forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); });
+        tab.classList.add('active');
+        tab.setAttribute('aria-selected', 'true');
+        thumb.style.transform = `translateX(${i === 1 ? '100%' : '0'})`;
+        panelLogin.classList.toggle('hidden', target !== 'login');
+        panelSignup.classList.toggle('hidden', target !== 'signup');
+      });
+    });
+
+    // ── Eye toggles ───────────────────────────────────────────────────────────
+
+    document.querySelectorAll<HTMLButtonElement>('.btn-eye').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const input = document.getElementById(btn.dataset.target!) as HTMLInputElement;
+        const icon  = btn.querySelector('i')!;
+        const isPass = input.type === 'password';
+        input.type = isPass ? 'text' : 'password';
+        icon.className = isPass ? 'ti ti-eye-off' : 'ti ti-eye';
+      });
+    });
+
+    // ── OAuth (login Y registro — el backend lo detecta automáticamente) ──────
+
+    document.querySelectorAll<HTMLButtonElement>('.btn-oauth').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.disabled) return;
+        const provider = btn.dataset.provider as 'google' | 'discord';
+        const next = document.body.dataset.next || '/';
+        document.querySelectorAll<HTMLButtonElement>('.btn-oauth').forEach(b => b.disabled = true);
+        // Navegación completa (no fetch): el backend redirige al proveedor.
+        window.location.href = `/api/oauth/${provider}/start?next=${encodeURIComponent(next)}`;
+      });
+    });
+
+    // ── Password strength ─────────────────────────────────────────────────────
+
+    const passInput = document.getElementById('su-pass') as HTMLInputElement;
+    const bar = document.getElementById('strength-bar') as HTMLElement;
+    const reqsList = document.getElementById('pass-reqs')!;
+
+    const reqs = {
+      length: (v: string) => v.length >= 8,
+      upper:  (v: string) => /[A-Z]/.test(v),
+      number: (v: string) => /[0-9]/.test(v),
+    };
+    const COLORS = ['#f04646', '#ffa64d', '#38b6ff', '#38ffb6'];
+
+    passInput?.addEventListener('input', () => {
+      const v = passInput.value;
+      let score = 0;
+      (Object.entries(reqs) as [string, (s:string)=>boolean][]).forEach(([k, fn]) => {
+        const met = fn(v);
+        if (met) score++;
+        reqsList.querySelector<HTMLElement>(`[data-req="${k}"]`)?.classList.toggle('met', met);
+      });
+      bar.style.width = v ? `${(score / 3) * 100}%` : '0';
+      bar.style.backgroundColor = v ? (COLORS[score-1] || COLORS[0]) : '';
+    });
+
+    // ── Login ─────────────────────────────────────────────────────────────────
+
+    document.getElementById('form-login')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target as HTMLFormElement;
+      const fd = new FormData(form);
+      const email = fd.get('email') as string;
+      const pass  = fd.get('password') as string;
+
+      clearErrs('err-login-email', 'err-login-pass');
+      clearFormErr('err-login-form');
+      markInput('login-email', false); markInput('login-password', false);
+
+      let ok = true;
+      if (!email)  { setErr('err-login-email', 'Ingresá tu email');       markInput('login-email', true);    ok = false; }
+      if (!pass)   { setErr('err-login-pass',  'Ingresá tu contraseña');  markInput('login-password', true); ok = false; }
+      if (!ok) return;
+
+      loading(form, true);
+      // Login server-side: las cookies quedan escritas por el servidor
+      // evitando el race condition entre browser y SSR
+      const res = await fetch('/api/signin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: pass, next: document.body.dataset.next || '/' }),
+      });
+      const data = await res.json();
+      loading(form, false);
+
+      if (!res.ok || data.error) {
+        const msg = data.error ?? 'Error al iniciar sesión';
+        const isWrong = msg.toLowerCase().includes('invalid');
+        const isVerify = msg.toLowerCase().includes('confirm') || msg.toLowerCase().includes('verif');
+        if (isVerify) {
+          showFormErr('err-login-form', 'Debés verificar tu email antes de ingresar.');
+        } else if (isWrong) {
+          showFormErr('err-login-form', 'Email o contraseña incorrectos.');
+          markInput('login-email', true); markInput('login-password', true);
+        } else {
+          showFormErr('err-login-form', msg);
+        }
+      } else {
+        toast('¡Acceso concedido! Redirigiendo...', 'success');
+        window.location.href = data.next || '/';
+      }
+    });
+
+    // ── Signup ────────────────────────────────────────────────────────────────
+
+    let lastEmail = '';
+
+    document.getElementById('form-signup')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target as HTMLFormElement;
+      const fd = new FormData(form);
+      const nick    = (fd.get('username') as string).trim();
+      const email   = (fd.get('email') as string).trim();
+      const pass    = fd.get('password') as string;
+      const confirm = fd.get('confirm') as string;
+
+      clearErrs('err-su-nick', 'err-su-email', 'err-su-confirm');
+      clearFormErr('err-su-form');
+      ['su-nick','su-email','su-pass','su-confirm'].forEach(id => markInput(id, false));
+
+      let ok = true;
+      if (!nick || nick.length < 3) { setErr('err-su-nick', 'Mínimo 3 caracteres'); markInput('su-nick', true); ok = false; }
+      if (!email) { setErr('err-su-email', 'Ingresá tu email'); markInput('su-email', true); ok = false; }
+      if (!reqs.length(pass) || !reqs.upper(pass) || !reqs.number(pass)) {
+        showFormErr('err-su-form', 'La contraseña no cumple los requisitos mínimos');
+        markInput('su-pass', true); ok = false;
+      }
+      if (pass !== confirm) { setErr('err-su-confirm', 'Las contraseñas no coinciden'); markInput('su-confirm', true); ok = false; }
+      if (!ok) return;
+
+      loading(form, true);
+
+      let res: Response;
+      try {
+        res = await fetch('/api/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password: pass, username: nick }),
+        });
+      } catch {
+        loading(form, false);
+        showFormErr('err-su-form', 'Error de red. Revisá tu conexión e intentá de nuevo.');
+        return;
+      }
+
+      let data: any = {};
+      try { data = await res.json(); } catch { /* vacío */ }
+      loading(form, false);
+
+      if (!res.ok || data.error) {
+        const errCode = data.error ?? '';
+        const httpStatus = res.status;
+
+        if (errCode === 'already_registered' || httpStatus === 409) {
+          setErr('err-su-email', 'Este email ya está registrado');
+          markInput('su-email', true);
+        } else if (httpStatus === 429) {
+          showFormErr('err-su-form', typeof errCode === 'string' ? errCode : 'Demasiados intentos. Esperá unos minutos.');
+        } else {
+          // Mostrar el mensaje real de error para facilitar diagnóstico
+          const displayMsg = typeof errCode === 'string' && errCode
+            ? errCode
+            : `Error al registrar (${httpStatus}). Revisá los datos e intentá de nuevo.`;
+          showFormErr('err-su-form', displayMsg);
+        }
+        return;
+      }
+
+      // Si el servidor dice que no necesita verificación, redirigir directo
+      if (!data.needsVerification) {
+        toast('¡Cuenta creada! Redirigiendo...', 'success');
+        setTimeout(() => { window.location.href = '/'; }, 1200);
+        return;
+      }
+
+      // Mostrar tarjeta de verificación de email
+      lastEmail = email;
+      document.getElementById('main-card')!.classList.add('hidden');
+      const vc = document.getElementById('verify-card')!;
+      vc.classList.remove('hidden');
+      document.getElementById('verify-addr')!.textContent = email;
+      startCooldown();
+    });
+
+    // ── Resend ────────────────────────────────────────────────────────────────
+
+    function startCooldown() {
+      const btn = document.getElementById('btn-resend') as HTMLButtonElement;
+      const cd  = document.getElementById('resend-cd')!;
+      const lbl = btn.querySelector<HTMLElement>('.resend-label')!;
+      let s = 60;
+      btn.disabled = true;
+      lbl.textContent = 'Reenviar en';
+      cd.textContent = `${s}s`;
+      cd.classList.remove('hidden');
+      const iv = setInterval(() => {
+        s--;
+        cd.textContent = `${s}s`;
+        if (s <= 0) {
+          clearInterval(iv);
+          btn.disabled = false;
+          lbl.textContent = 'Reenviar correo';
+          cd.classList.add('hidden');
+        }
+      }, 1000);
+    }
+
+    document.getElementById('btn-resend')?.addEventListener('click', async () => {
+      if (!lastEmail) return;
+      try {
+        const r = await fetch('/api/resend-verification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: lastEmail }),
+        });
+        if (!r.ok) { toast('Error al reenviar. Intentá más tarde.', 'error'); return; }
+        toast('Correo reenviado', 'success');
+        startCooldown();
+      } catch {
+        toast('Error de red al reenviar.', 'error');
+      }
+    });
+
+    document.getElementById('btn-back-login')?.addEventListener('click', () => {
+      document.getElementById('verify-card')!.classList.add('hidden');
+      document.getElementById('main-card')!.classList.remove('hidden');
+      tabs[0].click();
+    });
+  </script>
+
+</body>
+</html>

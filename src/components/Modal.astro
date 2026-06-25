@@ -1,0 +1,226 @@
+---
+// Modal.astro — modal global reutilizable
+// Uso desde JS: window.openModal('modal-id')
+//              window.closeModal()
+// Los contenidos se declaran como <div data-modal-id="mi-id"> dentro de <slot>
+---
+
+<div id="global-modal" class="gm-backdrop" aria-hidden="true" role="presentation">
+  <div
+    class="gm-box"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="gm-modal-title"
+  >
+    <!-- Esquinas HUD -->
+    <span class="gm-corner gm-corner-tl" aria-hidden="true"></span>
+    <span class="gm-corner gm-corner-tr" aria-hidden="true"></span>
+    <span class="gm-corner gm-corner-bl" aria-hidden="true"></span>
+    <span class="gm-corner gm-corner-br" aria-hidden="true"></span>
+
+    <!-- Header -->
+    <div class="gm-header">
+      <div class="gm-header-left">
+        <span class="gm-header-dot" aria-hidden="true"></span>
+        <span id="gm-modal-title" class="gm-header-title">—</span>
+      </div>
+      <button class="gm-close" id="gmClose" aria-label="Cerrar">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Línea divisora con gradiente -->
+    <div class="gm-divider" aria-hidden="true"></div>
+
+    <!-- Contenido dinámico -->
+    <div class="gm-body" id="gmBody">
+      <!-- Aquí se inyecta el contenido del modal activo -->
+    </div>
+  </div>
+</div>
+
+<!-- Templates de contenido (hidden, clonados al abrir) -->
+<div id="gm-templates" hidden>
+  <slot />
+</div>
+
+<style>
+  /* ── Backdrop ── */
+  .gm-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 900;
+    background: rgba(0, 0, 0, 0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    pointer-events: none;
+    transition: background 0.25s;
+  }
+  .gm-backdrop.gm-open {
+    background: rgba(0, 0, 0, 0.72);
+    pointer-events: all;
+  }
+
+  /* ── Caja del modal ── */
+  .gm-box {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border-accent);
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 560px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+    transition: opacity 0.25s, transform 0.25s;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 1px rgba(56,182,255,0.06),
+      0 0 60px rgba(0,0,0,0.6),
+      0 0 30px rgba(56,182,255,0.06);
+  }
+  .gm-backdrop.gm-open .gm-box {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* ── Esquinas HUD ── */
+  .gm-corner {
+    position: absolute;
+    width: 14px; height: 14px;
+    border: 0 solid var(--accent);
+    pointer-events: none;
+    transition: border-color 0.2s;
+  }
+  .gm-corner-tl { top: 8px; left: 8px; border-width: 1.5px 0 0 1.5px; }
+  .gm-corner-tr { top: 8px; right: 8px; border-width: 1.5px 1.5px 0 0; }
+  .gm-corner-bl { bottom: 8px; left: 8px; border-width: 0 0 1.5px 1.5px; }
+  .gm-corner-br { bottom: 8px; right: 8px; border-width: 0 1.5px 1.5px 0; }
+
+  /* ── Header ── */
+  .gm-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    flex-shrink: 0;
+  }
+  .gm-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .gm-header-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent);
+    flex-shrink: 0;
+  }
+  .gm-header-title {
+    font-family: var(--font-display);
+    font-size: 0.88rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+  .gm-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px; height: 28px;
+    border-radius: var(--radius);
+    color: var(--muted);
+    background: none;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+  }
+  .gm-close:hover {
+    color: #f87171;
+    border-color: rgba(248,113,113,0.25);
+    background: rgba(248,113,113,0.07);
+  }
+
+  /* ── Línea divisora ── */
+  .gm-divider {
+    flex-shrink: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border-accent) 30%, var(--accent) 50%, var(--border-accent) 70%, transparent);
+  }
+
+  /* ── Cuerpo ── */
+  .gm-body {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 20px 20px 24px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .gm-body::-webkit-scrollbar { width: 4px; }
+  .gm-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  @media (max-width: 540px) {
+    .gm-backdrop { padding: 12px; align-items: flex-end; }
+    .gm-box { max-height: 92vh; border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+  }
+</style>
+
+<script>
+  const backdrop = document.getElementById('global-modal')!;
+  const box      = backdrop.querySelector('.gm-box')!;
+  const titleEl  = document.getElementById('gm-modal-title')!;
+  const closeBtn = document.getElementById('gmClose')!;
+  const body     = document.getElementById('gmBody')!;
+  const templates = document.getElementById('gm-templates')!;
+
+  function openModal(id: string, title?: string) {
+    const tpl = templates.querySelector(`[data-modal-id="${id}"]`);
+    if (!tpl) return;
+
+    // Título: del argumento, o del atributo data-modal-title
+    const t = title ?? tpl.getAttribute('data-modal-title') ?? id;
+    titleEl.textContent = t;
+
+    // Inyectar contenido (clonar para no quitarlo de templates)
+    body.innerHTML = '';
+    body.appendChild(tpl.cloneNode(true));
+
+    backdrop.classList.add('gm-open');
+    backdrop.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+
+    // Focus trap simple
+    const focusable = box.querySelectorAll<HTMLElement>('button, a, input, textarea, select, [tabindex]:not([tabindex="-1"])');
+    focusable[0]?.focus();
+  }
+
+  function closeModal() {
+    backdrop.classList.remove('gm-open');
+    backdrop.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    setTimeout(() => { body.innerHTML = ''; }, 250);
+  }
+
+  closeBtn.addEventListener('click', closeModal);
+
+  backdrop.addEventListener('click', (e) => {
+    if (!box.contains(e.target as Node)) closeModal();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && backdrop.classList.contains('gm-open')) closeModal();
+  });
+
+  // Exponer globalmente
+  (window as any).openModal  = openModal;
+  (window as any).closeModal = closeModal;
+</script>

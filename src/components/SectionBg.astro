@@ -1,0 +1,276 @@
+---
+/**
+ * SectionBg — Fondo decorativo para secciones
+ *
+ * Uso básico:
+ *   <section style="position: relative; overflow: hidden;">
+ *     <SectionBg variant="crosshair" />
+ *     ... contenido ...
+ *   </section>
+ *
+ * Props:
+ *   variant   — 'dots' | 'grid' | 'crosshair' | 'diagonal' | 'scanlines' | 'circuit'
+ *   glowPos   — 'top-left' | 'top-right' | 'center' | 'bottom-left' | 'bottom-right' | 'none'
+ *   glowColor — cualquier color CSS (default: usa --accent del sitio)
+ *   noise     — mostrar textura de grano (default: true)
+ */
+
+interface Props {
+  variant?:   'dots' | 'grid' | 'crosshair' | 'diagonal' | 'scanlines' | 'circuit';
+  glowPos?:   'top-left' | 'top-right' | 'center' | 'bottom-left' | 'bottom-right' | 'none';
+  glowColor?: string;
+  noise?:     boolean;
+}
+
+const {
+  variant   = 'dots',
+  glowPos   = 'top-left',
+  glowColor,
+  noise     = true,
+} = Astro.props;
+
+const glowStyle = glowColor ? `--sec-glow: ${glowColor};` : '';
+---
+
+<div
+  class={`sec-bg sec-bg--${variant} sec-bg--glow-${glowPos}`}
+  style={glowStyle}
+  aria-hidden="true"
+>
+  <!-- Grano / ruido -->
+  {noise && <div class="sec-noise"></div>}
+
+  <!-- Patrón principal (varía según variant) -->
+  <div class="sec-pattern"></div>
+
+  <!-- Mancha de glow -->
+  {glowPos !== 'none' && <div class="sec-glow"></div>}
+
+  <!-- Viñeta oscura en los bordes -->
+  <div class="sec-vignette"></div>
+
+  <!-- Esquinas tácticas (solo crosshair y circuit) -->
+  {(variant === 'crosshair' || variant === 'circuit') && (
+    <>
+      <span class="sec-corner sec-corner--tl"></span>
+      <span class="sec-corner sec-corner--tr"></span>
+      <span class="sec-corner sec-corner--bl"></span>
+      <span class="sec-corner sec-corner--br"></span>
+    </>
+  )}
+
+  <!-- Línea central decorativa (crosshair) -->
+  {variant === 'crosshair' && (
+    <span class="sec-crosshair-h"></span>
+  )}
+</div>
+
+<style>
+  /* ── Contenedor ─────────────────────────────────────────────── */
+  .sec-bg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    --sec-glow: var(--accent, #e8ff00);
+  }
+
+  /* ── Ruido / grano ──────────────────────────────────────────── */
+  .sec-noise {
+    position: absolute;
+    inset: 0;
+    opacity: 0.032;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='250' height='250'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='250' height='250' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+    background-size: 220px 220px;
+  }
+
+  /* ── Viñeta ─────────────────────────────────────────────────── */
+  .sec-vignette {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      ellipse at 50% 50%,
+      transparent 40%,
+      color-mix(in srgb, #000 35%, transparent) 100%
+    );
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     PATRÓN: DOTS
+  ══════════════════════════════════════════════════════════════ */
+  .sec-bg--dots .sec-pattern {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(
+      circle,
+      color-mix(in srgb, var(--text, #fff) 22%, transparent) 1px,
+      transparent 1px
+    );
+    background-size: 28px 28px;
+    mask-image: radial-gradient(ellipse at 50% 0%, black 0%, transparent 75%);
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     PATRÓN: GRID (líneas finas tipo papel cuadriculado)
+  ══════════════════════════════════════════════════════════════ */
+  .sec-bg--grid .sec-pattern {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(color-mix(in srgb, var(--text, #fff) 6%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in srgb, var(--text, #fff) 6%, transparent) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: radial-gradient(ellipse at 50% 0%, black 0%, transparent 70%);
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     PATRÓN: CROSSHAIR (mira táctica)
+  ══════════════════════════════════════════════════════════════ */
+  .sec-bg--crosshair .sec-pattern {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(
+      circle,
+      color-mix(in srgb, var(--text, #fff) 14%, transparent) 1px,
+      transparent 1px
+    );
+    background-size: 32px 32px;
+    mask-image: radial-gradient(ellipse at 50% 50%, black 0%, transparent 72%);
+  }
+
+  /* Esquinas en L */
+  .sec-corner {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    opacity: 0.35;
+  }
+  .sec-corner--tl { top: 20px;    left: 20px;  border-top:    1.5px solid var(--sec-glow); border-left:   1.5px solid var(--sec-glow); }
+  .sec-corner--tr { top: 20px;    right: 20px; border-top:    1.5px solid var(--sec-glow); border-right:  1.5px solid var(--sec-glow); }
+  .sec-corner--bl { bottom: 20px; left: 20px;  border-bottom: 1.5px solid var(--sec-glow); border-left:   1.5px solid var(--sec-glow); }
+  .sec-corner--br { bottom: 20px; right: 20px; border-bottom: 1.5px solid var(--sec-glow); border-right:  1.5px solid var(--sec-glow); }
+
+  /* Línea horizontal central tenue */
+  .sec-crosshair-h {
+    position: absolute;
+    top: 50%;
+    left: 8%;
+    right: 8%;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--sec-glow) 18%, transparent) 30%,
+      color-mix(in srgb, var(--sec-glow) 18%, transparent) 70%,
+      transparent 100%
+    );
+    transform: translateY(-50%);
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     PATRÓN: DIAGONAL (rayas diagonales tipo textura táctica)
+  ══════════════════════════════════════════════════════════════ */
+  .sec-bg--diagonal .sec-pattern {
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(
+      -45deg,
+      color-mix(in srgb, var(--text, #fff) 4%, transparent) 0px,
+      color-mix(in srgb, var(--text, #fff) 4%, transparent) 1px,
+      transparent 1px,
+      transparent 18px
+    );
+    mask-image: radial-gradient(ellipse at 50% 100%, black 0%, transparent 70%);
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     PATRÓN: SCANLINES (líneas horizontales estilo monitor CRT)
+  ══════════════════════════════════════════════════════════════ */
+  .sec-bg--scanlines .sec-pattern {
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(
+      0deg,
+      color-mix(in srgb, var(--text, #fff) 5%, transparent) 0px,
+      color-mix(in srgb, var(--text, #fff) 5%, transparent) 1px,
+      transparent 1px,
+      transparent 4px
+    );
+    /* Efecto de curvatura CRT */
+    mask-image:
+      radial-gradient(ellipse at 50% 50%, black 40%, transparent 100%),
+      linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
+    mask-composite: intersect;
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     PATRÓN: CIRCUIT (trazados de circuito impreso)
+  ══════════════════════════════════════════════════════════════ */
+  .sec-bg--circuit .sec-pattern {
+    position: absolute;
+    inset: 0;
+    /* Grid base */
+    background-image:
+      /* Líneas verticales gruesas (trazados) */
+      repeating-linear-gradient(
+        90deg,
+        transparent 0px,
+        transparent 59px,
+        color-mix(in srgb, var(--text, #fff) 7%, transparent) 59px,
+        color-mix(in srgb, var(--text, #fff) 7%, transparent) 60px
+      ),
+      /* Líneas horizontales gruesas (trazados) */
+      repeating-linear-gradient(
+        0deg,
+        transparent 0px,
+        transparent 59px,
+        color-mix(in srgb, var(--text, #fff) 7%, transparent) 59px,
+        color-mix(in srgb, var(--text, #fff) 7%, transparent) 60px
+      ),
+      /* Puntos en las intersecciones */
+      radial-gradient(
+        circle,
+        color-mix(in srgb, var(--text, #fff) 20%, transparent) 1.5px,
+        transparent 1.5px
+      );
+    background-size: 60px 60px, 60px 60px, 60px 60px;
+    mask-image: radial-gradient(ellipse at 50% 50%, black 0%, transparent 78%);
+  }
+
+  /* Esquinas del circuit (mismo que crosshair pero más grandes) */
+  .sec-bg--circuit .sec-corner {
+    width: 30px;
+    height: 30px;
+    opacity: 0.28;
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     GLOW — posiciones
+  ══════════════════════════════════════════════════════════════ */
+  .sec-glow {
+    position: absolute;
+    width: 55%;
+    padding-top: 55%;
+    border-radius: 50%;
+    background: radial-gradient(
+      circle,
+      color-mix(in srgb, var(--sec-glow) 14%, transparent) 0%,
+      color-mix(in srgb, var(--sec-glow) 5%, transparent) 40%,
+      transparent 70%
+    );
+    filter: blur(2px);
+  }
+
+  /* top-left */
+  .sec-bg--glow-top-left .sec-glow    { top: -20%; left: -15%; }
+  /* top-right */
+  .sec-bg--glow-top-right .sec-glow   { top: -20%; right: -15%; left: auto; }
+  /* center */
+  .sec-bg--glow-center .sec-glow      { top: 50%; left: 50%; transform: translate(-50%, -50%); }
+  /* bottom-left */
+  .sec-bg--glow-bottom-left .sec-glow { bottom: -20%; top: auto; left: -15%; }
+  /* bottom-right */
+  .sec-bg--glow-bottom-right .sec-glow{ bottom: -20%; top: auto; right: -15%; left: auto; }
+  /* none */
+  .sec-bg--glow-none .sec-glow        { display: none; }
+</style>

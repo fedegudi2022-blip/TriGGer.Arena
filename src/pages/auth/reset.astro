@@ -1,0 +1,263 @@
+---
+export const prerender = false;
+import '@fontsource/inter/400.css';
+import '@fontsource/inter/500.css';
+import '@fontsource/inter/600.css';
+import '@fontsource/inter/700.css';
+import '@fontsource/jetbrains-mono/500.css';
+import '@fontsource/jetbrains-mono/700.css';
+
+const user    = Astro.locals.user;
+const profile = Astro.locals.profile;
+
+if (user) {
+  return Astro.redirect(profile?.role === 'admin' ? '/admin' : '/usuario');
+}
+
+const msg = Astro.url.searchParams.get('msg');
+---
+
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recuperar Acceso · TriGGer.Arena</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" type="image/webp" href="/trigger_fondo.webp" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" />
+
+  <style>
+    :root {
+      --bg: #05070a;
+      --card: rgba(10, 15, 25, 0.85);
+      --border: rgba(56, 182, 255, 0.15);
+      --accent: #38b6ff;
+      --accent-glow: rgba(56, 182, 255, 0.25);
+      --text: #e2e8f0;
+      --text-muted: #64748b;
+      --success: #38ffb6;
+      --error: #ff4d4d;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .bg-grid { position: fixed; inset: 0; background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px); background-size: 40px 40px; z-index: -2; opacity: 0.25; }
+    .bg-glow { position: fixed; inset: 0; background: radial-gradient(circle at 50% -10%, rgba(56,182,255,0.15), transparent 70%); z-index: -1; }
+    .bg-scanline { position: fixed; inset: 0; background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.08) 50%), linear-gradient(90deg, rgba(255,0,0,0.015), rgba(0,255,0,0.008), rgba(0,0,255,0.015)); background-size: 100% 4px, 3px 100%; pointer-events: none; z-index: 10; }
+
+    .wrap { width: 100%; max-width: 420px; padding: 20px; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+
+    .logo-link { text-decoration: none; color: inherit; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    .logo-wrap { position: relative; display: inline-block; }
+    .logo-wrap img { border-radius: 12px; border: 1px solid var(--border); display: block; }
+    .logo-ring { position: absolute; inset: -4px; border: 2px solid var(--accent); border-radius: 16px; opacity: 0.35; animation: breathe 3s ease-in-out infinite; }
+    .logo-name { font-family: 'JetBrains Mono', monospace; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.5px; }
+    .logo-name .gg { color: var(--accent); text-shadow: 0 0 15px var(--accent-glow); }
+    .logo-name .bracket { color: var(--text-muted); }
+    .logo-sub { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: var(--text-muted); letter-spacing: 2.5px; }
+
+    .card { background: var(--card); backdrop-filter: blur(16px); border: 1px solid var(--border); border-radius: 16px; position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.5); width: 100%; }
+    .card-accent { position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--accent), transparent); }
+    .card-accent.success { background: linear-gradient(90deg, transparent, var(--success), transparent); }
+    .card-body { padding: 40px 32px; }
+
+    .state-view { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+    .icon-circle { width: 68px; height: 68px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; }
+    .icon-circle.default { background: rgba(56,182,255,0.1); border: 1px solid var(--border); color: var(--accent); }
+    .icon-circle.success { background: rgba(56,255,182,0.1); border: 1px solid rgba(56,255,182,0.2); color: var(--success); }
+
+    h2 { font-family: 'JetBrains Mono', monospace; font-size: 1.2rem; font-weight: 700; }
+    .state-desc { color: var(--text-muted); font-size: 0.88rem; line-height: 1.65; max-width: 300px; }
+
+    .form-stack { display: flex; flex-direction: column; gap: 16px; width: 100%; margin-top: 4px; }
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .input-group { position: relative; }
+    .input-group i.icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 1rem; pointer-events: none; }
+    .input-group input { width: 100%; background: rgba(0,0,0,0.35); border: 1px solid var(--border); border-radius: 10px; padding: 13px 14px 13px 42px; color: #fff; font-family: inherit; font-size: 0.9rem; transition: border-color 0.2s, box-shadow 0.2s; }
+    .input-group input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(56,182,255,0.08); }
+    .input-group input.has-error { border-color: var(--error); }
+    .error-text { color: var(--error); font-size: 0.75rem; min-height: 14px; }
+
+    .btn-primary { background: var(--accent); color: #000; border: none; padding: 14px; border-radius: 10px; font-weight: 800; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; letter-spacing: 0.5px; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; transition: opacity 0.2s, transform 0.2s, box-shadow 0.2s; }
+    .btn-primary:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 4px 20px var(--accent-glow); }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-secondary { background: rgba(255,255,255,0.04); color: var(--text); border: 1px solid var(--border); padding: 13px; border-radius: 10px; font-weight: 600; font-size: 0.85rem; cursor: pointer; width: 100%; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; }
+    .btn-secondary:hover { background: rgba(255,255,255,0.07); border-color: rgba(56,182,255,0.3); }
+
+    .resend-row { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+    .resend-info { font-size: 0.78rem; color: var(--text-muted); }
+
+    .spinner { display: none; width: 18px; height: 18px; border: 2.5px solid rgba(0,0,0,0.15); border-top-color: #000; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .loading .btn-text { display: none; }
+    .loading .spinner { display: block; }
+
+    .back-link { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--text-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: color 0.2s; }
+    .back-link:hover { color: var(--accent); }
+    .page-back { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-decoration: none; display: flex; align-items: center; gap: 8px; transition: color 0.2s; }
+    .page-back:hover { color: var(--accent); }
+
+    .toast { position: fixed; top: 20px; right: 20px; z-index: 1000; background: rgba(15,20,30,0.95); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; gap: 10px; font-size: 0.85rem; box-shadow: 0 8px 24px rgba(0,0,0,0.5); transform: translateX(120%); transition: transform 0.35s cubic-bezier(0.18,0.89,0.32,1.28); max-width: 300px; backdrop-filter: blur(12px); }
+    .toast.show { transform: translateX(0); }
+    .toast.success { border-color: rgba(56,255,182,0.3); }
+    .toast.success i { color: var(--success); }
+    .toast.error { border-color: rgba(255,77,77,0.3); }
+    .toast.error i { color: var(--error); }
+
+    .anim-fade-in { animation: fadeIn 0.4s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes breathe { 0%, 100% { opacity: 0.3; transform: scale(1); } 50% { opacity: 0.55; transform: scale(1.04); } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+  <div class="bg-scanline"></div>
+
+  <div id="toast" class="toast" role="alert" aria-live="polite">
+    <i id="toast-icon" class="ti ti-info-circle"></i>
+    <span id="toast-msg"></span>
+  </div>
+
+  <main class="wrap">
+
+    <a href="/auth" class="logo-link">
+      <div class="logo-wrap">
+        <img src="/trigger_fondo.webp" alt="Logo" width="56" height="56" />
+        <div class="logo-ring"></div>
+      </div>
+      <span class="logo-name"><span class="bracket">[</span>TRI<span class="gg">GG</span>ER.ARENA<span class="bracket">]</span></span>
+      <span class="logo-sub">RECUPERACIÓN DE ACCESO</span>
+    </a>
+
+    {msg === 'sent' ? (
+      <div class="card">
+        <div class="card-accent success"></div>
+        <div class="card-body">
+          <div class="state-view anim-fade-in">
+            <div class="icon-circle success"><i class="ti ti-mail-check"></i></div>
+            <h2>¡Correo enviado!</h2>
+            <p class="state-desc">
+              Revisá tu bandeja de entrada. Te enviamos un enlace para restablecer tu contraseña.
+              El link expira en <strong>1 hora</strong>.
+            </p>
+            <div class="resend-row">
+              <a href="/auth" class="btn-secondary">
+                <i class="ti ti-login-2"></i> Volver al inicio de sesión
+              </a>
+              <p class="resend-info">
+                ¿No llegó el correo? Revisá spam o <a href="/auth/reset" style="color:var(--accent);text-decoration:none;">pedí otro enlace</a>.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    ) : (
+      <div class="card">
+        <div class="card-accent"></div>
+        <div class="card-body">
+          <div class="state-view">
+            <div class="icon-circle default">
+              <i class="ti ti-lock-question"></i>
+            </div>
+            <h2>¿Olvidaste tu contraseña?</h2>
+            <p class="state-desc">Ingresá el email de tu cuenta y te enviamos las instrucciones para recuperarla.</p>
+
+            <form id="resetForm" class="form-stack" novalidate>
+              <div class="field">
+                <div class="input-group">
+                  <i class="icon ti ti-mail"></i>
+                  <input
+                    type="email"
+                    id="emailInput"
+                    name="email"
+                    placeholder="tu@email.com"
+                    required
+                    autocomplete="email"
+                  />
+                </div>
+                <p id="emailError" class="error-text"></p>
+              </div>
+
+              <button type="submit" id="submitBtn" class="btn-primary">
+                <span class="btn-text">ENVIAR ENLACE DE RECUPERACIÓN</span>
+                <div class="spinner"></div>
+              </button>
+            </form>
+
+            <a href="/auth" class="back-link">
+              <i class="ti ti-arrow-left"></i> Volver al inicio de sesión
+            </a>
+          </div>
+        </div>
+      </div>
+    )}
+
+    <a href="/" class="page-back">
+      <i class="ti ti-arrow-narrow-left"></i> VOLVER AL INICIO
+    </a>
+
+  </main>
+
+  <script>
+    function showToast(msg: string, type: 'success' | 'error' = 'error') {
+      const toast = document.getElementById('toast')!;
+      const toastMsg = document.getElementById('toast-msg')!;
+      const toastIcon = document.getElementById('toast-icon')!;
+      toastMsg.textContent = msg;
+      toastIcon.className = type === 'success' ? 'ti ti-circle-check' : 'ti ti-alert-circle';
+      toast.className = `toast ${type} show`;
+      setTimeout(() => { toast.className = `toast ${type}`; }, 4000);
+    }
+
+    const form = document.getElementById('resetForm') as HTMLFormElement | null;
+    if (form) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const btn = document.getElementById('submitBtn') as HTMLButtonElement;
+        const emailInput = document.getElementById('emailInput') as HTMLInputElement;
+        const errorMsg = document.getElementById('emailError')!;
+
+        errorMsg.textContent = '';
+        emailInput.classList.remove('has-error');
+
+        const email = emailInput.value.trim();
+        if (!email) {
+          errorMsg.textContent = 'Ingresá tu email';
+          emailInput.classList.add('has-error');
+          return;
+        }
+
+        btn.classList.add('loading');
+        btn.disabled = true;
+
+        try {
+          await fetch('/api/request-password-reset', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+          });
+        } catch {
+          // Falla de red: igual redirigimos al estado "enviado"
+        }
+
+        window.location.href = '/auth/reset?msg=sent';
+      });
+    }
+  </script>
+
+</body>
+</html>

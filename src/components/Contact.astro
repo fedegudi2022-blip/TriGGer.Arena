@@ -1,0 +1,861 @@
+---
+import { WHATSAPP_URL as DEFAULT_WHATSAPP_URL, DISCORD_URL as DEFAULT_DISCORD_URL } from '../config';
+import SectionBg from './SectionBg.astro';
+
+const WHATSAPP_URL = Astro.locals.siteSettings?.whatsapp_url ?? DEFAULT_WHATSAPP_URL;
+const DISCORD_URL  = Astro.locals.siteSettings?.discord_url  ?? DEFAULT_DISCORD_URL;
+---
+
+<section class="contact" id="contacto">
+
+  <!-- Fondo decorativo: circuit + glow arriba izquierda -->
+  <SectionBg variant="circuit" glowPos="top-left" />
+
+  <div class="container contact-inner">
+
+    <div class="s-label fade-in">
+      <span class="s-label-line"></span>
+      <span class="s-label-text">// Contacto</span>
+    </div>
+    <h2 class="s-title fade-in">Envianos tu consulta</h2>
+    <p class="s-sub fade-in">¿Preguntas sobre servidores, reglas o membresía? Te respondemos rápido.</p>
+
+    <div class="contact-layout fade-in">
+
+      <!-- ── Sidebar ── -->
+      <aside class="contact-aside">
+
+        <p class="aside-label">Respuesta rápida vía</p>
+
+        <a href={WHATSAPP_URL} class="aside-link" target="_blank" rel="noopener noreferrer" style="--link-color: #25D366">
+          <div class="aside-link-noise" aria-hidden="true"></div>
+          <span class="aside-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.67-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.076 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+            </svg>
+          </span>
+          <div class="aside-link-info">
+            <span class="aside-link-name">WhatsApp</span>
+            <span class="aside-link-sub">Grupo de la comunidad</span>
+          </div>
+          <svg class="aside-arrow" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+        </a>
+
+        <a href={DISCORD_URL} class="aside-link" target="_blank" rel="noopener noreferrer" style="--link-color: #5865F2">
+          <div class="aside-link-noise" aria-hidden="true"></div>
+          <span class="aside-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
+            </svg>
+          </span>
+          <div class="aside-link-info">
+            <span class="aside-link-name">Discord</span>
+            <span class="aside-link-sub">Servidor oficial</span>
+          </div>
+          <svg class="aside-arrow" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+        </a>
+
+        <div class="aside-divider" aria-hidden="true"></div>
+
+        <div class="aside-info-box">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <p class="aside-note">Completá el formulario y te respondemos por email.</p>
+        </div>
+
+      </aside>
+
+      <!-- ── Formulario ── -->
+      <form class="contact-form" id="contactForm" novalidate>
+
+        <!-- Decoraciones del form -->
+        <div class="form-noise"    aria-hidden="true"></div>
+        <div class="form-glow"     aria-hidden="true"></div>
+        <span class="form-corner form-tl" aria-hidden="true"></span>
+        <span class="form-corner form-tr" aria-hidden="true"></span>
+        <span class="form-corner form-bl" aria-hidden="true"></span>
+        <span class="form-corner form-br" aria-hidden="true"></span>
+
+        <!-- ── Panel de éxito (oculto hasta enviar) ── -->
+        <div class="form-success-msg" aria-live="polite">
+          <div class="success-icon" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </div>
+          <p class="success-title">¡Mensaje enviado!</p>
+          <p class="success-sub">Te vamos a responder al email que dejaste<br>lo antes posible.</p>
+          <button type="button" class="success-reset" id="resetForm">Enviar otro mensaje</button>
+        </div>
+
+        <!-- ── Campos (se ocultan al enviar) ── -->
+        <div class="form-fields">
+
+        <!-- Honeypot anti-spam: invisible para personas, los bots suelen completarlo -->
+        <div class="form-honeypot" aria-hidden="true">
+          <label for="website">Sitio web</label>
+          <input id="website" type="text" name="website" tabindex="-1" autocomplete="off" />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="nombre" class="form-label">
+              <span class="label-dot" aria-hidden="true"></span>
+              Nombre
+            </label>
+            <input
+              id="nombre"
+              type="text"
+              name="nombre"
+              placeholder="Tu nombre"
+              required
+              minlength="2"
+              maxlength="80"
+              autocomplete="name"
+            />
+          </div>
+          <div class="form-group">
+            <label for="email" class="form-label">
+              <span class="label-dot" aria-hidden="true"></span>
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              name="email"
+              placeholder="tu@email.com"
+              required
+              maxlength="160"
+              autocomplete="email"
+            />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="asunto" class="form-label">
+            <span class="label-dot" aria-hidden="true"></span>
+            Asunto
+          </label>
+          <div class="select-wrap">
+            <select id="asunto" name="asunto">
+              <option value="" disabled selected>Seleccioná un tema</option>
+              <option value="servidor">Problema con el servidor</option>
+              <option value="ban">Apelación de ban</option>
+              <option value="planes">Consulta sobre planes</option>
+              <option value="otro">Otro</option>
+            </select>
+            <svg class="select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="mensaje" class="form-label">
+            <span class="label-dot" aria-hidden="true"></span>
+            Mensaje
+          </label>
+          <textarea
+            id="mensaje"
+            name="mensaje"
+            placeholder="Contanos tu consulta con el mayor detalle posible..."
+            required
+            rows="5"
+            minlength="10"
+            maxlength="500"
+          ></textarea>
+          <span class="char-count" id="charCount">0 / 500</span>
+        </div>
+
+        <div class="form-footer">
+          <button type="submit" class="contact-btn" id="submitBtn">
+            <span class="btn-noise" aria-hidden="true"></span>
+            <span class="btn-text">Enviar mensaje</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </button>
+          <p class="form-privacy">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            Tu información es privada y no se comparte con terceros.
+          </p>
+        </div>
+
+        <!-- Mensaje de error inline -->
+        <div class="form-error-msg" id="formError" role="alert">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <span>No se pudo enviar. Intentá de nuevo.</span>
+        </div>
+
+        </div> <!-- /form-fields -->
+      </form>
+    </div>
+
+  </div>
+</section>
+
+<style>
+  /* ── Sección ─────────────────────────────────────────────────── */
+  .contact {
+    padding: var(--section-gap) 0;
+    border-top: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .contact-inner {
+    max-width: 980px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── Layout dos columnas ─────────────────────────────────────── */
+  .contact-layout {
+    display: grid;
+    grid-template-columns: 230px 1fr;
+    gap: 28px;
+    align-items: start;
+  }
+  @media (max-width: 680px) {
+    .contact-layout { grid-template-columns: 1fr; }
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     ASIDE
+  ══════════════════════════════════════════════════════════════ */
+  .contact-aside {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 4px;
+  }
+
+  .aside-label {
+    font-family: var(--font-mono);
+    font-size: 0.63rem;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+
+  /* ── Cards de link ───────────────────────────────────────────── */
+  .aside-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    text-decoration: none;
+    position: relative;
+    overflow: hidden;
+
+    /* Fondo multicapa con color de la red */
+    background:
+      radial-gradient(
+        ellipse at 0% 50%,
+        color-mix(in srgb, var(--link-color) 10%, transparent) 0%,
+        transparent 65%
+      ),
+      var(--surface);
+
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  }
+
+  .aside-link:hover {
+    border-color: color-mix(in srgb, var(--link-color) 40%, transparent);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--link-color) 10%, transparent);
+    background:
+      radial-gradient(
+        ellipse at 0% 50%,
+        color-mix(in srgb, var(--link-color) 16%, transparent) 0%,
+        transparent 65%
+      ),
+      var(--surface);
+  }
+
+  /* Ruido interno de cada aside-link */
+  .aside-link-noise {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+    background-size: 160px 160px;
+  }
+
+  /* Barra izquierda de color */
+  .aside-link::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 2px; height: 100%;
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      var(--link-color),
+      transparent
+    );
+    opacity: 0.3;
+    transition: opacity 0.2s ease;
+  }
+  .aside-link:hover::before { opacity: 0.8; }
+
+  .aside-icon {
+    width: 36px; height: 36px;
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--link-color) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--link-color) 28%, transparent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--link-color);
+    flex-shrink: 0;
+    position: relative;
+    box-shadow: 0 0 10px color-mix(in srgb, var(--link-color) 14%, transparent);
+    transition: box-shadow 0.2s ease;
+  }
+  .aside-link:hover .aside-icon {
+    box-shadow: 0 0 18px color-mix(in srgb, var(--link-color) 28%, transparent);
+  }
+
+  .aside-link-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+    position: relative;
+  }
+  .aside-link-name {
+    font-size: 0.83rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .aside-link-sub {
+    font-size: 0.65rem;
+    font-family: var(--font-mono);
+    color: var(--muted);
+    letter-spacing: 0.03em;
+  }
+
+  .aside-arrow {
+    color: var(--muted);
+    flex-shrink: 0;
+    transition: transform 0.18s, color 0.18s;
+    position: relative;
+  }
+  .aside-link:hover .aside-arrow {
+    color: var(--link-color);
+    transform: translateX(3px);
+  }
+
+  /* Separador y caja de info */
+  .aside-divider {
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--border) 40%,
+      var(--border) 60%,
+      transparent
+    );
+    margin: 2px 0;
+  }
+
+  .aside-info-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--accent) 5%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 14%, transparent);
+  }
+  .aside-info-box svg {
+    color: var(--accent);
+    flex-shrink: 0;
+    margin-top: 1px;
+    opacity: 0.7;
+  }
+  .aside-note {
+    font-size: 0.74rem;
+    color: var(--muted);
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     FORMULARIO
+  ══════════════════════════════════════════════════════════════ */
+  .contact-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 28px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+
+    /* Fondo multicapa */
+    background:
+      radial-gradient(
+        ellipse at 100% 0%,
+        color-mix(in srgb, var(--accent) 8%, transparent) 0%,
+        transparent 55%
+      ),
+      var(--surface);
+
+    transition: border-color 0.22s ease;
+  }
+
+  .contact-form:focus-within {
+    border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+
+  /* Ruido del form */
+  .form-noise {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='250' height='250'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='250' height='250' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+    background-size: 200px 200px;
+  }
+
+  /* Glow radial top-right */
+  .form-glow {
+    position: absolute;
+    top: -30%; right: -10%;
+    width: 60%; padding-top: 60%;
+    border-radius: 50%;
+    pointer-events: none;
+    background: radial-gradient(
+      circle,
+      color-mix(in srgb, var(--accent) 8%, transparent) 0%,
+      transparent 65%
+    );
+  }
+
+  /* Barra superior con gradiente */
+  .contact-form::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--accent) 40%, transparent) 20%,
+      var(--accent) 50%,
+      color-mix(in srgb, var(--accent) 40%, transparent) 80%,
+      transparent 100%
+    );
+    opacity: 0.5;
+  }
+
+  /* Esquinas tácticas del form */
+  .form-corner {
+    position: absolute;
+    width: 12px; height: 12px;
+    border: 0 solid color-mix(in srgb, var(--accent) 40%, transparent);
+    pointer-events: none;
+  }
+  .form-tl { top: 8px;    left: 8px;  border-width: 1.5px 0 0 1.5px; }
+  .form-tr { top: 8px;    right: 8px; border-width: 1.5px 1.5px 0 0; }
+  .form-bl { bottom: 8px; left: 8px;  border-width: 0 0 1.5px 1.5px; }
+  .form-br { bottom: 8px; right: 8px; border-width: 0 1.5px 1.5px 0; }
+
+  /* ── Contenedor de campos ────────────────────────────────────── */
+  .form-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* ── Honeypot anti-spam: oculto visualmente pero presente en el DOM
+     (display:none lo saltean algunos bots; esto es más robusto) ── */
+  .form-honeypot {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+    left: -9999px;
+  }
+
+  /* ── Filas y grupos ─────────────────────────────────────────── */
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    position: relative;
+  }
+  @media (max-width: 480px) {
+    .form-row { grid-template-columns: 1fr; }
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    position: relative;
+  }
+
+  .form-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 500;
+    color: var(--muted-2);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .label-dot {
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0.5;
+    flex-shrink: 0;
+  }
+
+  /* ── Inputs, Select, Textarea ────────────────────────────────── */
+  .contact-form input,
+  .contact-form textarea {
+    padding: 11px 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 0.88rem;
+    line-height: 1.6;
+    outline: none;
+    width: 100%;
+    transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .contact-form input::placeholder,
+  .contact-form textarea::placeholder {
+    color: var(--muted);
+    font-size: 0.84rem;
+  }
+
+  .contact-form input:hover,
+  .contact-form textarea:hover {
+    border-color: color-mix(in srgb, var(--accent) 20%, var(--border));
+  }
+
+  .contact-form input:focus,
+  .contact-form textarea:focus {
+    border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+    background: var(--bg);
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--accent) 8%, transparent),
+      inset 0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+
+  .contact-form textarea {
+    resize: vertical;
+    min-height: 120px;
+  }
+
+  /* ── Select personalizado ────────────────────────────────────── */
+  .select-wrap {
+    position: relative;
+  }
+
+  .select-wrap select {
+    appearance: none;
+    cursor: pointer;
+    padding: 11px 40px 11px 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 0.88rem;
+    outline: none;
+    width: 100%;
+    transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .select-wrap select option {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  .select-wrap select:hover {
+    border-color: color-mix(in srgb, var(--accent) 20%, var(--border));
+  }
+
+  .select-wrap select:focus {
+    border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+    background: var(--bg);
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--accent) 8%, transparent),
+      inset 0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+
+  .select-chevron {
+    position: absolute;
+    right: 13px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    pointer-events: none;
+    transition: color 0.18s;
+  }
+  .select-wrap:focus-within .select-chevron { color: var(--accent); }
+
+  /* ── Contador de caracteres ──────────────────────────────────── */
+  .char-count {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    color: var(--muted);
+    text-align: right;
+    margin-top: 2px;
+    letter-spacing: 0.04em;
+    transition: color 0.18s;
+  }
+
+  /* ── Footer del form ─────────────────────────────────────────── */
+  .form-footer {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+
+  /* ── Botón de submit ─────────────────────────────────────────── */
+  .contact-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: #07090f;
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: 1px solid var(--accent);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+    box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 25%, transparent);
+    transition: opacity 0.18s, transform 0.18s, box-shadow 0.18s;
+  }
+
+  /* Ruido del botón */
+  .btn-noise {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0.06;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+    background-size: 120px 120px;
+  }
+
+  .btn-text { position: relative; }
+
+  .contact-btn svg {
+    transition: transform 0.18s;
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .contact-btn:hover {
+    opacity: 0.9;
+    transform: translateY(-2px);
+    box-shadow: 0 0 28px color-mix(in srgb, var(--accent) 40%, transparent);
+  }
+  .contact-btn:hover svg { transform: translateX(3px); }
+  .contact-btn:active { transform: translateY(0) scale(0.98); }
+
+  /* ── Privacy note ────────────────────────────────────────────── */
+  .form-privacy {
+    font-size: 0.71rem;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    line-height: 1.4;
+  }
+  .form-privacy svg { flex-shrink: 0; opacity: 0.6; }
+
+  /* ── Responsive ──────────────────────────────────────────────── */
+  @media (max-width: 540px) {
+    .contact-form { padding: 20px 16px; }
+    .form-footer  { flex-direction: column; align-items: flex-start; }
+  }
+
+  /* ── Estado: enviando ────────────────────────────────────────── */
+  .contact-btn[data-loading] {
+    opacity: 0.7;
+    pointer-events: none;
+  }
+  .contact-btn[data-loading] .btn-text::after {
+    content: '...';
+  }
+  .contact-btn[data-loading] svg {
+    display: none;
+  }
+
+  /* ── Estado: éxito ───────────────────────────────────────────── */
+  .form-success-msg {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 40px 24px;
+    text-align: center;
+  }
+  .contact-form.sent .form-fields  { display: none; }
+  .contact-form.sent .form-success-msg { display: flex; }
+
+  .success-icon {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+  }
+  .success-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0;
+  }
+  .success-sub {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin: 0;
+    line-height: 1.6;
+  }
+  .success-reset {
+    font-size: 0.75rem;
+    font-family: var(--font-mono);
+    color: var(--muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    padding: 0;
+    transition: color 0.15s;
+  }
+  .success-reset:hover { color: var(--accent); }
+
+  /* ── Estado: error ───────────────────────────────────────────── */
+  .form-error-msg {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    background: color-mix(in srgb, #e55 8%, transparent);
+    border: 1px solid color-mix(in srgb, #e55 22%, transparent);
+    font-size: 0.78rem;
+    color: #e88;
+  }
+  .form-error-msg.visible { display: flex; }
+</style>
+
+<script>
+  /* ── Contador de caracteres ──────────────────────────────────── */
+  const textarea = document.getElementById('mensaje') as HTMLTextAreaElement | null;
+  const counter  = document.getElementById('charCount');
+  if (textarea && counter) {
+    textarea.addEventListener('input', () => {
+      const len = textarea.value.length;
+      counter.textContent = `${len} / 500`;
+      counter.style.color = len > 450 ? 'var(--accent)' : 'var(--muted)';
+      if (len > 500) textarea.value = textarea.value.slice(0, 500);
+    });
+  }
+
+  /* ── Envío del formulario → /api/contact ─────────────────────── */
+  const form      = document.getElementById('contactForm') as HTMLFormElement | null;
+  const submitBtn = document.getElementById('submitBtn') as HTMLButtonElement | null;
+  const errorMsg  = document.getElementById('formError');
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    if (!form || !submitBtn) return;
+
+    // Limpiar error previo
+    errorMsg?.classList.remove('visible');
+
+    // Estado: cargando
+    submitBtn.dataset.loading = '1';
+    const btnText = submitBtn.querySelector('.btn-text') as HTMLElement;
+    if (btnText) btnText.textContent = 'Enviando';
+
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        body: new FormData(form),
+      });
+
+      if (res.ok) {
+        // Éxito: mostrar panel de confirmación + toast
+        form.classList.add('sent');
+        if (typeof window.showToast === 'function') {
+          window.showToast('¡Mensaje enviado! Te respondemos pronto.', 'success');
+        }
+      } else {
+        const payload = await res.json().catch(() => ({}));
+        throw new Error(payload?.error ?? 'Error al enviar');
+      }
+    } catch (err) {
+      // Mostrar mensaje de error inline + toast
+      const msg = err instanceof Error ? err.message : 'No se pudo enviar. Intentá de nuevo.';
+      if (errorMsg) {
+        errorMsg.querySelector('span')!.textContent = msg;
+        errorMsg.classList.add('visible');
+      }
+      if (typeof window.showToast === 'function') {
+        window.showToast(msg, 'error');
+      }
+    } finally {
+      // Restaurar botón siempre
+      delete submitBtn.dataset.loading;
+      if (btnText) btnText.textContent = 'Enviar mensaje';
+    }
+  });
+
+  /* ── Reset tras éxito ────────────────────────────────────────── */
+  document.getElementById('resetForm')?.addEventListener('click', () => {
+    form?.reset();
+    form?.classList.remove('sent');
+    if (counter) counter.textContent = '0 / 500';
+  });
+</script>

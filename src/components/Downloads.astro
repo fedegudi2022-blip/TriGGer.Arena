@@ -1,0 +1,516 @@
+---
+import { query } from '../lib/db';
+import { WHATSAPP_URL as DEFAULT_WHATSAPP_URL } from '../config';
+import SectionBg from './SectionBg.astro';
+
+const WHATSAPP_URL = Astro.locals.siteSettings?.whatsapp_url ?? DEFAULT_WHATSAPP_URL;
+
+interface DownloadRow {
+  id: string;
+  nombre: string;
+  descripcion: string | null;
+  url: string;
+  categoria: string | null;
+  size_label: string | null;
+  sort_order: number | null;
+}
+
+const ICON_BY_CATEGORY: Record<string, string> = {
+  cliente: 'ti-device-gamepad-2',
+  config: 'ti-settings',
+  configuracion: 'ti-settings',
+  seguridad: 'ti-shield',
+  'anti-cheat': 'ti-shield',
+  anticheat: 'ti-shield',
+  mod: 'ti-puzzle',
+  mods: 'ti-puzzle',
+  mapa: 'ti-map',
+  mapas: 'ti-map',
+};
+const COLOR_PALETTE = ['var(--accent)', '#22c55e', '#a78bfa', '#f59e0b', '#ef4444'];
+
+function iconFor(categoria: string | null): string {
+  if (!categoria) return 'ti-file-download';
+  return ICON_BY_CATEGORY[categoria.toLowerCase().trim()] ?? 'ti-file-download';
+}
+
+// Tamaño relativo aproximado (solo visual) a partir del texto "262.72 MB" / "5.51 MB".
+function parseSizeValue(label: string | null): number {
+  if (!label) return 0;
+  const match = label.match(/([\d.,]+)\s*(GB|MB|KB)?/i);
+  if (!match) return 0;
+  const num = parseFloat(match[1].replace(',', '.'));
+  const unit = (match[2] ?? 'MB').toUpperCase();
+  const factor = unit === 'GB' ? 1024 : unit === 'KB' ? 1 / 1024 : 1;
+  return num * factor;
+}
+
+let rows: DownloadRow[] = [];
+try {
+  rows = await query<DownloadRow>('SELECT * FROM downloads ORDER BY sort_order ASC');
+} catch {
+  rows = [];
+}
+
+const maxSize = Math.max(1, ...rows.map(d => parseSizeValue(d.size_label)));
+
+const downloads = rows.map((d, i) => ({
+  icon: iconFor(d.categoria),
+  title: d.nombre,
+  meta: d.descripcion ?? (d.categoria ? d.categoria : ''),
+  size: parseSizeValue(d.size_label),
+  maxSize,
+  sizeLabel: d.size_label ?? '—',
+  href: d.url,
+  featured: i === 0,
+  color: COLOR_PALETTE[i % COLOR_PALETTE.length],
+  categoria: (d.categoria ?? 'otro').toLowerCase().trim(),
+}));
+
+// Categorías únicas para tabs
+const categorias = ['todos', ...Array.from(new Set(downloads.map(d => d.categoria)))];
+const catLabels: Record<string, string> = {
+  todos: 'Todos',
+  cliente: 'Cliente',
+  config: 'Config',
+  configuracion: 'Config',
+  seguridad: 'Seguridad',
+  'anti-cheat': 'Anti-Cheat',
+  anticheat: 'Anti-Cheat',
+  mod: 'Mods',
+  mods: 'Mods',
+  mapa: 'Mapas',
+  mapas: 'Mapas',
+  otro: 'Otros',
+};
+---
+
+<section id="descargas" class="downloads-section">
+
+  <SectionBg variant="circuit" glowPos="top-right" />
+
+  <div class="container">
+    <div class="s-label fade-in">
+      <span class="s-label-line"></span>
+      <span class="s-label-text">// Descargas</span>
+    </div>
+    <h2 class="s-title fade-in">Todo lo que necesitás</h2>
+    <p class="s-sub fade-in">Instalá, configura, conectá y empezá a jugar en minutos.</p>
+
+    {downloads.length > 0 && (
+    <div class="dl-order-hint fade-in">
+      {downloads.map((_, i) => <span class="order-badge">{i + 1}</span>)}
+      <span class="order-text">Descargá en este orden para una instalación sin problemas</span>
+    </div>
+    )}
+
+    <!-- Tabs de categoría (solo si hay más de 1 categoría) -->
+    {downloads.length > 0 && categorias.length > 2 && (
+    <div class="dl-tabs fade-in" role="tablist" aria-label="Filtrar descargas por categoría">
+      {categorias.map((cat) => (
+        <button
+          class={`dl-tab${cat === 'todos' ? ' dl-tab-active' : ''}`}
+          role="tab"
+          aria-selected={cat === 'todos' ? 'true' : 'false'}
+          data-cat={cat}
+        >
+          {catLabels[cat] ?? cat}
+        </button>
+      ))}
+    </div>
+    )}
+
+    {downloads.length > 0 ? (
+    <div class="dl-grid">
+      {downloads.map((d, i) => (
+        <a
+          href={d.href}
+          class={`dl-card fade-in${d.featured ? ' dl-featured' : ''}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={`--card-color: ${d.color}`}
+          data-cat={d.categoria}
+        >
+          <!-- ruido interno de la card -->
+          <div class="card-noise" aria-hidden="true"></div>
+          <!-- barra top -->
+          <div class="card-top-bar" aria-hidden="true"></div>
+          <!-- ícono marca de agua -->
+          <div class="card-bg-icon" aria-hidden="true">
+            <i class={`ti ${d.icon}`}></i>
+          </div>
+
+          <span class="dl-step">{i + 1}</span>
+
+          <span class="dl-icon-wrap">
+            <i class={`ti ${d.icon} dl-icon`} aria-hidden="true"></i>
+          </span>
+
+          <div class="dl-info">
+            <span class="dl-title">{d.title}</span>
+            <span class="dl-meta">{d.meta}</span>
+            <div class="dl-size-row">
+              <div class="dl-size-bar-track">
+                <div
+                  class="dl-size-bar-fill"
+                  style={`width: ${Math.max(4, (d.size / d.maxSize) * 100)}%`}
+                ></div>
+              </div>
+              <span class="dl-size-label">{d.sizeLabel}</span>
+            </div>
+          </div>
+
+          <span class="dl-arrow-wrap" aria-hidden="true">
+            <svg class="dl-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 5v14M5 12l7 7 7-7"/>
+            </svg>
+          </span>
+        </a>
+      ))}
+    </div>
+    ) : (
+      <div class="dl-empty fade-in">
+        <i class="ti ti-file-off" aria-hidden="true"></i>
+        <p>Todavía no hay archivos publicados. Volvé pronto.</p>
+      </div>
+    )}
+
+    <p class="dl-note fade-in">
+      ¿Tienes problemas para conectarte? Entra al
+      <a href={WHATSAPP_URL} class="note-link" target="_blank" rel="noopener">Grupo de WhatsApp</a>
+      y te ayudamos.
+    </p>
+  </div>
+</section>
+
+<style>
+  .downloads-section {
+    padding: var(--section-gap) 0;
+    border-top: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .container { position: relative; z-index: 1; }
+
+  /* ── Tabs de categoría ── */
+  .dl-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .dl-tab {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 5px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+  }
+  .dl-tab:hover {
+    color: var(--text);
+    border-color: var(--border-accent);
+  }
+  .dl-tab-active {
+    color: var(--accent);
+    border-color: var(--border-accent);
+    background: var(--accent-dark);
+  }
+
+  /* Cards ocultas por filtro */
+  .dl-card.dl-hidden {
+    display: none;
+  }
+
+  /* ── Hint de orden ── */
+  .dl-order-hint {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .order-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--border);
+    color: var(--muted);
+    font-size: 0.65rem;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .order-text {
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    margin-left: 4px;
+  }
+
+  /* ── Grid ── */
+  .dl-grid {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+  @media (min-width: 600px) {
+    .dl-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* ── Card ── */
+  .dl-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 18px 18px 20px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+    text-decoration: none;
+    background:
+      radial-gradient(
+        ellipse at 0% 0%,
+        color-mix(in srgb, var(--card-color) 18%, transparent) 0%,
+        transparent 60%
+      ),
+      var(--surface);
+    transition: border-color 0.22s, background 0.22s, transform 0.18s, box-shadow 0.22s;
+  }
+  .dl-card:hover {
+    border-color: color-mix(in srgb, var(--card-color) 45%, transparent);
+    background:
+      radial-gradient(
+        ellipse at 0% 0%,
+        color-mix(in srgb, var(--card-color) 26%, transparent) 0%,
+        transparent 60%
+      ),
+      var(--surface);
+    box-shadow: 0 0 28px color-mix(in srgb, var(--card-color) 10%, transparent);
+    transform: translateY(-2px);
+  }
+  .dl-card.dl-featured {
+    border-color: color-mix(in srgb, var(--card-color) 38%, transparent);
+  }
+
+  /* ── Ruido ── */
+  .card-noise {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0.032;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='250' height='250'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='250' height='250' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+    background-size: 180px 180px;
+  }
+
+  /* ── Barra top ── */
+  .card-top-bar {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 2px;
+    background: linear-gradient(
+      90deg,
+      var(--card-color) 0%,
+      color-mix(in srgb, var(--card-color) 30%, transparent) 60%,
+      transparent 100%
+    );
+    opacity: 0.4;
+    transition: opacity 0.22s, height 0.22s;
+  }
+  .dl-card.dl-featured .card-top-bar { opacity: 0.75; }
+  .dl-card:hover .card-top-bar { opacity: 1; height: 3px; }
+
+  /* ── Ícono marca de agua ── */
+  .card-bg-icon {
+    position: absolute;
+    bottom: -12px; right: -8px;
+    font-size: 90px;
+    color: var(--card-color);
+    opacity: 0.04;
+    pointer-events: none;
+    line-height: 1;
+    transition: opacity 0.22s, transform 0.3s;
+  }
+  .dl-card:hover .card-bg-icon {
+    opacity: 0.075;
+    transform: scale(1.06) rotate(-4deg);
+  }
+
+  /* ── Número de paso ── */
+  .dl-step {
+    position: absolute;
+    top: 8px; right: 12px;
+    font-size: 0.6rem;
+    font-family: var(--font-mono);
+    color: var(--muted);
+    opacity: 0.45;
+    z-index: 1;
+  }
+
+  /* ── Ícono con contenedor ── */
+  .dl-icon-wrap {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--card-color) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--card-color) 26%, transparent);
+    box-shadow: 0 0 14px color-mix(in srgb, var(--card-color) 15%, transparent);
+    transition: background 0.22s, box-shadow 0.22s, border-color 0.22s;
+    position: relative;
+    z-index: 1;
+  }
+  .dl-card:hover .dl-icon-wrap {
+    background: color-mix(in srgb, var(--card-color) 20%, transparent);
+    box-shadow: 0 0 24px color-mix(in srgb, var(--card-color) 28%, transparent);
+  }
+  .dl-icon {
+    font-size: 1.1rem;
+    color: var(--card-color);
+  }
+
+  /* ── Info ── */
+  .dl-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    position: relative;
+    z-index: 1;
+  }
+  .dl-title {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .dl-meta {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ── Barra de tamaño ── */
+  .dl-size-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .dl-size-bar-track {
+    flex: 1;
+    height: 3px;
+    background: var(--border);
+    border-radius: 999px;
+    overflow: hidden;
+    min-width: 0;
+  }
+  .dl-size-bar-fill {
+    height: 100%;
+    background: var(--card-color);
+    border-radius: 999px;
+    opacity: 0.45;
+    transition: opacity 0.18s;
+  }
+  .dl-card:hover .dl-size-bar-fill { opacity: 1; }
+  .dl-size-label {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    color: var(--muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* ── Flecha ── */
+  .dl-arrow-wrap {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    border: 1px solid color-mix(in srgb, var(--card-color) 25%, transparent);
+    background: color-mix(in srgb, var(--card-color) 8%, transparent);
+    transition: border-color 0.18s, background 0.18s;
+    position: relative;
+    z-index: 1;
+  }
+  .dl-card:hover .dl-arrow-wrap {
+    border-color: color-mix(in srgb, var(--card-color) 50%, transparent);
+    background: color-mix(in srgb, var(--card-color) 16%, transparent);
+  }
+  .dl-arrow {
+    color: var(--card-color);
+    transition: transform 0.18s;
+  }
+  .dl-card:hover .dl-arrow { transform: translateY(2px); }
+
+  /* ── Nota ── */
+  .dl-note {
+    font-size: 0.82rem;
+    color: var(--muted-2);
+    text-align: center;
+  }
+  .note-link {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .note-link:hover { opacity: 0.8; }
+
+  /* ── Estado vacío ────────────────────────────────────────────── */
+  .dl-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 40px 24px;
+    margin-bottom: 28px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-lg);
+    color: var(--muted);
+    text-align: center;
+  }
+  .dl-empty i { font-size: 26px; opacity: 0.6; }
+  .dl-empty p { font-size: 0.85rem; color: var(--muted); }
+</style>
+
+<script>
+  const tabs  = document.querySelectorAll<HTMLButtonElement>('.dl-tab');
+  const cards = document.querySelectorAll<HTMLElement>('.dl-card[data-cat]');
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const cat = tab.getAttribute('data-cat');
+
+      // Actualizar tabs activos
+      tabs.forEach(t => {
+        t.classList.toggle('dl-tab-active', t === tab);
+        t.setAttribute('aria-selected', t === tab ? 'true' : 'false');
+      });
+
+      // Filtrar cards
+      cards.forEach(card => {
+        const cardCat = card.getAttribute('data-cat');
+        const show = cat === 'todos' || cardCat === cat;
+        card.classList.toggle('dl-hidden', !show);
+      });
+    });
+  });
+</script>

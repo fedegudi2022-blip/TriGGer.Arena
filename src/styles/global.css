@@ -1,0 +1,357 @@
+/* ── Reset ──────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── Design tokens ──────────────────────────────────── */
+:root {
+  --bg:           #07090f;
+  --surface:      #0c1018;
+  --surface-2:    #111827;
+  --border:       #1a2540;
+  --border-accent: rgba(56, 182, 255, 0.28);
+
+  --accent:       #38b6ff;
+  --accent-glow:  rgba(56, 182, 255, 0.12);
+  --accent-dark:  rgba(56, 182, 255, 0.06);
+
+  --text:         #e8eeff;
+  --muted:        #5a7a9a;
+  --muted-2:      #8aa0c0;
+
+  --green:        #4ade80;
+
+  --font-display: 'Rajdhani', sans-serif;
+  --font-body:    'Inter', sans-serif;
+  --font-mono:    'JetBrains Mono', monospace;
+
+  --container:    1100px;
+  --radius:       4px;
+  --radius-lg:    8px;
+
+  --section-gap:  100px;
+
+  /* Spacing */
+  --spacing-xs:   4px;
+  --spacing-sm:   8px;
+  --spacing-md:   16px;
+  --spacing-lg:   24px;
+  --spacing-xl:   32px;
+  --spacing-2xl:  48px;
+  --spacing-3xl:  64px;
+}
+
+/* ── Base ───────────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) var(--bg);
+}
+
+body {
+  background: radial-gradient(circle at top, rgba(56, 182, 255, 0.08), transparent 24%), var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+}
+
+p, li {
+  color: var(--muted-2);
+}
+
+img   { display: block; max-width: 100%; }
+a     { color: inherit; text-decoration: none; }
+button { cursor: pointer; border: none; background: none; font-family: inherit; color: inherit; }
+ul    { list-style: none; }
+
+::selection {
+  background: rgba(56, 182, 255, 0.24);
+  color: #ffffff;
+}
+
+main {
+  padding-bottom: 100px;
+}
+
+/* ── Focus Visible (Accesibilidad) ──────────────────── */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+/* ── Scrollbar ──────────────────────────────────────── */
+::-webkit-scrollbar       { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+/* ── Utilities ──────────────────────────────────────── */
+.container {
+  max-width: var(--container);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+section {
+  scroll-margin-top: 90px;
+}
+
+/* Section header shared pattern */
+.s-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.s-label-line {
+  display: block;
+  width: 22px;
+  height: 1px;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+.s-label-text {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.s-title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  margin-bottom: 8px;
+}
+
+.s-sub {
+  font-size: 0.88rem;
+  color: var(--muted-2);
+  margin-bottom: 44px;
+}
+
+/* ── Pulse animation ────────────────────────────────── */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.25; }
+}
+
+/* ── Scroll fade-in ─────────────────────────────────── */
+.fade-in {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+.fade-in.visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* ── Button Styles ──────────────────────────────────── */
+.btn-primary,
+.btn-secondary,
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 12px 28px;
+  border-radius: var(--radius-lg);
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--bg);
+  border: 1px solid var(--accent);
+}
+
+.btn-primary:hover {
+  background: rgba(56, 182, 255, 0.9);
+  box-shadow: 0 8px 16px rgba(56, 182, 255, 0.25);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--border-accent);
+}
+
+.btn-ghost:hover {
+  background: rgba(56, 182, 255, 0.08);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* ── Fondo por sección con fade entre bloques ────────── */
+/*
+  Uso: agregale a cualquier <section> el atributo data-bg y la
+  variable --section-bg con la ruta de la imagen, por ejemplo:
+
+  <section data-bg style="--section-bg: url('/images/servidores-bg.webp')">
+
+  El ::before pone la foto (oscurecida y desaturada para que combine
+  con el resto) y la desvanece arriba/abajo con una máscara. El
+  ::after agrega el mismo velo celeste de marca por encima. Donde la
+  máscara llega a transparente, se ve el fondo del body — por eso no
+  hay un corte duro entre una sección con foto y la siguiente.
+*/
+section[data-bg] {
+  position: relative;
+  isolation: isolate;
+}
+
+section[data-bg]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background-image: var(--section-bg);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: grayscale(0.25) brightness(0.5) contrast(1.05);
+  mask-image: linear-gradient(to bottom, transparent, black 18%, black 82%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 18%, black 82%, transparent);
+}
+
+section[data-bg]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, rgba(7,9,15,0.55), rgba(56,182,255,0.06) 50%, rgba(7,9,15,0.85));
+}
+
+/* ── Decoración: grid táctico (sin imágenes) ──────────── */
+/*
+  Uso: agregale a cualquier <section> el atributo data-decor="grid".
+  Funciona solo, o combinado con data-bg (en ese caso, el grid queda
+  por debajo de la foto y se asoma en las zonas donde la foto se
+  desvanece arriba/abajo — efecto lindo, no hay que tocar nada más,
+  ya que data-bg dibuja su fondo en z-index -2/-1 y este grid queda
+  en z-index -3, siempre por detrás).
+*/
+section[data-decor="grid"] {
+  position: relative;
+  isolation: isolate;
+}
+
+section[data-decor="grid"]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -3;
+  background-image:
+    linear-gradient(var(--border-accent) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border-accent) 1px, transparent 1px),
+    linear-gradient(rgba(232, 238, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232, 238, 255, 0.025) 1px, transparent 1px);
+  background-size: 96px 96px, 96px 96px, 16px 16px, 16px 16px;
+  background-position: center top;
+  mask-image: radial-gradient(ellipse 70% 65% at 50% 42%, transparent 30%, black 92%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 65% at 50% 42%, transparent 30%, black 92%);
+}
+/* ── Fade-in mejorado con variantes ─────────────────── */
+.fade-in {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.55s cubic-bezier(0.16,1,0.3,1),
+              transform 0.55s cubic-bezier(0.16,1,0.3,1);
+}
+.fade-in.visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Variante desde la izquierda */
+.fade-in-left {
+  opacity: 0;
+  transform: translateX(-24px);
+  transition: opacity 0.55s cubic-bezier(0.16,1,0.3,1),
+              transform 0.55s cubic-bezier(0.16,1,0.3,1);
+}
+.fade-in-left.visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Variante desde la derecha */
+.fade-in-right {
+  opacity: 0;
+  transform: translateX(24px);
+  transition: opacity 0.55s cubic-bezier(0.16,1,0.3,1),
+              transform 0.55s cubic-bezier(0.16,1,0.3,1);
+}
+.fade-in-right.visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Variante escala (para cards) */
+.fade-in-scale {
+  opacity: 0;
+  transform: translateY(16px) scale(0.97);
+  transition: opacity 0.5s cubic-bezier(0.16,1,0.3,1),
+              transform 0.5s cubic-bezier(0.16,1,0.3,1);
+}
+.fade-in-scale.visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Respetar preferencias de movimiento reducido */
+@media (prefers-reduced-motion: reduce) {
+  .fade-in, .fade-in-left, .fade-in-right, .fade-in-scale {
+    transition: opacity 0.2s ease;
+    transform: none;
+  }
+}
+
+/* ── Contador animado ────────────────────────────────── */
+.stat-val[data-count] {
+  display: inline-block;
+}
+
+/* ── Ripple en botones primarios ─────────────────────── */
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+.btn-ripple .ripple-circle {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.25);
+  transform: scale(0);
+  animation: ripple-anim 0.55s linear;
+  pointer-events: none;
+}
+@keyframes ripple-anim {
+  to { transform: scale(4); opacity: 0; }
+}
+
+/* ── Scroll suave nativo con offset via scroll-margin ── */
+section {
+  scroll-margin-top: 74px;
+}

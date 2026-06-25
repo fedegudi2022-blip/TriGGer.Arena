@@ -1,0 +1,1069 @@
+---
+export const prerender = false;
+import '@fontsource/inter/400.css';
+import '@fontsource/inter/500.css';
+import '@fontsource/inter/600.css';
+import '@fontsource/inter/700.css';
+import '@fontsource/inter/800.css';
+import '@fontsource/jetbrains-mono/400.css';
+import '@fontsource/jetbrains-mono/500.css';
+import { DEFAULT_SERVERS, DEFAULT_SITE_SETTINGS, serverIp } from '../../lib/site-data';
+import { WHATSAPP_URL as DEFAULT_WHATSAPP_URL, DISCORD_URL as DEFAULT_DISCORD_URL } from '../../config';
+
+const user    = Astro.locals.user!;
+const profile = Astro.locals.profile;
+
+const displayName = profile?.username
+  ?? user?.email?.split('@')[0]
+  ?? 'Usuario';
+const avatarUrl = profile?.avatar_url ?? '';
+const userEmail = user?.email ?? '';
+const createdAt = profile?.created_at
+  ? new Date(profile.created_at).toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' })
+  : '—';
+const isAdmin = profile?.role === 'admin';
+
+const errorParam = Astro.url.searchParams.get('error');
+
+const serverRows = Astro.locals.servers ?? DEFAULT_SERVERS;
+const activeServers = serverRows.filter(s => s.active !== false);
+const serverConfigsJson = JSON.stringify(
+  activeServers.map(s => ({ id: s.id, name: s.name, mode: s.mode ?? '', ip: serverIp(s), color: (s as any).color ?? '#38b6ff' }))
+);
+
+const siteSettings = Astro.locals.siteSettings ?? DEFAULT_SITE_SETTINGS;
+const whatsappUrl = siteSettings.whatsapp_url ?? DEFAULT_WHATSAPP_URL;
+const discordUrl  = siteSettings.discord_url  ?? DEFAULT_DISCORD_URL;
+const isOperativo = siteSettings.site_status === 'operativo';
+
+const asuntoOptions = [
+  { value: 'servidor', label: 'Servidor' },
+  { value: 'ban',      label: 'Ban / Apelación' },
+  { value: 'planes',   label: 'Planes' },
+  { value: 'cuenta',   label: 'Cuenta' },
+  { value: 'otro',     label: 'Otro' },
+];
+---
+
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mi Cuenta · TriGGer.Arena</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" type="image/webp" href="/trigger_fondo.webp" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" />
+</head>
+<body data-servers={serverConfigsJson} data-email={userEmail}>
+
+<div class="shell">
+
+  <!-- ══ SIDEBAR ══ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-top">
+      <a href="/" class="brand">
+        <img src="/trigger_fondo.webp" alt="" width="22" height="22" class="brand-img" />
+        <span class="brand-txt">TriGGer<span class="brand-dot">.</span>Arena</span>
+      </a>
+      <span class="brand-tag">PORTAL</span>
+    </div>
+
+    <nav class="side-nav" id="sideNav">
+      <button class="nav-item active" data-section="resumen"><i class="ti ti-layout-dashboard"></i><span>Resumen</span></button>
+      <button class="nav-item" data-section="perfil"><i class="ti ti-user-circle"></i><span>Perfil</span></button>
+      <button class="nav-item" data-section="seguridad"><i class="ti ti-shield-lock"></i><span>Seguridad</span></button>
+      <button class="nav-item" data-section="servidores"><i class="ti ti-server"></i><span>Servidores</span></button>
+      <button class="nav-item" data-section="soporte"><i class="ti ti-headset"></i><span>Soporte</span></button>
+    </nav>
+
+    <div class="sidebar-bottom">
+      {isAdmin && (
+        <a href="/admin" class="side-admin-btn" title="Panel Admin">
+          <i class="ti ti-layout-dashboard"></i>
+          <span>Panel Admin</span>
+          <i class="ti ti-external-link" style="font-size:10px;opacity:.5"></i>
+        </a>
+      )}
+      <div class="side-user-row">
+        <div class="side-user-info">
+          <div class="side-avatar-wrap">
+            {avatarUrl
+              ? <img src={avatarUrl} alt="" width="30" height="30" class="side-avatar" />
+              : <span class="side-avatar side-avatar-fb"><i class="ti ti-user"></i></span>}
+            <span class="side-status-dot"></span>
+          </div>
+          <span class="side-uname">{displayName.split(' ')[0]}</span>
+        </div>
+        <button class="side-logout" id="logoutBtn" title="Cerrar sesión"><i class="ti ti-logout"></i></button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- ══ MAIN ══ -->
+  <div class="content">
+
+    <header class="topbar">
+      <button class="topbar-menu" id="menuBtn" aria-label="Menú"><i class="ti ti-menu-2"></i></button>
+      <div class="topbar-crumb">
+        <span class="crumb-root">Portal</span>
+        <i class="ti ti-chevron-right"></i>
+        <span class="crumb-current" id="crumbCurrent">Resumen</span>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-user">
+          <div class="topbar-avatar">
+            {avatarUrl
+              ? <img src={avatarUrl} alt="" width="24" height="24" />
+              : <i class="ti ti-user"></i>}
+          </div>
+          <span class="topbar-uname">{displayName.split(' ')[0]}</span>
+          <span class={`topbar-role-badge ${isAdmin ? 'admin' : 'user'}`}>
+            <i class={isAdmin ? 'ti ti-shield-filled' : 'ti ti-user'}></i>
+            {isAdmin ? 'Admin' : 'Jugador'}
+          </span>
+        </div>
+        <div class="topbar-clock" id="topClock"></div>
+      </div>
+    </header>
+
+    <main class="main">
+
+      {errorParam && (
+        <div class="alert-err" style="margin:20px 28px 0">
+          <i class="ti ti-alert-triangle"></i>
+          {errorParam === 'unauthorized' ? 'Acceso no autorizado.' : errorParam}
+        </div>
+      )}
+
+      <!-- ─── RESUMEN ─── -->
+      <section class="section active" id="sec-resumen">
+        <div class="page-head">
+          <div>
+            <h1>Hola, {displayName.split(' ')[0]} 👋</h1>
+            <p>Resumen de tu cuenta en TriGGer.Arena</p>
+          </div>
+          {isAdmin && (
+            <a href="/admin" class="btn-admin-link">
+              <i class="ti ti-layout-dashboard"></i> Ir al Panel Admin
+              <i class="ti ti-external-link" style="font-size:11px;opacity:.6"></i>
+            </a>
+          )}
+        </div>
+
+        <!-- Profile hero card -->
+        <div class="hero-card">
+          <div class="hero-glow"></div>
+          <div class="hero-content">
+            <div class="hero-avatar-wrap">
+              {avatarUrl
+                ? <img src={avatarUrl} alt="avatar" class="hero-avatar" />
+                : <div class="hero-avatar hero-avatar-ph"><i class="ti ti-user"></i></div>
+              }
+              <span class="hero-online-dot"></span>
+            </div>
+            <div class="hero-info">
+              <h2 class="hero-name">{displayName}</h2>
+              <p class="hero-email">{userEmail}</p>
+              <div class="hero-badges">
+                <span class={`hbadge ${isAdmin ? 'hbadge-admin' : 'hbadge-user'}`}>
+                  <i class={isAdmin ? 'ti ti-shield-filled' : 'ti ti-user'}></i>
+                  {isAdmin ? 'Administrador' : 'Jugador'}
+                </span>
+                <span class="hbadge hbadge-date">
+                  <i class="ti ti-calendar"></i> Desde {createdAt}
+                </span>
+                {isOperativo
+                  ? <span class="hbadge hbadge-online"><span class="dot-pulse"></span> Sitio Operativo</span>
+                  : <span class="hbadge hbadge-maint"><i class="ti ti-tool"></i> Mantenimiento</span>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stat row -->
+        <div class="stat-row">
+          <div class="stat">
+            <i class={isAdmin ? 'ti ti-shield-filled' : 'ti ti-user'}></i>
+            <span class="stat-num">{isAdmin ? 'Admin' : 'Jugador'}</span>
+            <span class="stat-label">Tu rol</span>
+            <span class="stat-delta muted">Rango actual</span>
+          </div>
+          <div class="stat">
+            <i class="ti ti-calendar"></i>
+            <span class="stat-num" style="font-size:0.9rem">{createdAt}</span>
+            <span class="stat-label">Miembro desde</span>
+            <span class="stat-delta muted">Fecha de registro</span>
+          </div>
+          <div class="stat">
+            <i class="ti ti-server"></i>
+            <span class="stat-num">{activeServers.length}</span>
+            <span class="stat-label">Servidores activos</span>
+            <span class="stat-delta muted">CS 1.6</span>
+          </div>
+          <div class="stat">
+            <i class={isOperativo ? 'ti ti-circle-check' : 'ti ti-tool'}></i>
+            <span class="stat-num" style="font-size:0.85rem">{isOperativo ? 'Operativo' : 'Mant.'}</span>
+            <span class="stat-label">Estado del sitio</span>
+            <span class={`stat-delta ${isOperativo ? '' : 'muted'}`}>{isOperativo ? '✓ Todo ok' : 'En mantenimiento'}</span>
+          </div>
+        </div>
+
+        <!-- Accesos rápidos -->
+        <div class="card">
+          <div class="card-head"><h2><i class="ti ti-bolt"></i> Accesos rápidos</h2></div>
+          <div class="quick-row">
+            <button class="quick" data-section="servidores">
+              <i class="ti ti-server"></i>
+              <div><strong>Servidores</strong><span>Estado en vivo y copiar IP</span></div>
+            </button>
+            <button class="quick" data-section="perfil">
+              <i class="ti ti-edit"></i>
+              <div><strong>Editar perfil</strong><span>Username y avatar</span></div>
+            </button>
+            <a class="quick" href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+              <i class="ti ti-brand-whatsapp"></i>
+              <div><strong>WhatsApp</strong><span>Comunidad y soporte</span></div>
+            </a>
+            <a class="quick" href={discordUrl} target="_blank" rel="noopener noreferrer">
+              <i class="ti ti-brand-discord"></i>
+              <div><strong>Discord</strong><span>Voz, texto y eventos</span></div>
+            </a>
+            <button class="quick" data-section="soporte">
+              <i class="ti ti-headset"></i>
+              <div><strong>Soporte</strong><span>Envianos una consulta</span></div>
+            </button>
+            <button class="quick" data-section="seguridad">
+              <i class="ti ti-shield-lock"></i>
+              <div><strong>Seguridad</strong><span>Contraseña y cuenta</span></div>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── PERFIL ─── -->
+      <section class="section" id="sec-perfil">
+        <div class="page-head">
+          <div><h1>Mi Perfil</h1><p>Información y configuración de tu cuenta</p></div>
+        </div>
+
+        <div class="profile-hero-card">
+          <div class="ph-avatar">
+            {avatarUrl
+              ? <img src={avatarUrl} alt="avatar" />
+              : <div class="ph-avatar-ph"><i class="ti ti-user"></i></div>
+            }
+          </div>
+          <div class="ph-info">
+            <h2 class="ph-name">{displayName}</h2>
+            <p class="ph-email">{userEmail}</p>
+            <div class="ph-badges">
+              <span class={`tag ${isAdmin ? 'accent' : 'muted'}`}>
+                <i class={isAdmin ? 'ti ti-shield-filled' : 'ti ti-user'}></i>
+                {isAdmin ? 'Administrador' : 'Jugador'}
+              </span>
+              <span class="tag"><i class="ti ti-calendar"></i> Desde {createdAt}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2><i class="ti ti-edit"></i> Editar información</h2></div>
+          <div class="form-pad">
+            <div class="form-row">
+              <div class="field">
+                <label>Nombre de usuario</label>
+                <div class="iw"><i class="ti ti-at ii"></i><input id="inp-username" type="text" class="inp" value={profile?.username ?? ''} placeholder="tu_username" maxlength="20" autocomplete="username" /></div>
+                <span class="hint">Entre 3 y 20 caracteres. Solo letras, números y guión bajo.</span>
+              </div>
+              <div class="field">
+                <label>URL de avatar</label>
+                <div class="iw"><i class="ti ti-photo ii"></i><input id="inp-avatar" type="url" class="inp" value={profile?.avatar_url ?? ''} placeholder="https://..." autocomplete="off" /></div>
+                <span class="hint">URL pública de una imagen (jpg, png, webp).</span>
+              </div>
+            </div>
+            <div class="field">
+              <label>Email <span class="hint" style="text-transform:none">(solo lectura)</span></label>
+              <input type="email" class="inp" value={userEmail} disabled />
+            </div>
+            <p class="error" id="profileErr"></p>
+            <button class="btn-primary" id="saveProfileBtn"><i class="ti ti-device-floppy"></i> Guardar cambios</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── SEGURIDAD ─── -->
+      <section class="section" id="sec-seguridad">
+        <div class="page-head">
+          <div><h1>Seguridad</h1><p>Gestioná el acceso a tu cuenta</p></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2><i class="ti ti-key"></i> Cambiar contraseña</h2></div>
+          <div class="form-pad">
+            <p class="info-text">Te enviaremos un correo con un enlace para resetear tu contraseña.</p>
+            <button class="btn-ghost" id="resetPassBtn"><i class="ti ti-mail"></i> Enviar correo de reset</button>
+          </div>
+        </div>
+
+        <div class="card card-danger">
+          <div class="card-head card-head-danger"><h2><i class="ti ti-alert-triangle"></i> Zona de peligro</h2></div>
+          <div class="form-pad">
+            <div class="danger-row">
+              <div>
+                <p class="danger-title">Cerrar sesión</p>
+                <p class="danger-desc">Cerrá sesión en todos los dispositivos.</p>
+              </div>
+              <button class="btn-ghost" id="logoutBtn2"><i class="ti ti-logout"></i> Cerrar sesión</button>
+            </div>
+            <div class="divider"></div>
+            <div class="danger-row">
+              <div>
+                <p class="danger-title">Eliminar cuenta</p>
+                <p class="danger-desc">Esta acción es irreversible. Se borrarán todos tus datos permanentemente.</p>
+              </div>
+              <button class="btn-danger" id="deleteAccountBtn"><i class="ti ti-trash"></i> Eliminar cuenta</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── SERVIDORES ─── -->
+      <section class="section" id="sec-servidores">
+        <div class="page-head">
+          <div><h1>Servidores</h1><p>Estado en vivo · CS 1.6 · Copiá la IP y conectate</p></div>
+          <div class="head-actions">
+            <button class="btn-ghost" id="srvRefreshBtn"><i class="ti ti-refresh" id="srvRefreshIcon"></i> Actualizar</button>
+            <span class="dim mono" id="srvCountdown"></span>
+          </div>
+        </div>
+
+        <div class="server-grid" id="srvGrid">
+          {activeServers.map(() => <div class="skel"></div>)}
+        </div>
+
+        {activeServers.length === 0 && (
+          <div class="card"><div class="empty"><i class="ti ti-server-off"></i><p>No hay servidores configurados.</p></div></div>
+        )}
+
+        <div class="card">
+          <div class="card-head"><h2><i class="ti ti-info-circle"></i> Cómo conectarse</h2></div>
+          <div class="form-pad" style="gap:8px">
+            <div class="step-row">
+              <span class="step-num">1</span>
+              <span>Copiá la IP del servidor usando el botón <strong>"Copiar IP"</strong></span>
+            </div>
+            <div class="step-row">
+              <span class="step-num">2</span>
+              <span>Abrí Counter-Strike 1.6 y presioná <code>~</code> para abrir la consola</span>
+            </div>
+            <div class="step-row">
+              <span class="step-num">3</span>
+              <span>Escribí <code>connect [IP]</code> y presioná Enter</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── SOPORTE ─── -->
+      <section class="section" id="sec-soporte">
+        <div class="page-head">
+          <div><h1>Soporte</h1><p>¿Necesitás ayuda? Escribinos y te respondemos por correo.</p></div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head"><h2><i class="ti ti-headset"></i> Enviar una consulta</h2></div>
+            <div class="form-pad">
+              <div class="form-row">
+                <div class="field">
+                  <label>Asunto</label>
+                  <select id="sup-asunto" class="inp">
+                    {asuntoOptions.map(o => <option value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Tu email <span class="hint" style="text-transform:none">(solo lectura)</span></label>
+                  <div class="iw"><i class="ti ti-mail ii"></i><input type="email" class="inp" value={userEmail} disabled /></div>
+                </div>
+              </div>
+              <div class="field">
+                <label>Mensaje</label>
+                <textarea id="sup-mensaje" class="inp" rows="5" placeholder="Contanos qué necesitás…" maxlength="1000" style="resize:vertical;min-height:100px"></textarea>
+              </div>
+              <p class="error" id="supErr"></p>
+              <button class="btn-primary" id="sendSupportBtn"><i class="ti ti-send"></i> Enviar consulta</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="card" style="margin-bottom:12px">
+              <div class="card-head"><h2><i class="ti ti-message-circle"></i> Respuesta más rápida</h2></div>
+              <p style="padding:14px 18px;font-size:.8rem;color:var(--muted)">Para consultas urgentes, sumate a nuestra comunidad.</p>
+              <div class="link-list">
+                <a class="link-row" href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+                  <i class="ti ti-brand-whatsapp"></i><span>WhatsApp</span><span class="link-sub">Grupo de la comunidad</span><i class="ti ti-external-link end"></i>
+                </a>
+                <a class="link-row" href={discordUrl} target="_blank" rel="noopener noreferrer">
+                  <i class="ti ti-brand-discord"></i><span>Discord</span><span class="link-sub">Servidor oficial</span><i class="ti ti-external-link end"></i>
+                </a>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head"><h2><i class="ti ti-clock-hour-4"></i> Tiempos de respuesta</h2></div>
+              <div class="info-list">
+                <div class="info-row"><span>WhatsApp</span><span class="info-val"><span class="dot olive"></span>Inmediato</span></div>
+                <div class="info-row"><span>Discord</span><span class="info-val"><span class="dot olive"></span>Minutos</span></div>
+                <div class="info-row"><span>Email / Soporte</span><span class="info-val"><span class="dot accent"></span>24–48 hs</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- ══ MODAL: Eliminar cuenta ══ -->
+<div class="overlay" id="deleteOverlay">
+  <div class="modal modal-sm">
+    <div class="modal-head">
+      <span class="modal-title danger"><i class="ti ti-trash"></i> Eliminar cuenta</span>
+    </div>
+    <div class="form-pad">
+      <p class="confirm-msg">Esta acción es <strong>irreversible</strong>. Se eliminarán tu perfil y todos tus datos permanentemente.</p>
+      <div class="modal-foot">
+        <button class="btn-ghost" id="cancelDeleteBtn">Cancelar</button>
+        <button class="btn-danger" id="confirmDeleteBtn"><i class="ti ti-trash"></i> Sí, eliminar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite">
+  <i class="toast-icon ti" id="toastIcon"></i>
+  <span id="toastMsg"></span>
+  <div class="toast-progress" id="toastProgress"></div>
+</div>
+
+</body>
+</html>
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:            #0b1220;
+    --surface:       #142038;
+    --surface-2:     #18233b;
+    --border:        #25324f;
+    --border-strong: #33466e;
+    --ink:           #f4f8ff;
+    --ink-soft:      #c8d4ea;
+    --muted:         #8a98b5;
+    --accent:        #38bdf8;
+    --accent-dark:   #0ea5e9;
+    --accent-soft:   #0f2433;
+    --blue:          #2563eb;
+    --blue-dark:     #1d4ed8;
+    --blue-soft:     #172554;
+    --success:       #22c55e;
+    --success-soft:  #10261a;
+    --danger:        #ef4444;
+    --danger-soft:   #311515;
+    --olive:         #86efac;
+    --olive-soft:    #0d2218;
+    --radius-sm: 5px;
+    --radius:    9px;
+    --font-mono: 'JetBrains Mono', monospace;
+    --header-h: 56px;
+    --side-w: 230px;
+  }
+
+  html, body { background: var(--bg); color: var(--ink); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; -webkit-font-smoothing: antialiased; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+  .shell { display: flex; min-height: 100vh; }
+
+  /* ══ SIDEBAR ══ */
+  .sidebar {
+    width: var(--side-w); flex-shrink: 0;
+    background: var(--surface); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    position: fixed; top: 0; left: 0; bottom: 0; z-index: 60;
+    transition: transform 0.25s ease;
+  }
+  .sidebar-top { padding: 18px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .brand { display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--ink); }
+  .brand-img { border-radius: 5px; }
+  .brand-txt { font-weight: 800; font-size: 0.86rem; letter-spacing: -0.01em; }
+  .brand-dot { color: var(--accent); }
+  .brand-tag { font-family: var(--font-mono); font-size: 0.5rem; letter-spacing: 0.14em; color: var(--accent); background: var(--accent-soft); border-radius: 3px; padding: 2px 6px; }
+
+  .side-nav { flex: 1; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 11px; border-radius: var(--radius-sm); border: none; background: none;
+    color: var(--ink-soft); font-family: inherit; font-size: 0.82rem; font-weight: 500;
+    cursor: pointer; text-align: left; position: relative;
+  }
+  .nav-item .ti { font-size: 16px; width: 16px; flex-shrink: 0; }
+  .nav-item span { flex: 1; }
+  .nav-item:hover { background: var(--surface-2); color: var(--ink); }
+  .nav-item.active { background: var(--accent-soft); color: var(--accent-dark); font-weight: 600; }
+  .nav-item.active::before { content: ''; position: absolute; left: -10px; top: 6px; bottom: 6px; width: 3px; background: var(--accent); border-radius: 0 3px 3px 0; }
+
+  .sidebar-bottom { border-top: 1px solid var(--border); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+
+  .side-admin-btn {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; border-radius: var(--radius-sm);
+    background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2);
+    color: #f59e0b; font-size: 0.78rem; font-weight: 600; text-decoration: none;
+  }
+  .side-admin-btn:hover { background: rgba(245,158,11,0.14); }
+  .side-admin-btn .ti { font-size: 15px; }
+
+  .side-user-row { display: flex; align-items: center; gap: 8px; }
+  .side-user-info { flex: 1; display: flex; align-items: center; gap: 9px; padding: 6px 4px; min-width: 0; }
+  .side-avatar-wrap { position: relative; flex-shrink: 0; }
+  .side-avatar { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); }
+  .side-avatar-fb { display: flex; align-items: center; justify-content: center; background: var(--surface-2); color: var(--muted); font-size: 15px; }
+  .side-status-dot { position: absolute; bottom: 0; right: 0; width: 9px; height: 9px; border-radius: 50%; background: var(--success); border: 1.5px solid var(--surface); }
+  .side-uname { font-size: 0.8rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .side-logout { width: 32px; height: 32px; flex-shrink: 0; border-radius: var(--radius-sm); border: 1px solid var(--border); background: none; color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .side-logout:hover { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }
+
+  .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(20,22,16,0.4); z-index: 55; }
+  .sidebar-overlay.show { display: block; }
+
+  /* ══ CONTENT ══ */
+  .content { flex: 1; margin-left: var(--side-w); min-width: 0; display: flex; flex-direction: column; }
+
+  .topbar {
+    height: var(--header-h); flex-shrink: 0;
+    display: flex; align-items: center; gap: 12px; padding: 0 24px;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 40;
+  }
+  .topbar-menu { display: none; width: 32px; height: 32px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: none; color: var(--ink-soft); align-items: center; justify-content: center; cursor: pointer; }
+  .topbar-crumb { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; }
+  .crumb-root { color: var(--muted); }
+  .topbar-crumb .ti { font-size: 12px; color: var(--muted); }
+  .crumb-current { font-weight: 700; }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+  .topbar-user { display: flex; align-items: center; gap: 8px; }
+  .topbar-avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--accent-soft); border: 1px solid rgba(56,189,248,0.2); display: flex; align-items: center; justify-content: center; overflow: hidden; font-size: 13px; color: var(--accent); }
+  .topbar-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .topbar-uname { font-size: 0.78rem; font-weight: 600; color: var(--ink-soft); }
+  .topbar-role-badge { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-mono); font-size: 0.58rem; letter-spacing: 0.05em; padding: 3px 8px; border-radius: 10px; }
+  .topbar-role-badge.admin { color: #f59e0b; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25); }
+  .topbar-role-badge.user { color: var(--accent-dark); background: var(--accent-soft); border: 1px solid rgba(56,189,248,0.2); }
+  .topbar-clock { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); }
+
+  .main { flex: 1; }
+  .section { display: none; padding: 26px 28px 48px; max-width: 1400px; }
+  .section.active { display: block; }
+
+  .alert-err { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-radius: 8px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); color: var(--danger); font-size: 0.82rem; margin-bottom: 20px; }
+
+  .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 22px; }
+  .page-head h1 { font-size: 1.4rem; font-weight: 800; letter-spacing: -0.01em; }
+  .page-head p { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
+  .head-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+  .btn-admin-link {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px; background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25);
+    border-radius: var(--radius-sm); color: #f59e0b; font-size: 0.78rem; font-weight: 600;
+    text-decoration: none;
+  }
+  .btn-admin-link:hover { background: rgba(245,158,11,0.15); }
+
+  /* ── Hero card ── */
+  .hero-card {
+    position: relative; border-radius: var(--radius);
+    background: var(--surface); border: 1px solid var(--border);
+    overflow: hidden; margin-bottom: 18px; padding: 24px;
+  }
+  .hero-glow {
+    position: absolute; top: -60px; right: -60px; width: 240px; height: 240px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(56,189,248,0.1) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-content { position: relative; z-index: 1; display: flex; align-items: center; gap: 20px; }
+  .hero-avatar-wrap { position: relative; flex-shrink: 0; }
+  .hero-avatar { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(56,189,248,0.3); box-shadow: 0 0 24px rgba(56,189,248,0.12); display: block; }
+  .hero-avatar-ph { display: flex; align-items: center; justify-content: center; background: var(--accent-soft); color: var(--accent); font-size: 28px; }
+  .hero-online-dot { position: absolute; bottom: 2px; right: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--success); border: 2.5px solid var(--surface); box-shadow: 0 0 8px rgba(34,197,94,0.4); animation: pulse-green 2s ease-in-out infinite; }
+  @keyframes pulse-green { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+  .hero-name  { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.01em; }
+  .hero-email { font-size: 0.74rem; color: var(--muted); margin-top: 3px; font-family: var(--font-mono); }
+  .hero-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .hbadge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.02em; }
+  .hbadge-admin { background: rgba(167,139,250,0.12); border: 1px solid rgba(167,139,250,0.3); color: #a78bfa; }
+  .hbadge-user  { background: var(--accent-soft); border: 1px solid rgba(56,189,248,0.25); color: var(--accent-dark); }
+  .hbadge-date  { background: rgba(138,152,181,0.1); border: 1px solid rgba(138,152,181,0.2); color: var(--muted); }
+  .hbadge-online { background: var(--success-soft); border: 1px solid rgba(34,197,94,0.25); color: var(--olive); }
+  .hbadge-maint  { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25); color: #f59e0b; }
+  .dot-pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--olive); display: inline-block; animation: pulse-green 2s ease-in-out infinite; }
+
+  /* ── Stats ── */
+  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 4px; }
+  .stat .ti { font-size: 18px; color: var(--accent); margin-bottom: 4px; }
+  .stat-num { font-size: 1.55rem; font-weight: 800; line-height: 1; }
+  .stat-label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .stat-delta { font-size: 0.7rem; color: var(--olive); font-weight: 600; }
+  .stat-delta.muted { color: var(--muted); font-weight: 500; }
+
+  /* ── Card ── */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; overflow: hidden; }
+  .card-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 13px 18px; border-bottom: 1px solid var(--border); }
+  .card-head h2 { font-size: 0.86rem; font-weight: 700; display: flex; align-items: center; gap: 7px; }
+  .card-head h2 .ti { color: var(--accent); font-size: 15px; }
+  .card-danger { border-color: rgba(239,68,68,0.2); }
+  .card-head-danger h2 .ti { color: var(--danger); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* ── Quick actions ── */
+  .quick-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; padding: 16px 18px; }
+  .quick { display: flex; align-items: center; gap: 11px; padding: 13px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; text-align: left; font-family: inherit; text-decoration: none; color: inherit; }
+  .quick .ti { font-size: 19px; color: var(--accent); flex-shrink: 0; }
+  .quick:hover { border-color: var(--border-strong); background: var(--surface); }
+  .quick div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .quick strong { font-size: 0.78rem; color: var(--ink); }
+  .quick span { font-size: 0.66rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ── Profile hero card ── */
+  .profile-hero-card { display: flex; align-items: center; gap: 20px; padding: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; }
+  .ph-avatar { width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0; overflow: hidden; border: 2px solid rgba(56,189,248,0.2); }
+  .ph-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .ph-avatar-ph { width: 100%; height: 100%; background: var(--accent-soft); display: flex; align-items: center; justify-content: center; font-size: 24px; color: var(--accent); }
+  .ph-name  { font-size: 1.05rem; font-weight: 700; }
+  .ph-email { font-size: 0.74rem; color: var(--muted); font-family: var(--font-mono); margin-top: 3px; }
+  .ph-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+  /* ── Tags ── */
+  .tag { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.02em; border-radius: 4px; padding: 3px 7px; color: var(--ink-soft); background: var(--surface-2); border: 1px solid var(--border); white-space: nowrap; }
+  .tag.accent { color: var(--accent-dark); background: var(--accent-soft); border-color: rgba(56,189,248,0.3); }
+  .tag.muted  { color: var(--muted); }
+
+  /* ── Dots ── */
+  .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .dot.olive  { background: var(--olive); }
+  .dot.accent { background: var(--accent); }
+
+  /* ── Forms ── */
+  .form-pad { padding: 18px; display: flex; flex-direction: column; gap: 13px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 0.66rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .field .inp, .inp {
+    padding: 9px 11px; background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--ink); font-family: inherit; font-size: 0.84rem; outline: none; width: 100%;
+  }
+  .field .inp:focus, .inp:focus { border-color: var(--accent); background: var(--surface); }
+  .field .inp:disabled, .inp:disabled { opacity: 0.55; }
+  .iw { position: relative; }
+  .ii { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 14px; color: var(--muted); pointer-events: none; }
+  .iw .inp { padding-left: 32px; }
+  .hint { font-size: 0.68rem; color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: 0; }
+  .error { font-size: 0.74rem; color: var(--danger); min-height: 1px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .divider { height: 1px; background: var(--border); margin: 4px 0; }
+  .info-text { font-size: 0.82rem; color: var(--muted); line-height: 1.6; }
+
+  /* ── Danger zone ── */
+  .danger-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 4px 0; }
+  .danger-title { font-size: 0.84rem; font-weight: 600; color: var(--ink); }
+  .danger-desc { font-size: 0.72rem; color: var(--muted); margin-top: 3px; line-height: 1.5; }
+
+  /* ── Buttons ── */
+  .btn-primary {
+    position: relative; display: inline-flex; align-items: center; gap: 6px;
+    padding: 9px 16px; background: var(--accent); color: #fff;
+    font-family: inherit; font-weight: 700; font-size: 0.78rem;
+    border-radius: var(--radius-sm); border: none; cursor: pointer;
+  }
+  .btn-primary:hover:not(:disabled) { background: var(--accent-dark); }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-ghost { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--ink-soft); font-family: inherit; font-size: 0.78rem; cursor: pointer; }
+  .btn-ghost:hover { border-color: var(--border-strong); color: var(--ink); background: var(--surface-2); }
+  .btn-danger { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: var(--danger); border-radius: var(--radius-sm); font-family: inherit; font-size: 0.78rem; cursor: pointer; }
+  .btn-danger:hover { background: rgba(239,68,68,0.18); }
+
+  /* ── Servers ── */
+  .server-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-bottom: 16px; }
+  .skel { height: 160px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); position: relative; overflow: hidden; }
+  .skel::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, var(--surface-2), transparent); animation: shimmer 1.4s infinite; }
+  @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+
+  .step-row { display: flex; align-items: flex-start; gap: 12px; font-size: 0.82rem; color: var(--ink-soft); }
+  .step-num { display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-dark); font-family: var(--font-mono); font-size: 0.65rem; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+  code { font-family: var(--font-mono); font-size: 0.78rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 3px; padding: 1px 5px; color: var(--accent-dark); }
+
+  /* ── Info list ── */
+  .info-list { padding: 4px 0; }
+  .info-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 18px; border-bottom: 1px solid var(--surface-2); font-size: 0.78rem; }
+  .info-row:last-child { border-bottom: none; }
+  .info-row > span:first-child { color: var(--muted); }
+  .info-val { font-weight: 600; display: flex; align-items: center; gap: 4px; }
+
+  /* ── Links list ── */
+  .link-list { display: flex; flex-direction: column; }
+  .link-row { display: flex; align-items: center; gap: 11px; padding: 12px 18px; text-decoration: none; color: var(--ink-soft); border-bottom: 1px solid var(--surface-2); font-size: 0.82rem; }
+  .link-row:last-child { border-bottom: none; }
+  .link-row:hover { background: var(--surface-2); color: var(--ink); }
+  .link-row > .ti:first-child { color: var(--accent); font-size: 16px; }
+  .link-row > span:nth-child(2) { flex: 1; font-weight: 600; }
+  .link-sub { font-size: 0.66rem; color: var(--muted); flex: 1; }
+  .link-row .end { opacity: 0.4; font-size: 13px; }
+
+  /* ── Modals ── */
+  .overlay { position: fixed; inset: 0; z-index: 100; background: rgba(20,22,16,0.55); display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.18s; }
+  .overlay.open { opacity: 1; pointer-events: auto; }
+  .modal { width: 100%; max-width: 440px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; max-height: 90vh; overflow-y: auto; transform: translateY(10px); transition: transform 0.2s; }
+  .modal-sm { max-width: 340px; }
+  .overlay.open .modal { transform: translateY(0); }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+  .modal-title { font-size: 0.86rem; font-weight: 700; display: flex; align-items: center; gap: 7px; }
+  .modal-title .ti { color: var(--accent); }
+  .modal-title.danger .ti { color: var(--danger); }
+  .confirm-msg { font-size: 0.84rem; color: var(--ink-soft); line-height: 1.6; }
+  .modal-foot { display: flex; justify-content: flex-end; gap: 8px; }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(70px);
+    background: var(--ink); color: #fff; border-radius: 8px; padding: 11px 16px;
+    font-size: 0.8rem; display: flex; align-items: center; gap: 9px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    transition: transform 0.25s ease, opacity 0.2s; z-index: 200; pointer-events: none;
+    min-width: 200px; overflow: hidden; opacity: 0; white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  .toast-icon { font-size: 14px; }
+  .toast.ok .toast-icon { color: #8fd17a; }
+  .toast.err .toast-icon { color: #f08a7a; }
+  .toast-progress { position: absolute; bottom: 0; left: 0; height: 2px; background: var(--accent); }
+  .toast.show .toast-progress { animation: shrink 3s linear forwards; }
+  @keyframes shrink { from { width: 100%; } to { width: 0%; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Responsive ── */
+  @media (max-width: 1100px) { .grid-2 { grid-template-columns: 1fr; } }
+  @media (max-width: 960px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .content { margin-left: 0; }
+    .topbar-menu { display: flex; }
+    .topbar-clock { display: none; }
+    .topbar-role-badge { display: none; }
+  }
+  @media (max-width: 720px) {
+    .section { padding: 18px 16px 36px; }
+    .form-row { grid-template-columns: 1fr; }
+    .page-head { flex-direction: column; align-items: stretch; }
+    .hero-content { flex-direction: column; align-items: flex-start; gap: 14px; }
+  }
+  @media (max-width: 480px) {
+    .stat-row { grid-template-columns: 1fr 1fr; }
+    .hero-card { padding: 18px 16px; }
+    .profile-hero-card { flex-direction: column; align-items: flex-start; }
+    .danger-row { flex-direction: column; align-items: flex-start; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+</style>
+
+<script>
+  const $ = (id: string) => document.getElementById(id)!;
+
+  // ── Clock ──
+  function updateClock() {
+    const el = document.getElementById('topClock');
+    if (el) el.textContent = new Date().toLocaleString('es-AR', {
+      weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
+    });
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // ── Sidebar toggle (mobile) ──
+  const sidebar    = $('sidebar');
+  const sideOverlay = $('sidebarOverlay');
+  const menuBtn    = $('menuBtn');
+  const openSidebar  = () => { sidebar.classList.add('open');    sideOverlay.classList.add('show'); };
+  const closeSidebar = () => { sidebar.classList.remove('open'); sideOverlay.classList.remove('show'); };
+  menuBtn.addEventListener('click', () => sidebar.classList.contains('open') ? closeSidebar() : openSidebar());
+  sideOverlay.addEventListener('click', closeSidebar);
+
+  // ── Section navigation ──
+  const LABELS: Record<string, string> = {
+    resumen: 'Resumen', perfil: 'Mi Perfil', seguridad: 'Seguridad',
+    servidores: 'Servidores', soporte: 'Soporte',
+  };
+
+  const navItems = document.querySelectorAll<HTMLButtonElement>('.nav-item');
+  const sections = document.querySelectorAll<HTMLElement>('.section');
+
+  function goTo(name: string, updateHash = true) {
+    navItems.forEach(t => t.classList.toggle('active', t.dataset.section === name));
+    sections.forEach(s => s.classList.toggle('active', s.id === `sec-${name}`));
+    const crumb = document.getElementById('crumbCurrent');
+    if (crumb) crumb.textContent = LABELS[name] ?? name;
+    if (name === 'servidores') loadServers();
+    if (updateHash) history.replaceState(null, '', `#${name}`);
+    closeSidebar();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  navItems.forEach(t => t.addEventListener('click', () => goTo(t.dataset.section!)));
+  document.querySelectorAll<HTMLElement>('[data-section]:not(.nav-item)').forEach(btn =>
+    btn.addEventListener('click', () => goTo(btn.dataset.section!))
+  );
+
+  const hash = location.hash.replace(/^#/, '');
+  if (hash && LABELS[hash]) goTo(hash, false);
+
+  // ── Toast ──
+  let toastTimer: ReturnType<typeof setTimeout>;
+  function toast(msg: string, type: 'ok' | 'err' = 'ok') {
+    clearTimeout(toastTimer);
+    const el = $('toast'), icon = $('toastIcon'), msgEl = $('toastMsg'), prog = $('toastProgress');
+    el.classList.remove('show', 'ok', 'err');
+    prog.style.animation = 'none'; prog.getBoundingClientRect(); prog.style.animation = '';
+    icon.className = `toast-icon ti ${type === 'ok' ? 'ti-check' : 'ti-alert-circle'}`;
+    msgEl.textContent = msg;
+    el.classList.add(type, 'show');
+    toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
+  }
+
+  // ── Logout ──
+  function logout() {
+    fetch('/api/signin', { method: 'DELETE' }).finally(() => { window.location.href = '/auth'; });
+  }
+  $('logoutBtn').addEventListener('click', logout);
+  $('logoutBtn2')?.addEventListener('click', logout);
+
+  // ── Guardar perfil ──
+  $('saveProfileBtn')?.addEventListener('click', async () => {
+    const btn = $('saveProfileBtn') as HTMLButtonElement;
+    const username = (document.getElementById('inp-username') as HTMLInputElement).value.trim();
+    const avatar_url = (document.getElementById('inp-avatar') as HTMLInputElement).value.trim();
+    const errEl = $('profileErr');
+    errEl.textContent = '';
+    if (username && !/^[a-zA-Z0-9_]{3,20}$/.test(username)) { errEl.textContent = 'Username inválido.'; return; }
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i> Guardando…';
+    try {
+      const r = await fetch('/api/update-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, avatar_url }),
+      });
+      const j = await r.json();
+      if (r.ok) toast('Perfil actualizado correctamente.');
+      else { errEl.textContent = j.error || 'Error al guardar.'; }
+    } catch { errEl.textContent = 'Error de red.'; }
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-device-floppy"></i> Guardar cambios';
+  });
+
+  // ── Reset password ──
+  $('resetPassBtn')?.addEventListener('click', async () => {
+    const btn = $('resetPassBtn') as HTMLButtonElement;
+    const email = document.body.dataset.email || '';
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i> Enviando…';
+    try {
+      const r = await fetch('/api/request-password-reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+      if (r.ok) toast('Correo de reset enviado. Revisá tu bandeja.');
+      else toast('Error al enviar el correo.', 'err');
+    } catch { toast('Error de red.', 'err'); }
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-mail"></i> Enviar correo de reset';
+  });
+
+  // ── Delete account ──
+  const deleteOverlay = $('deleteOverlay');
+  $('deleteAccountBtn')?.addEventListener('click', () => deleteOverlay.classList.add('open'));
+  $('cancelDeleteBtn')?.addEventListener('click', () => deleteOverlay.classList.remove('open'));
+  deleteOverlay.addEventListener('click', e => { if (e.target === e.currentTarget) deleteOverlay.classList.remove('open'); });
+
+  $('confirmDeleteBtn')?.addEventListener('click', async () => {
+    const btn = $('confirmDeleteBtn') as HTMLButtonElement;
+    btn.disabled = true;
+    btn.textContent = 'Eliminando…';
+    try {
+      const r = await fetch('/api/delete-own-account', { method: 'DELETE' });
+      if (r.ok) { window.location.href = '/auth?deleted=1'; }
+      else { toast('Error al eliminar la cuenta.', 'err'); btn.disabled = false; btn.innerHTML = '<i class="ti ti-trash"></i> Sí, eliminar'; }
+    } catch { toast('Error de red.', 'err'); btn.disabled = false; btn.innerHTML = '<i class="ti ti-trash"></i> Sí, eliminar'; }
+  });
+
+  // ── Soporte ──
+  $('sendSupportBtn')?.addEventListener('click', async () => {
+    const btn = $('sendSupportBtn') as HTMLButtonElement;
+    const asunto  = (document.getElementById('sup-asunto') as HTMLSelectElement).value;
+    const mensaje = (document.getElementById('sup-mensaje') as HTMLTextAreaElement).value.trim();
+    const email   = (document.getElementById('sup-email')  as HTMLInputElement)?.value ?? '';
+    const errEl   = $('supErr');
+    errEl.textContent = '';
+    if (!mensaje) { errEl.textContent = 'Escribí un mensaje antes de enviar.'; return; }
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i> Enviando…';
+    try {
+      const r = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ asunto, mensaje, email }),
+      });
+      const j = await r.json();
+      if (r.ok) {
+        toast('Consulta enviada. Te respondemos pronto.');
+        (document.getElementById('sup-mensaje') as HTMLTextAreaElement).value = '';
+      } else { errEl.textContent = j.error || 'Error al enviar.'; }
+    } catch { errEl.textContent = 'Error de red.'; }
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-send"></i> Enviar consulta';
+  });
+
+  // ── ESC cierra modales ──
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      deleteOverlay.classList.remove('open');
+      closeSidebar();
+    }
+  });
+
+  // ── Servidores ──
+  const SERVERS: { id: number; name: string; mode: string; ip: string; color: string }[] =
+    JSON.parse(document.body.dataset.servers || '[]');
+
+  let srvRefreshInterval: ReturnType<typeof setInterval> | null = null;
+  let srvCountdown = 60;
+
+  function startSrvCountdown() {
+    if (srvRefreshInterval) clearInterval(srvRefreshInterval);
+    srvCountdown = 60;
+    const cdEl = document.getElementById('srvCountdown');
+    srvRefreshInterval = setInterval(() => {
+      srvCountdown--;
+      if (cdEl) cdEl.textContent = `Auto-refresh en ${srvCountdown}s`;
+      if (srvCountdown <= 0) { loadServers(); srvCountdown = 60; }
+    }, 1000);
+    if (cdEl) cdEl.textContent = `Auto-refresh en ${srvCountdown}s`;
+  }
+
+  async function loadServers() {
+    const grid = document.getElementById('srvGrid');
+    if (!grid || !SERVERS.length) return;
+    grid.innerHTML = SERVERS.map(() => `<div class="skel"></div>`).join('');
+    try {
+      const res  = await fetch('/api/servers.json');
+      const data: any[] = await res.json();
+      grid.innerHTML = SERVERS.map(cfg => {
+        const s = data.find(x => x.id === cfg.id);
+        const online = s?.online ?? false;
+        const players: any[] = online && Array.isArray(s.playerList) ? s.playerList : [];
+        const maxP = s?.maxPlayers ?? 0;
+        const curP = s?.players ?? players.length ?? 0;
+        const pct  = maxP > 0 ? Math.round((curP / maxP) * 100) : 0;
+        const color = cfg.color || '#38bdf8';
+        return `
+          <div class="srv-card" style="--sc:${color}">
+            <div class="srv-card-head">
+              <div>
+                <span class="srv-card-name">${cfg.name}</span>
+                ${cfg.mode ? `<span class="srv-card-mode">${cfg.mode}</span>` : ''}
+              </div>
+              <span class="srv-pill ${online ? 'on' : 'off'}">
+                <span class="srv-pill-dot ${online ? 'pulse' : ''}"></span>
+                ${online ? 'Online' : 'Offline'}
+              </span>
+            </div>
+            ${online ? `
+              <div class="srv-card-body">
+                <div class="srv-meta">
+                  <span class="srv-meta-item"><i class="ti ti-map"></i> ${s.map ?? '—'}</span>
+                  <span class="srv-meta-item"><i class="ti ti-wifi"></i> ${s.ping ? s.ping + 'ms' : '—'}</span>
+                </div>
+                <div class="srv-bar-wrap">
+                  <div class="srv-bar-hdr">
+                    <span class="srv-bar-lbl"><i class="ti ti-users"></i> Jugadores</span>
+                    <span class="srv-bar-count">${curP} / ${maxP}</span>
+                  </div>
+                  <div class="srv-bar"><div class="srv-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+                </div>
+                ${players.length > 0 ? `<div class="srv-players">${players.slice(0, 8).map((p: any) => `<span class="srv-player">${p.name || 'Jugador'}</span>`).join('')}${players.length > 8 ? `<span class="srv-player srv-player-more">+${players.length - 8}</span>` : ''}</div>` : ''}
+              </div>
+            ` : `
+              <div class="srv-offline">
+                <i class="ti ti-server-off"></i>
+                <span>Servidor sin respuesta</span>
+              </div>
+            `}
+            <div class="srv-card-foot">
+              <span class="srv-card-ip">${cfg.ip}</span>
+              <button class="srv-copy-btn" data-ip="${cfg.ip}"><i class="ti ti-copy"></i> Copiar IP</button>
+            </div>
+          </div>`;
+      }).join('');
+      grid.querySelectorAll<HTMLButtonElement>('.srv-copy-btn').forEach(btn =>
+        btn.addEventListener('click', () => { navigator.clipboard.writeText(btn.dataset.ip!); toast('IP copiada'); })
+      );
+    } catch {
+      grid.innerHTML = `<div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--muted)"><i class="ti ti-wifi-off" style="font-size:24px;opacity:.3"></i><p style="margin-top:8px;font-size:.78rem">Error al cargar servidores.</p></div>`;
+    }
+    startSrvCountdown();
+  }
+
+  $('srvRefreshBtn')?.addEventListener('click', loadServers);
+</script>
+
+<style>
+  /* ── Server cards ── */
+  .srv-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+    position: relative; transition: border-color 0.2s;
+  }
+  .srv-card:hover { border-color: color-mix(in srgb, var(--sc, var(--accent)) 35%, transparent); }
+  .srv-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--sc, var(--accent)) 50%, transparent); }
+  .srv-card-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+  .srv-card-name { font-size: 0.9rem; font-weight: 700; display: block; }
+  .srv-card-mode { font-size: 0.66rem; color: var(--muted); font-family: var(--font-mono); margin-top: 2px; display: block; }
+  .srv-pill { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-mono); font-size: 0.56rem; letter-spacing: 0.1em; padding: 4px 10px; border-radius: 20px; flex-shrink: 0; }
+  .srv-pill.on  { color: var(--olive); background: var(--olive-soft); border: 1px solid rgba(134,239,172,0.2); }
+  .srv-pill.off { color: var(--danger); background: var(--danger-soft); border: 1px solid rgba(239,68,68,0.2); }
+  .srv-pill-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+  .srv-pill-dot.pulse { animation: pulse-green 2s ease-in-out infinite; }
+  .srv-card-body { padding: 14px 16px; }
+  .srv-meta { display: flex; gap: 16px; margin-bottom: 12px; }
+  .srv-meta-item { display: flex; align-items: center; gap: 5px; font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); }
+  .srv-bar-wrap  { margin-bottom: 12px; }
+  .srv-bar-hdr   { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .srv-bar-lbl   { font-family: var(--font-mono); font-size: 0.64rem; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+  .srv-bar-count { font-family: var(--font-mono); font-size: 0.64rem; font-weight: 600; }
+  .srv-bar       { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .srv-bar-fill  { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+  .srv-players   { display: flex; flex-wrap: wrap; gap: 4px; }
+  .srv-player    { font-family: var(--font-mono); font-size: 0.6rem; padding: 2px 7px; background: rgba(56,189,248,0.06); border: 1px solid rgba(56,189,248,0.15); border-radius: 3px; color: var(--muted); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .srv-player-more { color: var(--muted); border-style: dashed; }
+  .srv-offline   { padding: 20px 16px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--muted); }
+  .srv-offline .ti { font-size: 22px; opacity: 0.3; }
+  .srv-offline span { font-size: 0.76rem; }
+  .srv-card-foot { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-top: 1px solid var(--border); }
+  .srv-card-ip { font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); }
+  .srv-copy-btn { display: flex; align-items: center; gap: 5px; padding: 5px 10px; background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--muted); font-family: var(--font-mono); font-size: 0.66rem; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+  .srv-copy-btn:hover { border-color: var(--accent); color: var(--accent-dark); }
+</style>

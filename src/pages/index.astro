@@ -1,0 +1,108 @@
+---
+import Layout    from '../layouts/Layout.astro';
+import Navbar    from '../components/Navbar.astro';
+import Hero      from '../components/Hero.astro';
+import Servers   from '../components/Servers.astro';
+import Rules     from '../components/Rules.astro';
+import Downloads from '../components/Downloads.astro';
+import Plans      from '../components/Plans.astro';
+import Social     from '../components/Social.astro';
+import HowTo      from '../components/HowTo.astro';
+import Footer     from '../components/Footer.astro';
+import Effexo     from '../components/Effexo.astro';
+import Contact    from '../components/Contact.astro';
+import FAQ        from '../components/FAQ.astro';
+import SlidePanel from '../components/SlidePanel.astro';
+import Modal      from '../components/Modal.astro';
+---
+<Layout>
+  <Navbar />
+  <SlidePanel />
+  <Modal>
+    <!-- Contenido de modal: Reglas rápidas -->
+    <div data-modal-id="reglas-resumen" data-modal-title="Reglas del servidor">
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <p style="font-size:0.85rem;color:var(--muted-2);line-height:1.7;">Estas son las reglas principales de nuestros servidores. El incumplimiento puede resultar en advertencias, kicks o bans permanentes.</p>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
+          {[
+            { icon: 'ti-ban', color: '#e53e3e', text: 'Queda absolutamente prohibido el uso de cheats, hacks, aimbots o cualquier software que otorgue ventajas injustas.' },
+            { icon: 'ti-mood-angry', color: '#d97706', text: 'No se tolera el insulto, el racismo, la discriminación ni el acoso a otros jugadores.' },
+            { icon: 'ti-volume-3', color: '#d97706', text: 'Prohibido el spam por voz o chat, mensajes repetitivos o publicidad no autorizada.' },
+            { icon: 'ti-shield', color: 'var(--accent)', text: 'Respetá las decisiones de los administradores. Las quejas se realizan por los canales oficiales.' },
+            { icon: 'ti-user-check', color: 'var(--accent)', text: 'El fair play es obligatorio: jugá limpio y ayudá a mantener un ambiente sano para todos.' },
+          ].map(r => (
+            <div style={`display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid rgba(255,255,255,0.06);border-radius:6px;background:var(--surface-2);`}>
+              <i class={`ti ${r.icon}`} style={`color:${r.color};font-size:15px;margin-top:1px;flex-shrink:0;`} aria-hidden="true"></i>
+              <span style="font-size:0.82rem;color:var(--muted-2);line-height:1.55;">{r.text}</span>
+            </div>
+          ))}
+        </div>
+        <a href="#reglas" onclick="window.closeModal?.()" style="display:inline-flex;align-items:center;gap:6px;margin-top:4px;font-size:0.78rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent);text-decoration:none;">
+          Ver reglamento completo <i class="ti ti-arrow-right" style="font-size:12px;"></i>
+        </a>
+      </div>
+    </div>
+  </Modal>
+  <main>
+    <Hero />
+    <Social />
+    <Servers />
+    <Downloads />
+    <Effexo />
+    <Plans />
+    <HowTo />
+    <Rules />
+    <FAQ />
+    <Contact />
+  </main>
+  <Footer />
+</Layout>
+
+<script>
+  /* ── Fade-in al hacer scroll ──────────────────────────── */
+  const observer = new IntersectionObserver(
+    entries => entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+        observer.unobserve(e.target);
+      }
+    }),
+    { threshold: 0.07, rootMargin: '0px 0px -24px 0px' }
+  );
+
+  const allFadeEls = document.querySelectorAll<HTMLElement>(
+    '.fade-in, .fade-in-left, .fade-in-right, .fade-in-scale'
+  );
+
+  allFadeEls.forEach(el => {
+    const siblings = Array.from(el.parentElement?.children ?? []);
+    const idx = siblings.indexOf(el);
+    if (idx < 6) {
+      el.style.transitionDelay = `${idx * 55}ms`;
+    }
+    observer.observe(el);
+  });
+
+  /* ── Ripple en botones primarios ─────────────────────── */
+  function addRipple(e: MouseEvent) {
+    const btn = e.currentTarget as HTMLElement;
+    const existing = btn.querySelector('.ripple-circle');
+    if (existing) existing.remove();
+
+    const rect   = btn.getBoundingClientRect();
+    const size   = Math.max(rect.width, rect.height);
+    const x      = e.clientX - rect.left - size / 2;
+    const y      = e.clientY - rect.top  - size / 2;
+
+    const ripple = document.createElement('span');
+    ripple.className = 'ripple-circle';
+    ripple.style.cssText = `width:${size}px;height:${size}px;left:${x}px;top:${y}px`;
+    btn.classList.add('btn-ripple');
+    btn.appendChild(ripple);
+    ripple.addEventListener('animationend', () => ripple.remove());
+  }
+
+  document.querySelectorAll<HTMLElement>(
+    '.hero-btn-main, .btn-primary, .aside-link, .plan-cta'
+  ).forEach(btn => btn.addEventListener('click', addRipple));
+</script>

@@ -1,0 +1,699 @@
+---
+const { user, profile, siteSettings } = Astro.locals;
+const isAdmin = profile?.role === 'admin';
+const isMaintenance = siteSettings?.site_status === 'mantenimiento';
+
+const accountName = user
+  ? (profile?.username ?? user.email?.split('@')[0] ?? 'Cuenta')
+  : null;
+const avatarUrl = profile?.avatar_url ?? '';
+const accountHref  = isAdmin ? '/admin' : '/usuario';
+
+// Mapa: id de sección pública → ruta (hash) dentro del panel admin.
+// Le da al admin un acceso directo de "Editar" sobre cada sección mientras
+// navega el sitio público, sin tener que buscar la pestaña correspondiente
+// a mano dentro de /admin.
+const SECTION_ADMIN_MAP: Record<string, string> = {
+  inicio:     'contenido:hero',
+  servidores: 'servidores',
+  descargas:  'descargas',
+  redes:      'contenido:social',
+  reglas:     'contenido:rules',
+  ventas:     'planes',
+  effexo:     'contenido:effexo',
+};
+---
+
+<header class="nb" id="nb" data-admin={isAdmin ? '1' : '0'} data-admin-edit-map={isAdmin ? JSON.stringify(SECTION_ADMIN_MAP) : undefined}>
+  <div class="nb-bg" aria-hidden="true">
+    <div class="nb-glow"></div>
+    <div class="nb-scanline"></div>
+  </div>
+  <div class="nb-progress" id="nbProgress" aria-hidden="true"></div>
+
+  <div class="container nb-inner">
+
+    <!-- Logo -->
+    <button class="nb-logo" id="nbLogo" aria-label="Inicio">
+      <div class="nb-logo-img">
+        <img src="/trigger_fondo.webp" alt="TriGGer.Arena" width="30" height="30" loading="eager" />
+        <span class="nb-logo-ring" aria-hidden="true"></span>
+      </div>
+      <span class="nb-logo-text">TriGGer<span class="nb-logo-dot">.Arena</span></span>
+    </button>
+
+    <!-- Desktop nav -->
+    <nav class="nb-links" id="nbLinks" aria-label="Navegación principal">
+      {[
+        { id: 'inicio',     label: 'Inicio' },
+        { id: 'servidores', label: 'Servidores' },
+        { id: 'descargas',  label: 'Descargas' },
+        { id: 'redes',      label: 'Redes' },
+        { id: 'reglas',     label: 'Reglamento' },
+        { id: 'ventas',     label: 'Planes' },
+        { id: 'effexo',     label: 'Effexo' },
+      ].map(item => (
+        <span class="nb-link-wrap">
+          <a href={`#${item.id}`} class="nb-link" data-section={item.id}><span>{item.label}</span></a>
+          {isAdmin && (
+            <button
+              class="nb-edit-pencil"
+              title={`Editar "${item.label}" en el panel admin`}
+              aria-label={`Editar ${item.label}`}
+              data-panel-url={`/admin#${SECTION_ADMIN_MAP[item.id]}`}
+              data-panel-title={`Editar · ${item.label}`}
+            >
+              <i class="ti ti-pencil" aria-hidden="true"></i>
+            </button>
+          )}
+        </span>
+      ))}
+    </nav>
+
+    <!-- Right side -->
+    <div class="nb-right">
+      {user ? (
+        <div class="nb-user" id="nbUser">
+          <!-- Botón dedicado para abrir el panel directamente -->
+          <button
+            class="nb-panel-btn"
+            id="nbPanelBtn"
+            aria-label={isAdmin ? 'Abrir panel admin' : 'Abrir mi cuenta'}
+            title={isAdmin ? 'Panel Admin' : 'Mi Cuenta'}
+            data-panel-url={isAdmin ? '/admin' : '/usuario'}
+            data-panel-title={isAdmin ? 'Panel Admin' : 'Mi Cuenta'}
+          >
+            {avatarUrl
+              ? <img src={avatarUrl} alt="" width="22" height="22" class="nb-panel-btn-avatar" />
+              : <i class={isAdmin ? 'ti ti-layout-dashboard' : 'ti ti-user-circle'} aria-hidden="true"></i>
+            }
+            {isAdmin && <span class="nb-admin-dot nb-admin-dot--btn" title="Admin" aria-label="Admin"></span>}
+            <span class="nb-panel-btn-label">{isAdmin ? 'Admin' : accountName?.split(' ')[0]}</span>
+            <i class="ti ti-chevron-right nb-panel-btn-chevron" aria-hidden="true"></i>
+          </button>
+
+          <button class="nb-user-btn nb-user-btn--opts" id="nbUserBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="nbUserMenu" title="Opciones" aria-label="Más opciones">
+            <i class="ti ti-dots-vertical" aria-hidden="true"></i>
+          </button>
+
+          <div class="nb-dropdown" id="nbUserMenu" role="menu" aria-hidden="true">
+            <div class="nb-dropdown-header">
+              <span class="nb-dropdown-email">{user.email}</span>
+              {isAdmin && <span class="nb-dropdown-badge">Admin</span>}
+            </div>
+            {isAdmin && isMaintenance && (
+              <a href="/admin#configuracion" class="nb-dropdown-maintenance" role="menuitem"
+                 onclick={`event.preventDefault(); window.openSlidePanel?.('/admin#configuracion', 'Configuración'); document.getElementById('nbUserMenu')?.classList.remove('open');`}
+              >
+                <i class="ti ti-tool" aria-hidden="true"></i>
+                <span>Sitio en mantenimiento — gestionar</span>
+              </a>
+            )}
+            <div class="nb-dropdown-sep"></div>
+            <a href={accountHref} class="nb-dropdown-item" role="menuitem"
+               onclick={`event.preventDefault(); window.openSlidePanel?.('${accountHref}', '${isAdmin ? 'Panel Admin' : 'Mi Cuenta'}'); document.getElementById('nbUserMenu')?.classList.remove('open');`}
+            >
+              <i class={isAdmin ? 'ti ti-layout-dashboard' : 'ti ti-user'} aria-hidden="true"></i>
+              <span>{isAdmin ? 'Panel admin' : 'Mi cuenta'}</span>
+              <i class="ti ti-arrow-bar-right nb-panel-arrow" aria-hidden="true"></i>
+            </a>
+            {isAdmin && (
+              <>
+                <a href="/usuario" class="nb-dropdown-item" role="menuitem"
+                   onclick={`event.preventDefault(); window.openSlidePanel?.('/usuario', 'Mi Perfil'); document.getElementById('nbUserMenu')?.classList.remove('open');`}
+                >
+                  <i class="ti ti-user-circle" aria-hidden="true"></i>
+                  <span>Mi perfil</span>
+                  <i class="ti ti-arrow-bar-right nb-panel-arrow" aria-hidden="true"></i>
+                </a>
+                <a href="/admin#contenido" class="nb-dropdown-item" role="menuitem"
+                   onclick={`event.preventDefault(); window.openSlidePanel?.('/admin#contenido', 'Editar Contenido'); document.getElementById('nbUserMenu')?.classList.remove('open');`}
+                >
+                  <i class="ti ti-edit" aria-hidden="true"></i>
+                  <span>Editar contenido del sitio</span>
+                  <i class="ti ti-arrow-bar-right nb-panel-arrow" aria-hidden="true"></i>
+                </a>
+              </>
+            )}
+            <div class="nb-dropdown-sep"></div>
+            <button class="nb-dropdown-item nb-dropdown-item--danger" id="nbLogout" role="menuitem">
+              <i class="ti ti-logout" aria-hidden="true"></i>
+              <span>Cerrar sesión</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div class="nb-guest">
+          <span class="nb-guest-label">
+            <i class="ti ti-shield-check" aria-hidden="true"></i>
+            Invitado
+          </span>
+          <a href="/auth" class="nb-login-btn">
+            <i class="ti ti-login-2" aria-hidden="true"></i>
+            Ingresar
+          </a>
+        </div>
+      )}
+
+      <!-- Hamburger -->
+      <button class="nb-toggle" id="nbToggle" aria-label="Menú" aria-expanded="false" aria-controls="nbMenu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile menu -->
+  <div class="nb-mobile" id="nbMenu" aria-hidden="true">
+    <nav class="nb-mobile-links">
+      <a href="#inicio"     class="nb-mobile-link"><i class="ti ti-home-2"></i><span>Inicio</span></a>
+      <a href="#servidores" class="nb-mobile-link"><i class="ti ti-server"></i><span>Servidores</span></a>
+      <a href="#descargas"  class="nb-mobile-link"><i class="ti ti-download"></i><span>Descargas</span></a>
+      <a href="#redes"      class="nb-mobile-link"><i class="ti ti-share"></i><span>Redes</span></a>
+      <a href="#reglas"     class="nb-mobile-link"><i class="ti ti-shield"></i><span>Reglamento</span></a>
+      <a href="#ventas"     class="nb-mobile-link"><i class="ti ti-diamond"></i><span>Planes</span></a>
+      <a href="#effexo"     class="nb-mobile-link"><i class="ti ti-bolt"></i><span>Effexo</span></a>
+    </nav>
+    <div class="nb-mobile-foot">
+      {user ? (
+        <>
+          {isAdmin && isMaintenance && (
+            <a href="/admin#configuracion" class="nb-mobile-maintenance"
+               onclick={`event.preventDefault(); window.openSlidePanel?.('/admin#configuracion', 'Configuración'); document.getElementById('nbMenu')?.classList.remove('open'); document.getElementById('nbOverlay')?.classList.remove('open');`}
+            >
+              <i class="ti ti-tool"></i>
+              Sitio en mantenimiento — gestionar
+            </a>
+          )}
+          <button
+            class="nb-mobile-account"
+            id="nbMobilePanelBtn"
+            data-panel-url={isAdmin ? '/admin' : '/usuario'}
+            data-panel-title={isAdmin ? 'Panel Admin' : 'Mi Cuenta'}
+          >
+            <div class="nb-mobile-avatar">
+              {avatarUrl ? <img src={avatarUrl} alt="" width="36" height="36" /> : <i class="ti ti-user"></i>}
+            </div>
+            <div>
+              <span class="nb-mobile-name">{accountName}</span>
+              <span class="nb-mobile-role">{isAdmin ? '⚡ Administrador' : 'Jugador'}</span>
+            </div>
+            <i class="ti ti-arrow-right" style="margin-left:auto;opacity:.4"></i>
+          </button>
+          {isAdmin && (
+            <a href="/admin#contenido" class="nb-mobile-edit"
+               onclick={`event.preventDefault(); window.openSlidePanel?.('/admin#contenido', 'Editar Contenido'); document.getElementById('nbMenu')?.classList.remove('open'); document.getElementById('nbOverlay')?.classList.remove('open');`}
+            >
+              <i class="ti ti-edit"></i>
+              Editar contenido del sitio
+            </a>
+          )}
+          <button class="nb-mobile-logout" id="nbLogoutMobile">
+            <i class="ti ti-logout"></i>
+            Cerrar sesión
+          </button>
+        </>
+      ) : (
+        <a href="/auth" class="nb-mobile-login">
+          <i class="ti ti-login-2"></i>
+          Ingresar a tu cuenta
+        </a>
+      )}
+    </div>
+  </div>
+</header>
+
+<div class="nb-overlay" id="nbOverlay" aria-hidden="true"></div>
+
+<style>
+  .nb {
+    position: fixed;
+    inset-block-start: 0;
+    inset-inline: 0;
+    z-index: 200;
+    height: 60px;
+    background: rgba(7,9,15,0.7);
+    backdrop-filter: blur(32px) saturate(1.9);
+    -webkit-backdrop-filter: blur(32px) saturate(1.9);
+    border-bottom: 1px solid rgba(56,182,255,0.07);
+    transition: border-color 0.4s, box-shadow 0.4s, background 0.4s;
+  }
+  .nb.scrolled {
+    background: rgba(7,9,15,0.96);
+    border-bottom-color: rgba(56,182,255,0.18);
+    box-shadow: 0 4px 40px rgba(0,0,0,0.7), 0 1px 0 rgba(56,182,255,0.06);
+  }
+  .nb-bg { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  .nb-glow {
+    position: absolute; top: -60px; left: 0; right: 0; height: 120px;
+    background: radial-gradient(ellipse 70% 100% at 50% 0%, rgba(56,182,255,0.06) 0%, transparent 70%);
+  }
+  .nb-scanline {
+    position: absolute; inset: 0; opacity: 0.015;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.5) 2px, rgba(255,255,255,0.5) 3px);
+    background-size: 100% 3px;
+  }
+  .nb-progress {
+    position: absolute; top: 0; left: 0; height: 2px; width: 0%;
+    background: linear-gradient(90deg, rgba(56,182,255,0.3), #38b6ff 60%, rgba(56,182,255,0.5));
+    box-shadow: 0 0 10px rgba(56,182,255,0.8), 0 0 4px rgba(56,182,255,1);
+    transition: width 0.08s linear;
+    z-index: 2;
+    border-radius: 0 2px 2px 0;
+  }
+  .nb-inner {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    height: 60px; position: relative; z-index: 1;
+    gap: 12px;
+  }
+
+  /* Logo */
+  .nb-logo {
+    background: none; border: none; cursor: pointer; padding: 0;
+    display: flex; align-items: center; gap: 9px; flex-shrink: 0;
+  }
+  .nb-logo-img { position: relative; width: 30px; height: 30px; flex-shrink: 0; }
+  .nb-logo-img img { width: 100%; height: 100%; object-fit: contain; border-radius: 50%; }
+  .nb-logo-ring {
+    position: absolute; inset: -3px; border-radius: 50%;
+    border: 1px solid rgba(56,182,255,0);
+    transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s;
+  }
+  .nb-logo:hover .nb-logo-ring {
+    border-color: rgba(56,182,255,0.5);
+    box-shadow: 0 0 16px rgba(56,182,255,0.25);
+    transform: scale(1.1);
+  }
+  .nb-logo-text { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; color: var(--text); }
+  .nb-logo-dot { color: #38b6ff; }
+
+  /* Links */
+  .nb-links { display: flex; align-items: center; gap: 0; }
+  .nb-link-wrap { position: relative; display: flex; align-items: center; }
+  .nb-link {
+    position: relative; padding: 7px 12px;
+    font-size: 0.7rem; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--muted); border-radius: 5px;
+    transition: color 0.2s, background 0.2s;
+  }
+  .nb-link span { position: relative; z-index: 1; }
+  .nb-link::before {
+    content: ''; position: absolute; inset: 0; border-radius: 5px;
+    background: rgba(56,182,255,0.08); opacity: 0; transition: opacity 0.2s;
+  }
+  .nb-link:hover { color: var(--text); }
+  .nb-link:hover::before { opacity: 1; }
+  .nb-link.active { color: #38b6ff; }
+  .nb-link.active::after {
+    content: ''; position: absolute; bottom: 2px; left: 50%;
+    transform: translateX(-50%); width: 50%; height: 1.5px;
+    background: linear-gradient(90deg, transparent, #38b6ff, transparent);
+    box-shadow: 0 0 8px rgba(56,182,255,0.9);
+    border-radius: 1px;
+  }
+
+  /* Lápiz de edición admin — solo visible para admins, junto a cada link */
+  .nb-edit-pencil {
+    display: flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px; margin-left: -2px;
+    border-radius: 4px;
+    color: rgba(56,182,255,0.45);
+    opacity: 0; transform: scale(0.8);
+    transition: opacity 0.15s, transform 0.15s, color 0.15s, background 0.15s;
+    /* reset button styles */
+    background: none; border: none; padding: 0; cursor: pointer; font: inherit;
+  }
+  .nb-edit-pencil .ti { font-size: 10px; }
+  .nb-link-wrap:hover .nb-edit-pencil { opacity: 1; transform: scale(1); }
+  .nb-edit-pencil:hover { color: #38b6ff; background: rgba(56,182,255,0.12); }
+  .nb-edit-pencil:focus-visible { opacity: 1; transform: scale(1); outline: 1px solid rgba(56,182,255,0.5); }
+
+  /* Right */
+  .nb-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+  /* Guest */
+  .nb-guest { display: flex; align-items: center; gap: 9px; }
+  .nb-guest-label {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 0.64rem; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
+    color: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 20px; padding: 3px 9px;
+  }
+  .nb-guest-label .ti { font-size: 10px; color: rgba(56,182,255,0.3); }
+  .nb-login-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 16px;
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+    color: #38b6ff; background: rgba(56,182,255,0.1);
+    border: 1px solid rgba(56,182,255,0.3); border-radius: 6px;
+    transition: background 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.1s;
+  }
+  .nb-login-btn:hover {
+    background: rgba(56,182,255,0.18); border-color: rgba(56,182,255,0.6);
+    box-shadow: 0 0 20px rgba(56,182,255,0.2), inset 0 0 12px rgba(56,182,255,0.05);
+    transform: translateY(-1px);
+  }
+  .nb-login-btn:active { transform: translateY(0); }
+  .nb-login-btn .ti { font-size: 13px; }
+
+  /* User */
+  .nb-user { position: relative; display: flex; align-items: center; gap: 4px; }
+
+  /* ── Botón principal de panel ── */
+  .nb-panel-btn {
+    position: relative;
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 12px 5px 6px;
+    background: rgba(56,182,255,0.07);
+    border: 1px solid rgba(56,182,255,0.2);
+    border-radius: 7px; cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+    font-family: inherit;
+  }
+  .nb-panel-btn:hover {
+    background: rgba(56,182,255,0.14);
+    border-color: rgba(56,182,255,0.4);
+    box-shadow: 0 0 18px rgba(56,182,255,0.12);
+  }
+  .nb-panel-btn:active { transform: scale(0.98); }
+  .nb-panel-btn-avatar {
+    width: 24px; height: 24px; border-radius: 50%;
+    object-fit: cover; border: 1px solid rgba(56,182,255,0.25);
+    flex-shrink: 0;
+  }
+  .nb-panel-btn .ti { font-size: 15px; color: rgba(56,182,255,0.7); flex-shrink: 0; }
+  .nb-panel-btn-label {
+    font-size: 0.74rem; font-weight: 700; letter-spacing: 0.04em;
+    color: var(--text); white-space: nowrap;
+    max-width: 80px; overflow: hidden; text-overflow: ellipsis;
+  }
+  .nb-panel-btn-chevron {
+    font-size: 11px !important;
+    color: rgba(56,182,255,0.4);
+    transition: transform 0.2s;
+  }
+  .nb-panel-btn:hover .nb-panel-btn-chevron { transform: translateX(2px); }
+  .nb-admin-dot {
+    position: absolute; bottom: -1px; right: -1px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #f59e0b; border: 1.5px solid rgba(7,9,15,0.9);
+    box-shadow: 0 0 6px rgba(245,158,11,0.6);
+  }
+  .nb-admin-dot--btn {
+    /* relativo al avatar cuando hay imagen, o al ícono */
+    position: absolute; top: 4px; left: 4px;
+    width: 7px; height: 7px;
+    border: 1.5px solid rgba(7,9,15,0.95);
+  }
+
+  /* ── Botón de opciones (tres puntitos) ── */
+  .nb-user-btn--opts {
+    display: flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px;
+    background: none;
+    border: 1px solid rgba(56,182,255,0.1);
+    border-radius: 6px; cursor: pointer;
+    color: rgba(255,255,255,0.3);
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    font-family: inherit;
+  }
+  .nb-user-btn--opts:hover {
+    background: rgba(56,182,255,0.07);
+    border-color: rgba(56,182,255,0.25);
+    color: rgba(56,182,255,0.7);
+  }
+  .nb-user-btn--opts[aria-expanded="true"] {
+    background: rgba(56,182,255,0.1);
+    border-color: rgba(56,182,255,0.35);
+    color: #38b6ff;
+  }
+  .nb-user-btn--opts .ti { font-size: 14px; }
+
+  /* Dropdown */
+  .nb-dropdown {
+    position: absolute; top: calc(100% + 8px); right: 0;
+    min-width: 210px; z-index: 300;
+    background: #0b0f1a; border: 1px solid rgba(56,182,255,0.15);
+    border-radius: 8px;
+    box-shadow: 0 20px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(56,182,255,0.04);
+    overflow: hidden;
+    opacity: 0; visibility: hidden; transform: translateY(-6px) scale(0.97);
+    transform-origin: top right;
+    transition: opacity 0.16s, transform 0.16s, visibility 0.16s;
+  }
+  .nb-dropdown.open {
+    opacity: 1; visibility: visible; transform: translateY(0) scale(1);
+  }
+  .nb-dropdown-header { padding: 12px 14px 10px; }
+  .nb-dropdown-email { display: block; font-size: 0.7rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nb-dropdown-badge {
+    display: inline-flex; align-items: center; margin-top: 4px;
+    padding: 2px 8px; border-radius: 20px; font-size: 0.58rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.3); color: #f59e0b;
+  }
+  .nb-dropdown-sep { height: 1px; background: rgba(56,182,255,0.08); margin: 0; }
+  .nb-dropdown-maintenance {
+    display: flex; align-items: center; gap: 8px;
+    margin: 2px 10px 8px; padding: 8px 10px;
+    border-radius: 6px; font-size: 0.7rem; font-weight: 600;
+    background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.28); color: #f59e0b;
+    text-decoration: none; transition: background 0.12s;
+  }
+  .nb-dropdown-maintenance:hover { background: rgba(245,158,11,0.18); }
+  .nb-dropdown-maintenance .ti { font-size: 13px; flex-shrink: 0; }
+  .nb-dropdown-item {
+    display: flex; align-items: center; gap: 9px;
+    width: 100%; padding: 10px 14px;
+    font-size: 0.8rem; font-weight: 500; color: var(--text);
+    background: none; border: none; cursor: pointer;
+    font-family: inherit; text-align: left; text-decoration: none;
+    transition: background 0.12s, color 0.12s;
+  }
+  .nb-dropdown-item .ti { font-size: 14px; color: var(--muted); flex-shrink: 0; }
+  .nb-dropdown-item:hover { background: rgba(56,182,255,0.07); }
+  .nb-dropdown-item--danger:hover { background: rgba(248,113,113,0.08); color: #f87171; }
+  .nb-dropdown-item--danger:hover .ti { color: #f87171; }
+  /* Flechita que indica que abre panel lateral */
+  .nb-panel-arrow { margin-left: auto; opacity: 0.35; font-size: 12px !important; }
+
+  /* Toggle */
+  .nb-toggle {
+    display: none; flex-direction: column; gap: 5px;
+    padding: 8px; background: none; border: none; cursor: pointer;
+    width: 38px; height: 38px; align-items: center; justify-content: center;
+  }
+  .nb-toggle span {
+    display: block; width: 20px; height: 1.5px;
+    background: var(--muted); border-radius: 2px;
+    transition: transform 0.25s, opacity 0.25s, background 0.15s;
+  }
+  .nb-toggle:hover span { background: var(--text); }
+  .nb-toggle[aria-expanded="true"] span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+  .nb-toggle[aria-expanded="true"] span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+  .nb-toggle[aria-expanded="true"] span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+
+  /* Mobile menu */
+  .nb-mobile {
+    display: none;
+    position: absolute; top: 60px; left: 0; right: 0;
+    background: rgba(7,9,15,0.97); border-bottom: 1px solid rgba(56,182,255,0.12);
+    padding: 8px 16px 16px; flex-direction: column; gap: 4px;
+    backdrop-filter: blur(20px);
+  }
+  .nb-mobile.open { display: flex; }
+  .nb-mobile-links { display: flex; flex-direction: column; gap: 2px; }
+  .nb-mobile-link {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    font-size: 0.85rem; font-weight: 500; color: var(--muted);
+    border-radius: 7px; transition: background 0.15s, color 0.15s, padding-left 0.15s;
+  }
+  .nb-mobile-link:hover { background: rgba(56,182,255,0.07); color: var(--text); padding-left: 18px; }
+  .nb-mobile-link .ti { font-size: 16px; color: rgba(56,182,255,0.45); flex-shrink: 0; }
+  .nb-mobile-foot {
+    margin-top: 8px; padding-top: 12px;
+    border-top: 1px solid rgba(56,182,255,0.08);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .nb-mobile-account {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px; border-radius: 8px;
+    background: rgba(56,182,255,0.05); border: 1px solid rgba(56,182,255,0.1);
+    transition: background 0.12s; cursor: pointer;
+    width: 100%; text-align: left; font-family: inherit;
+  }
+  .nb-mobile-account:hover { background: rgba(56,182,255,0.09); }
+  .nb-mobile-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(56,182,255,0.1); border: 1px solid rgba(56,182,255,0.2);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; overflow: hidden; color: rgba(56,182,255,0.6);
+    font-size: 16px;
+  }
+  .nb-mobile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .nb-mobile-name { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text); }
+  .nb-mobile-role { display: block; font-size: 0.65rem; color: var(--muted); margin-top: 1px; }
+  .nb-mobile-maintenance {
+    display: flex; align-items: center; gap: 9px;
+    padding: 10px 12px; border-radius: 8px;
+    font-size: 0.76rem; font-weight: 600; color: #f59e0b;
+    background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.28);
+    transition: background 0.12s;
+  }
+  .nb-mobile-maintenance:hover { background: rgba(245,158,11,0.18); }
+  .nb-mobile-maintenance .ti { font-size: 14px; flex-shrink: 0; }
+  .nb-mobile-edit {
+    display: flex; align-items: center; gap: 9px;
+    padding: 10px 12px; border-radius: 8px;
+    font-size: 0.78rem; font-weight: 600; color: #38b6ff;
+    background: rgba(56,182,255,0.06); border: 1px solid rgba(56,182,255,0.16);
+    transition: background 0.12s;
+  }
+  .nb-mobile-edit:hover { background: rgba(56,182,255,0.12); }
+  .nb-mobile-edit .ti { font-size: 14px; flex-shrink: 0; }
+  .nb-mobile-logout {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 11px; border-radius: 6px;
+    font-size: 0.8rem; font-weight: 600; color: #f87171;
+    background: rgba(248,113,113,0.06); border: 1px solid rgba(248,113,113,0.15);
+    cursor: pointer; transition: background 0.12s;
+  }
+  .nb-mobile-logout:hover { background: rgba(248,113,113,0.12); }
+  .nb-mobile-login {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 12px; border-radius: 6px;
+    font-size: 0.85rem; font-weight: 700; color: #38b6ff;
+    background: rgba(56,182,255,0.08); border: 1px solid rgba(56,182,255,0.2);
+    transition: background 0.12s;
+  }
+  .nb-mobile-login:hover { background: rgba(56,182,255,0.14); }
+
+  /* Overlay */
+  .nb-overlay {
+    display: none; position: fixed; inset: 60px 0 0 0;
+    z-index: 199; background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(2px);
+  }
+  .nb-overlay.open { display: block; }
+
+  @media (max-width: 900px) {
+    .nb-links { display: none; }
+    .nb-toggle { display: flex; }
+    .nb-guest-label { display: none; }
+    .nb-panel-btn-label { display: none; }
+    .nb-panel-btn-chevron { display: none; }
+    .nb-panel-btn { padding: 5px 7px; gap: 0; }
+  }
+  @media (max-width: 480px) {
+    .nb-user-btn--opts { display: none; }
+  }
+</style>
+
+<script>
+  // Botón dedicado para abrir el panel
+  const panelBtn = document.getElementById('nbPanelBtn') as HTMLButtonElement | null;
+  panelBtn?.addEventListener('click', () => {
+    const url   = panelBtn.dataset.panelUrl   ?? '/usuario';
+    const title = panelBtn.dataset.panelTitle ?? 'Panel';
+    (window as any).openSlidePanel?.(url, title);
+  });
+
+  const nb       = document.getElementById('nb')!;
+  const progress = document.getElementById('nbProgress')!;
+  const logo     = document.getElementById('nbLogo')!;
+  const toggle   = document.getElementById('nbToggle')!;
+  const menu     = document.getElementById('nbMenu')!;
+  const overlay  = document.getElementById('nbOverlay')!;
+  const userBtn  = document.getElementById('nbUserBtn') as HTMLButtonElement | null;
+  const dropdown = document.getElementById('nbUserMenu');
+  const logoutBtn  = document.getElementById('nbLogout');
+  const logoutMob  = document.getElementById('nbLogoutMobile');
+  const links    = document.querySelectorAll<HTMLAnchorElement>('.nb-link');
+  const mobileLinks = document.querySelectorAll<HTMLAnchorElement>('.nb-mobile-link');
+
+  // Scroll: class + progress
+  function onScroll() {
+    const y = window.scrollY;
+    nb.classList.toggle('scrolled', y > 24);
+    const docH = document.documentElement.scrollHeight - window.innerHeight;
+    progress.style.width = docH > 0 ? `${(y / docH) * 100}%` : '0%';
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  // Active link
+  const sections = Array.from(document.querySelectorAll<HTMLElement>('section[id]'));
+  function updateActive() {
+    const y = window.scrollY + 80;
+    let active: HTMLElement | null = null;
+    for (const s of sections) if (s.offsetTop <= y) active = s;
+    links.forEach(l => l.classList.toggle('active', active ? l.dataset.section === active.id : false));
+  }
+  window.addEventListener('scroll', updateActive, { passive: true });
+  updateActive();
+
+  // Logo
+  logo.addEventListener('click', () => { window.scrollTo({ top: 0, behavior: 'smooth' }); closeMenu(); });
+
+  // Mobile menu
+  function openMenu() {
+    menu.classList.add('open'); overlay.classList.add('open');
+    toggle.setAttribute('aria-expanded', 'true');
+    menu.setAttribute('aria-hidden', 'false');
+  }
+  function closeMenu() {
+    menu.classList.remove('open'); overlay.classList.remove('open');
+    toggle.setAttribute('aria-expanded', 'false');
+    menu.setAttribute('aria-hidden', 'true');
+  }
+  toggle.addEventListener('click', () => menu.classList.contains('open') ? closeMenu() : openMenu());
+  overlay.addEventListener('click', closeMenu);
+  mobileLinks.forEach(l => l.addEventListener('click', closeMenu));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeMenu(); closeDropdown(); } });
+
+  // Dropdown
+  function openDropdown() {
+    dropdown?.classList.add('open');
+    userBtn?.setAttribute('aria-expanded', 'true');
+    dropdown?.setAttribute('aria-hidden', 'false');
+  }
+  function closeDropdown() {
+    dropdown?.classList.remove('open');
+    userBtn?.setAttribute('aria-expanded', 'false');
+    dropdown?.setAttribute('aria-hidden', 'true');
+  }
+  userBtn?.addEventListener('click', e => {
+    e.stopPropagation();
+    dropdown?.classList.contains('open') ? closeDropdown() : openDropdown();
+  });
+  document.addEventListener('click', e => {
+    if (dropdown?.classList.contains('open') && !userBtn?.contains(e.target as Node) && !dropdown?.contains(e.target as Node)) closeDropdown();
+  });
+
+  // Logout
+  async function doLogout() {
+    await fetch('/api/signin', { method: 'DELETE' });
+    window.location.reload();
+  }
+  logoutBtn?.addEventListener('click', doLogout);
+  logoutMob?.addEventListener('click', doLogout);
+
+  // Botón mobile de panel
+  const mobilePanelBtn = document.getElementById('nbMobilePanelBtn') as HTMLButtonElement | null;
+  mobilePanelBtn?.addEventListener('click', () => {
+    const url   = mobilePanelBtn.dataset.panelUrl   ?? '/usuario';
+    const title = mobilePanelBtn.dataset.panelTitle ?? 'Panel';
+    (window as any).openSlidePanel?.(url, title);
+    closeMenu();
+  });
+
+  // Lápices de edición admin — abren el SlidePanel
+  document.querySelectorAll<HTMLButtonElement>('.nb-edit-pencil[data-panel-url]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const url   = btn.dataset.panelUrl   ?? '/admin';
+      const title = btn.dataset.panelTitle ?? 'Panel Admin';
+      (window as any).openSlidePanel?.(url, title);
+    });
+  });
+</script>

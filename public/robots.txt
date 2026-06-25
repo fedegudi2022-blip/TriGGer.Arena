@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin
+Disallow: /usuario
+Disallow: /auth
+
+Sitemap: https://trigger.arena/sitemap.xml
