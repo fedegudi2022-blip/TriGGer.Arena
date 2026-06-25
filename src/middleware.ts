@@ -5,31 +5,18 @@ import { getServersSafe, getSiteSettingsSafe, getContentBlocksSafe } from './lib
 // ── Rutas que pueden cargarse en iframe (mismo origen) ────────────────────
 const IFRAME_ALLOWED_PATHS = ['/admin', '/usuario'];
 
+// ── Rutas que solo necesitan siteSettings (no servers ni contentBlocks) ───
+const SETTINGS_ONLY_PATHS = ['/auth', '/baneados', '/quejas', '/torneo', '/privacy', '/terms'];
+
 // ── Headers de seguridad base ─────────────────────────────────────────────
 const BASE_SECURITY_HEADERS: Record<string, string> = {
   'X-Content-Type-Options':     'nosniff',
   'Referrer-Policy':            'strict-origin-when-cross-origin',
   'Permissions-Policy':         'camera=(), microphone=(), geolocation=()',
-  // Vercel sirve siempre sobre HTTPS, así que esto es seguro por defecto.
-  // No incluye "preload": eso requiere enviar el dominio a hstspreload.org
-  // y es casi imposible de revertir una vez aceptado — mejor decisión manual.
   'Strict-Transport-Security':  'max-age=63072000; includeSubDomains',
   'Cross-Origin-Opener-Policy': 'same-origin',
 };
 
-/**
- * CSP de TriGGer.Arena — dominios externos reales usados en el proyecto:
- *   - cdn.jsdelivr.net  → CSS + fuentes de @tabler/icons-webfont
- *   - https: (img-src)  → avatares de usuario, que pueden venir de cualquier
- *                         URL https (ver update-profile.ts) o de Google/Discord
- *                         cuando el login es vía OAuth
- *
- * 'unsafe-inline' en script-src es una concesión: el JSON-LD (Organization/
- * WebSite) en Layout.astro se inyecta como <script> inline. Migrar a nonces
- * por request eliminaría esta concesión, pero requiere generar y propagar
- * el nonce en el middleware y en cada <script> inline — queda como mejora
- * a futuro si se quiere CSP estricta de verdad.
- */
 function buildCSP(isIframeRoute: boolean): string {
   const frameAncestors = isIframeRoute ? "'self'" : "'none'";
   return [
@@ -97,35 +84,44 @@ function renderMaintenancePage(message: string): string {
 export const onRequest = defineMiddleware(async (context, next) => {
   const { request, cookies, redirect, url, locals } = context;
 
-  const isApi           = url.pathname.startsWith('/api/');
-  const isAuthRoute     = url.pathname.startsWith('/auth');
-  const isAdminRoute    = url.pathname.startsWith('/admin');
-  const isUsuarioRoute  = url.pathname.startsWith('/usuario');
+  const isApi            = url.pathname.startsWith('/api/');
+  const isAuthRoute      = url.pathname.startsWith('/auth');
+  const isAdminRoute     = url.pathname.startsWith('/admin');
+  const isUsuarioRoute   = url.pathname.startsWith('/usuario');
   const isProtectedRoute = isAdminRoute || isUsuarioRoute;
+  const isSettingsOnly   = SETTINGS_ONLY_PATHS.some(p => url.pathname.startsWith(p));
 
-  // 1. Cargar datos globales (solo en rutas no-API para evitar overhead innecesario)
+  // 1. Cargar datos globales según la ruta para minimizar queries innecesarias
   if (!isApi) {
-    const [settings, servers, blocks] = await Promise.all([
-      getSiteSettingsSafe(),
-      getServersSafe(),
-      getContentBlocksSafe(),
-    ]);
-    locals.siteSettings  = settings;
-    locals.servers       = servers;
-    locals.contentBlocks = blocks;
+    if (isSettingsOnly) {
+      // Rutas de auth y páginas simples: solo necesitan siteSettings
+      locals.siteSettings  = await getSiteSettingsSafe();
+      locals.servers       = [];
+      locals.contentBlocks = {} as any;
+    } else {
+      // Páginas principales y panel: cargar todo en paralelo
+      const [settings, servers, blocks] = await Promise.all([
+        getSiteSettingsSafe(),
+        getServersSafe(),
+        getContentBlocksSafe(),
+      ]);
+      locals.siteSettings  = settings;
+      locals.servers       = servers;
+      locals.contentBlocks = blocks;
+    }
   }
 
-  // 2. Leer sesión desde la cookie propia (sesión + perfil en una sola query)
+  // 2. Leer sesión (una sola query con JOIN a profiles)
   const sessionToken = cookies.get(SESSION_COOKIE)?.value;
-  const session = await getSessionUser(sessionToken);
+  const session = sessionToken ? await getSessionUser(sessionToken) : null;
 
-  locals.user = session?.user ?? undefined;
+  locals.user    = session?.user    ?? undefined;
   locals.profile = session?.profile ?? null;
 
   const isAdmin = locals.profile?.role === 'admin';
-  const user = session?.user;
+  const user    = session?.user;
 
-  // 4. Modo mantenimiento — bloquear acceso público
+  // 3. Modo mantenimiento
   const isMaintenance = locals.siteSettings?.site_status === 'mantenimiento';
   if (isMaintenance && !isAdmin && !isAdminRoute && !isAuthRoute && !isApi) {
     return applySecurityHeaders(
@@ -140,7 +136,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     );
   }
 
-  // 5. Protección de rutas autenticadas
+  // 4. Protección de rutas autenticadas
   if (isProtectedRoute && !user) {
     return redirect(`/auth?next=${encodeURIComponent(url.pathname)}`);
   }
