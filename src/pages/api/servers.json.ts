@@ -1,6 +1,3 @@
-// NOTA: este endpoint es un alias legado de /api/servers.json (mismo
-// resultado, distintos headers de cache/CORS). Ambos comparten la misma
-// lógica en src/lib/server-status.ts para que nunca puedan desincronizarse.
 export const prerender = false;
 
 import { getAllServerStatuses } from '../../lib/server-status';
@@ -12,10 +9,10 @@ export async function GET() {
     status: 200,
     headers: {
       'Content-Type': 'application/json',
-      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      // Cache en CDN de Vercel por 15 segundos, stale-while-revalidate 30s
+      // Evita que cada usuario haga un UDP query al servidor de CS
+      'Cache-Control': 'public, s-maxage=15, stale-while-revalidate=30',
       'Access-Control-Allow-Origin': '*',
-      'Pragma': 'no-cache',
-      'Expires': '0',
     },
   });
 }

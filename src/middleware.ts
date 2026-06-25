@@ -84,6 +84,24 @@ function renderMaintenancePage(message: string): string {
 export const onRequest = defineMiddleware(async (context, next) => {
   const { request, cookies, redirect, url, locals } = context;
 
+  // Skip rápido para assets estáticos — sin lógica ni DB queries
+  const path = url.pathname;
+  if (
+    path.startsWith('/_astro/') ||
+    path.startsWith('/fonts/') ||
+    path.endsWith('.webp') ||
+    path.endsWith('.png') ||
+    path.endsWith('.jpg') ||
+    path.endsWith('.svg') ||
+    path.endsWith('.ico') ||
+    path.endsWith('.css') ||
+    path.endsWith('.js') ||
+    path === '/sitemap.xml' ||
+    path === '/robots.txt'
+  ) {
+    return next();
+  }
+
   const isApi            = url.pathname.startsWith('/api/');
   const isAuthRoute      = url.pathname.startsWith('/auth');
   const isAdminRoute     = url.pathname.startsWith('/admin');
@@ -91,29 +109,38 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const isProtectedRoute = isAdminRoute || isUsuarioRoute;
   const isSettingsOnly   = SETTINGS_ONLY_PATHS.some(p => url.pathname.startsWith(p));
 
-  // 1. Cargar datos globales según la ruta para minimizar queries innecesarias
+  // 1 + 2. Cargar datos globales Y sesión EN PARALELO para reducir latencia.
+  // Antes: datos DB → esperar → sesión → esperar. Ahora: ambos a la vez.
+  const sessionToken = cookies.get(SESSION_COOKIE)?.value;
+
+  let session: Awaited<ReturnType<typeof getSessionUser>> = null;
+
   if (!isApi) {
     if (isSettingsOnly) {
-      // Rutas de auth y páginas simples: solo necesitan siteSettings
-      locals.siteSettings  = await getSiteSettingsSafe();
+      const [settings, sess] = await Promise.all([
+        getSiteSettingsSafe(),
+        sessionToken ? getSessionUser(sessionToken) : Promise.resolve(null),
+      ]);
+      locals.siteSettings  = settings;
       locals.servers       = [];
       locals.contentBlocks = {} as any;
+      session = sess;
     } else {
-      // Páginas principales y panel: cargar todo en paralelo
-      const [settings, servers, blocks] = await Promise.all([
+      const [settings, servers, blocks, sess] = await Promise.all([
         getSiteSettingsSafe(),
         getServersSafe(),
         getContentBlocksSafe(),
+        sessionToken ? getSessionUser(sessionToken) : Promise.resolve(null),
       ]);
       locals.siteSettings  = settings;
       locals.servers       = servers;
       locals.contentBlocks = blocks;
+      session = sess;
     }
+  } else {
+    // Rutas API: solo necesitan sesión si hay token
+    session = sessionToken ? await getSessionUser(sessionToken) : null;
   }
-
-  // 2. Leer sesión (una sola query con JOIN a profiles)
-  const sessionToken = cookies.get(SESSION_COOKIE)?.value;
-  const session = sessionToken ? await getSessionUser(sessionToken) : null;
 
   locals.user    = session?.user    ?? undefined;
   locals.profile = session?.profile ?? null;

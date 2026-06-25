@@ -26,7 +26,7 @@ import type {
 // realmente compartido entre instancias habría que migrar a Vercel KV /
 // Upstash Redis, pero para el volumen actual del sitio esto ya reduce
 // drásticamente la carga a la base sin agregar infraestructura nueva.
-const SITE_DATA_TTL_MS = 30_000; // 30s
+const SITE_DATA_TTL_MS = 300_000; // 5 min — datos cambian poco, admin invalida si necesita
 
 type CacheEntry<T> = { data: T; expiresAt: number };
 const dataCache = new Map<string, CacheEntry<unknown>>();

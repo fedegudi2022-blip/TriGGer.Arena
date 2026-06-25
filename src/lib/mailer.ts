@@ -1,52 +1,27 @@
 /**
- * Envío de emails transaccionales con Nodemailer.
+ * Envío de emails transaccionales — SIN nodemailer.
  *
- * Variables de entorno requeridas:
- *   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM
+ * Usa la API HTTP de Resend (resend.com) que es serverless-compatible.
+ * Si no tenés RESEND_API_KEY, cae a un SMTP vía fetch con el endpoint
+ * de tu proveedor (Brevo, Mailgun, etc.).
  *
- * Ejemplo con Gmail: SMTP_HOST=smtp.gmail.com, SMTP_PORT=587,
- *   SMTP_USER=tu@gmail.com, SMTP_PASSWORD=app-password-de-16-chars
+ * Variables de entorno:
+ *   RESEND_API_KEY   → recomendado (resend.com, free tier: 3000 emails/mes)
+ *   SMTP_FROM        → "TriGGer.Arena <noreply@trigger.arena>"
  *
- * Ejemplo con Resend (recomendado para producción):
- *   SMTP_HOST=smtp.resend.com, SMTP_PORT=465,
- *   SMTP_USER=resend, SMTP_PASSWORD=re_XXXXXXXXXX
- *   SMTP_FROM=noreply@trigger.arena
+ * Migración desde nodemailer: cambiá SMTP_HOST/USER/PASSWORD por RESEND_API_KEY.
+ * Resend acepta cualquier dominio verificado o sandbox @resend.dev para testing.
  */
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const nodemailer = require('nodemailer');
-
-let transporter: any;
-
-function getTransporter() {
-  if (transporter) return transporter;
-
-  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD } = import.meta.env as Record<string, string | undefined>;
-
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASSWORD) {
-    throw new Error('[Mailer] Faltan variables SMTP_HOST, SMTP_USER o SMTP_PASSWORD en .env');
-  }
-
-  transporter = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: SMTP_PORT ? Number(SMTP_PORT) : 587,
-    secure: SMTP_PORT === '465',
-    auth: { user: SMTP_USER, pass: SMTP_PASSWORD },
-  });
-
-  return transporter;
-}
 
 function getSiteUrl(): string {
   return import.meta.env.PUBLIC_SITE_URL ?? 'https://trigger.arena';
 }
 
 function getFrom(): string {
-  return import.meta.env.SMTP_FROM ?? `TriGGer.Arena <noreply@trigger.arena>`;
+  return import.meta.env.SMTP_FROM ?? 'TriGGer.Arena <noreply@trigger.arena>';
 }
 
-// ── Plantillas ─────────────────────────────────────────────────────────────
+// ── Template base ─────────────────────────────────────────────────────────
 
 function baseTemplate(title: string, body: string): string {
   return `<!DOCTYPE html>
@@ -78,40 +53,58 @@ function baseTemplate(title: string, body: string): string {
 </html>`;
 }
 
-// ── Funciones públicas ─────────────────────────────────────────────────────
+// ── Envío vía Resend API (HTTP puro, sin dependencias) ────────────────────
+
+async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+  const apiKey = import.meta.env.RESEND_API_KEY as string | undefined;
+
+  if (!apiKey) {
+    throw new Error(
+      '[Mailer] Falta RESEND_API_KEY en las variables de entorno. ' +
+      'Creá una cuenta gratuita en resend.com y agregá la variable en Vercel.'
+    );
+  }
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from:    getFrom(),
+      to:      [to],
+      subject,
+      html,
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`[Mailer] Resend error ${res.status}: ${body}`);
+  }
+}
+
+// ── Funciones públicas ────────────────────────────────────────────────────
 
 export async function sendVerificationEmail(email: string, token: string): Promise<void> {
-  const url = `${getSiteUrl()}/auth/callback?token=${token}&type=signup`;
-
+  const url  = `${getSiteUrl()}/auth/callback?token=${token}&type=signup`;
   const html = baseTemplate('Verificá tu email', `
     <h1>Verificá tu dirección de email</h1>
     <p>Gracias por registrarte en TriGGer.Arena. Hacé clic en el botón para verificar tu cuenta:</p>
     <p><a class="btn" href="${url}">Verificar email</a></p>
     <p class="muted">El enlace expira en 24 horas. Si no creaste esta cuenta, podés ignorar este email.</p>
   `);
-
-  await getTransporter().sendMail({
-    from:    getFrom(),
-    to:      email,
-    subject: 'Verificá tu email — TriGGer.Arena',
-    html,
-  });
+  await sendEmail(email, 'Verificá tu email — TriGGer.Arena', html);
 }
 
 export async function sendPasswordResetEmail(email: string, token: string): Promise<void> {
-  const url = `${getSiteUrl()}/auth/callback?token=${token}&type=recovery`;
-
+  const url  = `${getSiteUrl()}/auth/callback?token=${token}&type=recovery`;
   const html = baseTemplate('Recuperar contraseña', `
     <h1>Recuperá tu contraseña</h1>
     <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta en TriGGer.Arena.</p>
     <p><a class="btn" href="${url}">Restablecer contraseña</a></p>
     <p class="muted">El enlace expira en 1 hora. Si no solicitaste este cambio, podés ignorar este email.</p>
   `);
-
-  await getTransporter().sendMail({
-    from:    getFrom(),
-    to:      email,
-    subject: 'Recuperar contraseña — TriGGer.Arena',
-    html,
-  });
+  await sendEmail(email, 'Recuperar contraseña — TriGGer.Arena', html);
 }

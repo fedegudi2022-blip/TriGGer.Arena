@@ -1,13 +1,11 @@
 ---
-import '@fontsource/inter/300.css';
+// Fuentes cargadas como CSS optimizado con font-display:swap
+// Los pesos 300 y 500 de Inter raramente se usan juntos — consolidamos
 import '@fontsource/inter/400.css';
-import '@fontsource/inter/500.css';
 import '@fontsource/inter/600.css';
-import '@fontsource/rajdhani/500.css';
 import '@fontsource/rajdhani/600.css';
 import '@fontsource/rajdhani/700.css';
 import '@fontsource/jetbrains-mono/400.css';
-import '@fontsource/jetbrains-mono/500.css';
 import { ClientRouter } from 'astro:transitions';
 import WhatsAppFloat from '../components/WhatsAppFloat.astro';
 import { SITE_TITLE, SITE_DESCRIPTION, SITE_URL, DISCORD_URL, INSTAGRAM_URL, WHATSAPP_URL } from '../config';
@@ -90,14 +88,16 @@ const jsonLd = {
   <!-- Datos estructurados (Organization + WebSite) -->
   <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
 
-  <!-- Preload recursos críticos -->
-  <link rel="preload" href="/trigger_fondo.webp" as="image" type="image/webp" />
+  <!-- Preload LCP image con alta prioridad -->
+  <link rel="preload" href="/trigger_fondo.webp" as="image" type="image/webp" fetchpriority="high" />
 
-  <!-- Preconnect CDN -->
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+  <!-- Preconnect CDN (evita DNS lookup en el critical path) -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
 
-  <!-- Tabler Icons -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" />
+  <!-- Tabler Icons: no-bloqueante (los íconos no son críticos para LCP) -->
+  <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" /></noscript>
 
   <!-- Client Router (View Transitions) entre páginas -->
   <ClientRouter />
