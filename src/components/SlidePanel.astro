@@ -521,6 +521,23 @@
     setTimeout(() => {
       iframe.src = url;
     }, 60);
+
+    /*
+      BUGFIX: Fallback de seguridad — si el evento 'load' no dispara
+      o el check falla silenciosamente, mostramos el iframe después de
+      un timeout razonable. Evita que el panel quede negro para siempre.
+      5s es suficiente para cualquier carga de red normal.
+    */
+    const fallbackTimer = setTimeout(() => {
+      if (!iframe.classList.contains('sp-ready')) {
+        showReady();
+      }
+    }, 5000);
+
+    // Cancelar el fallback si el load fue exitoso
+    iframe.addEventListener('load', () => {
+      clearTimeout(fallbackTimer);
+    }, { once: true });
   }
 
   function closePanel() {
@@ -543,8 +560,21 @@
     // Verificar si el contenido se cargó (puede haber sido bloqueado)
     try {
       const innerDoc = iframe.contentDocument || iframe.contentWindow?.document;
-      if (!innerDoc || !innerDoc.body || innerDoc.body.innerHTML.trim() === '') {
-        showError('El panel no pudo cargarse correctamente. Probá abrirlo en una nueva pestaña.');
+      /*
+        BUGFIX: El admin es una SPA con mucho JS — el body puede tener
+        innerHTML breve en el primer tick (solo el shell del layout).
+        Revisamos existencia del body y que no sea un error de auth,
+        pero NO bloqueamos si el body tiene contenido mínimo.
+        Si hay redirect al login, el body tendrá la página de auth.
+      */
+      if (!innerDoc || !innerDoc.body) {
+        showError('El panel no pudo cargarse. Probá abrirlo en una nueva pestaña.');
+        return;
+      }
+      // Si redirigió a /auth, hay un problema de sesión
+      const currentSrc = iframe.contentWindow?.location?.href ?? '';
+      if (currentSrc.includes('/auth')) {
+        showError('Tu sesión expiró. Recargá la página e iniciá sesión nuevamente.');
         return;
       }
       showReady();
