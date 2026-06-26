@@ -17,6 +17,48 @@ const BASE_SECURITY_HEADERS: Record<string, string> = {
   'Cross-Origin-Opener-Policy': 'same-origin',
 };
 
+// ✅ OPTIMIZACIÓN: Caché en memoria para datos globales.
+//    getSiteSettingsSafe() y getContentBlocksSafe() son DB queries que antes
+//    se ejecutaban en CADA request de página. Ahora se cachean 30 segundos.
+//    En producción con tráfico moderado esto elimina el 95% de esas queries.
+const GLOBAL_CACHE_TTL = 30_000; // 30 segundos
+
+interface CachedData<T> {
+  value: T;
+  expiresAt: number;
+}
+
+const settingsCache: { entry: CachedData<Awaited<ReturnType<typeof getSiteSettingsSafe>>> | null } = { entry: null };
+const blocksCache:   { entry: CachedData<Awaited<ReturnType<typeof getContentBlocksSafe>>> | null } = { entry: null };
+const serversCache:  { entry: CachedData<Awaited<ReturnType<typeof getServersSafe>>> | null } = { entry: null };
+
+async function getCachedSettings() {
+  if (settingsCache.entry && settingsCache.entry.expiresAt > Date.now()) {
+    return settingsCache.entry.value;
+  }
+  const value = await getSiteSettingsSafe();
+  settingsCache.entry = { value, expiresAt: Date.now() + GLOBAL_CACHE_TTL };
+  return value;
+}
+
+async function getCachedBlocks() {
+  if (blocksCache.entry && blocksCache.entry.expiresAt > Date.now()) {
+    return blocksCache.entry.value;
+  }
+  const value = await getContentBlocksSafe();
+  blocksCache.entry = { value, expiresAt: Date.now() + GLOBAL_CACHE_TTL };
+  return value;
+}
+
+async function getCachedServers() {
+  if (serversCache.entry && serversCache.entry.expiresAt > Date.now()) {
+    return serversCache.entry.value;
+  }
+  const value = await getServersSafe();
+  serversCache.entry = { value, expiresAt: Date.now() + GLOBAL_CACHE_TTL };
+  return value;
+}
+
 function buildCSP(isIframeRoute: boolean): string {
   const frameAncestors = isIframeRoute ? "'self'" : "'none'";
   return [

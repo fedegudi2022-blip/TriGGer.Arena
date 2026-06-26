@@ -236,6 +236,9 @@ const SECTION_ADMIN_MAP: Record<string, string> = {
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid rgba(56,182,255,0.07);
     transition: border-color 0.4s, box-shadow 0.4s, background 0.4s;
+    /* ✅ Promueve navbar a capa propia — blur y transiciones no afectan al resto */
+    will-change: background, box-shadow;
+    contain: layout style;
   }
   .nb.scrolled {
     background: rgba(7,9,15,0.96);

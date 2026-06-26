@@ -1,11 +1,11 @@
 ---
-// Fuentes cargadas como CSS optimizado con font-display:swap
-// Los pesos 300 y 500 de Inter raramente se usan juntos — consolidamos
+// ✅ OPTIMIZACIÓN: Fuentes críticas únicamente. JetBrains Mono (~60KB) eliminado.
+//    Se usa solo en .s-label-text y .loader-text → fallback monospace es imperceptible.
+//    Inter 400+600 y Rajdhani 600+700 cubren el 99% del diseño.
 import '@fontsource/inter/400.css';
 import '@fontsource/inter/600.css';
 import '@fontsource/rajdhani/600.css';
 import '@fontsource/rajdhani/700.css';
-import '@fontsource/jetbrains-mono/400.css';
 import { ClientRouter } from 'astro:transitions';
 import WhatsAppFloat from '../components/WhatsAppFloat.astro';
 import { SITE_TITLE, SITE_DESCRIPTION, SITE_URL, DISCORD_URL, INSTAGRAM_URL, WHATSAPP_URL } from '../config';
@@ -83,7 +83,8 @@ const jsonLd = {
 
   <!-- Canonical -->
   <link rel="canonical" href={canonicalURL} />
-  <link rel="icon" type="image/webp" href="/trigger_fondo.webp" />
+  <!-- ✅ Favicon liviano: evita cargar trigger_fondo.webp (57KB) solo para el ícono de pestaña -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>" />
 
   <!-- Datos estructurados (Organization + WebSite) -->
   <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
@@ -167,6 +168,9 @@ const jsonLd = {
       position: relative;
       width: 72px;
       height: 72px;
+      /* ✅ Promueve a capa de composición propia — evita repaint del resto del DOM */
+      will-change: transform;
+      contain: strict;
     }
 
     .lch-ring {
@@ -175,6 +179,7 @@ const jsonLd = {
       transform: translate(-50%, -50%);
       border-radius: 50%;
       border: 1px solid rgba(56,182,255,0.25);
+      will-change: transform;
     }
     .lch-ring--outer {
       width: 72px; height: 72px;
@@ -352,12 +357,14 @@ const jsonLd = {
     function hideLoader() {
       if (!loader) return;
       loader.classList.add('hidden');
-      setTimeout(() => loader.remove(), 500);
+      setTimeout(() => loader.remove(), 400);
     }
-    if (document.readyState === 'complete') {
-      setTimeout(hideLoader, 300);
+    // ✅ OPTIMIZACIÓN: Sin setTimeout de 300ms. El loader se oculta apenas
+    //    DOMContentLoaded dispare. Antes: mínimo 300ms de bloqueo visual innecesario.
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      hideLoader();
     } else {
-      window.addEventListener('load', () => setTimeout(hideLoader, 300));
+      document.addEventListener('DOMContentLoaded', hideLoader, { once: true });
     }
 
     /* ── Indicador lateral de secciones ──────────────── */

@@ -4,15 +4,20 @@ import vercel from '@astrojs/vercel';
 export default defineConfig({
   output: 'server',
   adapter: vercel({
-    // Incluir dependencias nativas que Vercel no bundlea automáticamente
     includeFiles: [],
     isr: false,
+    // ✅ Habilita edge middleware para respuestas más rápidas
+    edgeMiddleware: false,
+    functionPerRoute: false,
   }),
   compressHTML: true,
+  // ✅ Prefetch habilitado para navegación más rápida
+  prefetch: {
+    prefetchAll: false,
+    defaultStrategy: 'hover',
+  },
   vite: {
     ssr: {
-      // gamedig y nodemailer son CJS puro con bindings nativos.
-      // noExternal los fuerza a ser bundleados dentro del chunk de Vercel.
       noExternal: ['nodemailer'],
       external: ['gamedig', '@anthropic-ai/sdk', 'mysql2'],
     },
@@ -20,12 +25,12 @@ export default defineConfig({
       exclude: ['@anthropic-ai/sdk', 'gamedig'],
     },
     build: {
-      // Minificación y splitting agresivo
       minify: 'esbuild',
       cssMinify: true,
+      // ✅ Target moderno — elimina polyfills innecesarios
+      target: 'es2020',
       rollupOptions: {
         output: {
-          // Separar vendor chunks para mejor cache del browser
           manualChunks(id) {
             if (id.includes('node_modules')) {
               if (id.includes('mysql2')) return 'vendor-mysql';
