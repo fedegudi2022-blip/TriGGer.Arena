@@ -8,7 +8,7 @@ import '@fontsource/inter/800.css';
 import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/500.css';
 import { DEFAULT_SERVERS, DEFAULT_SITE_SETTINGS, serverIp } from '../../lib/site-data';
-import { WHATSAPP_URL as DEFAULT_WHATSAPP_URL, DISCORD_URL as DEFAULT_DISCORD_URL } from '../../config';
+import { WHATSAPP_URL as DEFAULT_WHATSAPP_URL, DISCORD_URL as DEFAULT_DISCORD_URL, INSTAGRAM_URL as DEFAULT_INSTAGRAM_URL } from '../../config';
 
 const user    = Astro.locals.user!;
 const profile = Astro.locals.profile;
@@ -32,8 +32,9 @@ const serverConfigsJson = JSON.stringify(
 );
 
 const siteSettings = Astro.locals.siteSettings ?? DEFAULT_SITE_SETTINGS;
-const whatsappUrl = siteSettings.whatsapp_url ?? DEFAULT_WHATSAPP_URL;
-const discordUrl  = siteSettings.discord_url  ?? DEFAULT_DISCORD_URL;
+const whatsappUrl  = siteSettings.whatsapp_url  ?? DEFAULT_WHATSAPP_URL;
+const discordUrl   = siteSettings.discord_url   ?? DEFAULT_DISCORD_URL;
+const instagramUrl = siteSettings.instagram_url ?? DEFAULT_INSTAGRAM_URL;
 const isOperativo = siteSettings.site_status === 'operativo';
 
 const asuntoOptions = [
@@ -231,6 +232,10 @@ const asuntoOptions = [
             <a class="quick" href={discordUrl} target="_blank" rel="noopener noreferrer">
               <i class="ti ti-brand-discord"></i>
               <div><strong>Discord</strong><span>Voz, texto y eventos</span></div>
+            </a>
+            <a class="quick" href={instagramUrl} target="_blank" rel="noopener noreferrer">
+              <i class="ti ti-brand-instagram"></i>
+              <div><strong>Instagram</strong><span>Highlights y noticias</span></div>
             </a>
             <button class="quick" data-section="soporte">
               <i class="ti ti-headset"></i>

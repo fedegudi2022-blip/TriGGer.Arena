@@ -99,7 +99,8 @@ const SECTION_ADMIN_MAP: Record<string, string> = {
             </div>
             {isAdmin && isMaintenance && (
               <a href="/admin#configuracion" class="nb-dropdown-maintenance" role="menuitem"
-                 onclick={`event.preventDefault(); window.openSlidePanel?.('/admin#configuracion', 'Configuración'); document.getElementById('nbUserMenu')?.classList.remove('open');`}
+                 data-panel-url="/admin#configuracion"
+                 data-panel-title="Configuración"
               >
                 <i class="ti ti-tool" aria-hidden="true"></i>
                 <span>Sitio en mantenimiento — gestionar</span>
@@ -107,7 +108,8 @@ const SECTION_ADMIN_MAP: Record<string, string> = {
             )}
             <div class="nb-dropdown-sep"></div>
             <a href={accountHref} class="nb-dropdown-item" role="menuitem"
-               onclick={`event.preventDefault(); window.openSlidePanel?.('${accountHref}', '${isAdmin ? 'Panel Admin' : 'Mi Cuenta'}'); document.getElementById('nbUserMenu')?.classList.remove('open');`}
+               data-panel-url={accountHref}
+               data-panel-title={isAdmin ? 'Panel Admin' : 'Mi Cuenta'}
             >
               <i class={isAdmin ? 'ti ti-layout-dashboard' : 'ti ti-user'} aria-hidden="true"></i>
               <span>{isAdmin ? 'Panel admin' : 'Mi cuenta'}</span>
@@ -116,14 +118,16 @@ const SECTION_ADMIN_MAP: Record<string, string> = {
             {isAdmin && (
               <>
                 <a href="/usuario" class="nb-dropdown-item" role="menuitem"
-                   onclick={`event.preventDefault(); window.openSlidePanel?.('/usuario', 'Mi Perfil'); document.getElementById('nbUserMenu')?.classList.remove('open');`}
+                   data-panel-url="/usuario"
+                   data-panel-title="Mi Perfil"
                 >
                   <i class="ti ti-user-circle" aria-hidden="true"></i>
                   <span>Mi perfil</span>
                   <i class="ti ti-arrow-bar-right nb-panel-arrow" aria-hidden="true"></i>
                 </a>
                 <a href="/admin#contenido" class="nb-dropdown-item" role="menuitem"
-                   onclick={`event.preventDefault(); window.openSlidePanel?.('/admin#contenido', 'Editar Contenido'); document.getElementById('nbUserMenu')?.classList.remove('open');`}
+                   data-panel-url="/admin#contenido"
+                   data-panel-title="Editar Contenido"
                 >
                   <i class="ti ti-edit" aria-hidden="true"></i>
                   <span>Editar contenido del sitio</span>
@@ -174,7 +178,8 @@ const SECTION_ADMIN_MAP: Record<string, string> = {
         <>
           {isAdmin && isMaintenance && (
             <a href="/admin#configuracion" class="nb-mobile-maintenance"
-               onclick={`event.preventDefault(); window.openSlidePanel?.('/admin#configuracion', 'Configuración'); document.getElementById('nbMenu')?.classList.remove('open'); document.getElementById('nbOverlay')?.classList.remove('open');`}
+               data-panel-url="/admin#configuracion"
+               data-panel-title="Configuración"
             >
               <i class="ti ti-tool"></i>
               Sitio en mantenimiento — gestionar
@@ -197,7 +202,8 @@ const SECTION_ADMIN_MAP: Record<string, string> = {
           </button>
           {isAdmin && (
             <a href="/admin#contenido" class="nb-mobile-edit"
-               onclick={`event.preventDefault(); window.openSlidePanel?.('/admin#contenido', 'Editar Contenido'); document.getElementById('nbMenu')?.classList.remove('open'); document.getElementById('nbOverlay')?.classList.remove('open');`}
+               data-panel-url="/admin#contenido"
+               data-panel-title="Editar Contenido"
             >
               <i class="ti ti-edit"></i>
               Editar contenido del sitio
@@ -487,13 +493,23 @@ const SECTION_ADMIN_MAP: Record<string, string> = {
 
   /* Mobile menu */
   .nb-mobile {
-    display: none;
+    display: flex; /* siempre en DOM, controlado por visibilidad */
     position: absolute; top: 60px; left: 0; right: 0;
-    /* PERF: background 97% opaco — backdrop-filter no aporta nada visible */
     background: rgba(7,9,15,0.98); border-bottom: 1px solid rgba(56,182,255,0.12);
     padding: 8px 16px 16px; flex-direction: column; gap: 4px;
+    /* Animación: en vez de display:none, usamos transform + opacity */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px);
+    transition: opacity 0.22s ease, transform 0.22s ease, visibility 0.22s;
+    pointer-events: none;
   }
-  .nb-mobile.open { display: flex; }
+  .nb-mobile.open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
   .nb-mobile-links { display: flex; flex-direction: column; gap: 2px; }
   .nb-mobile-link {
     display: flex; align-items: center; gap: 12px;
@@ -584,48 +600,30 @@ const SECTION_ADMIN_MAP: Record<string, string> = {
 </style>
 
 <script>
-  // Botón dedicado para abrir el panel
-  const panelBtn = document.getElementById('nbPanelBtn') as HTMLButtonElement | null;
-  panelBtn?.addEventListener('click', () => {
-    const url   = panelBtn.dataset.panelUrl   ?? '/usuario';
-    const title = panelBtn.dataset.panelTitle ?? 'Panel';
-    (window as any).openSlidePanel?.(url, title);
-  });
-
-  const nb       = document.getElementById('nb')!;
-  const progress = document.getElementById('nbProgress')!;
-  const logo     = document.getElementById('nbLogo')!;
-  const toggle   = document.getElementById('nbToggle')!;
-  const menu     = document.getElementById('nbMenu')!;
-  const overlay  = document.getElementById('nbOverlay')!;
-  const userBtn  = document.getElementById('nbUserBtn') as HTMLButtonElement | null;
-  const dropdown = document.getElementById('nbUserMenu');
-  const logoutBtn  = document.getElementById('nbLogout');
-  const logoutMob  = document.getElementById('nbLogoutMobile');
-  const links    = document.querySelectorAll<HTMLAnchorElement>('.nb-link');
+  // ─── Helpers ───────────────────────────────────────────────────────────────
+  const nb        = document.getElementById('nb')!;
+  const progress  = document.getElementById('nbProgress')!;
+  const logo      = document.getElementById('nbLogo')!;
+  const toggle    = document.getElementById('nbToggle')!;
+  const menu      = document.getElementById('nbMenu')!;
+  const overlay   = document.getElementById('nbOverlay')!;
+  const userBtn   = document.getElementById('nbUserBtn') as HTMLButtonElement | null;
+  const dropdown  = document.getElementById('nbUserMenu');
+  const panelBtn  = document.getElementById('nbPanelBtn') as HTMLButtonElement | null;
+  const links     = document.querySelectorAll<HTMLAnchorElement>('.nb-link');
   const mobileLinks = document.querySelectorAll<HTMLAnchorElement>('.nb-mobile-link');
-  const sections = Array.from(document.querySelectorAll<HTMLElement>('section[id]'));
+  const sections  = Array.from(document.querySelectorAll<HTMLElement>('section[id]'));
 
-  // Scroll: class + progress
-  /*
-    PERF: Throttle con rAF — ambos handlers (onScroll + updateActive) se
-    fusionan en UNO solo por frame. Antes disparaban 2 callbacks distintos
-    en cada evento scroll (hasta 120 veces/segundo en monitores 120Hz).
-    Ahora: máximo 1 operación de DOM por frame de pintura.
-  */
+  // ─── Scroll: progress bar + scrolled class ─────────────────────────────────
+  // Un solo rAF por scroll; no importa cuán rápido sea el monitor.
   let scrollRaf: number | null = null;
 
   function onScrollFrame() {
-    const y = window.scrollY;
-    nb.classList.toggle('scrolled', y > 24);
+    const y    = window.scrollY;
     const docH = document.documentElement.scrollHeight - window.innerHeight;
-    progress.style.width = docH > 0 ? `${(y / docH) * 100}%` : '0%';
 
-    // Active link (fusionado)
-    const yOff = y + 80;
-    let active: HTMLElement | null = null;
-    for (const s of sections) if (s.offsetTop <= yOff) active = s;
-    links.forEach(l => l.classList.toggle('active', active ? l.dataset.section === active.id : false));
+    nb.classList.toggle('scrolled', y > 24);
+    progress.style.width = docH > 0 ? `${Math.min((y / docH) * 100, 100)}%` : '0%';
 
     scrollRaf = null;
   }
@@ -634,70 +632,181 @@ const SECTION_ADMIN_MAP: Record<string, string> = {
     if (!scrollRaf) scrollRaf = requestAnimationFrame(onScrollFrame);
   }, { passive: true });
 
-  onScrollFrame(); // estado inicial
+  onScrollFrame();
 
-  // Logo
-  logo.addEventListener('click', () => { window.scrollTo({ top: 0, behavior: 'smooth' }); closeMenu(); });
+  // ─── Active link — IntersectionObserver (robusto, sin magia de offsets) ────
+  // Observamos cuándo cada sección cruza el centro superior de la viewport.
+  // rootMargin: "-60px 0px -50% 0px"
+  //   → arriba: 60px (altura del navbar fijo)
+  //   → abajo: -50% (solo activa cuando la sección ocupa al menos el 50% superior)
+  // Esto evita el "salto" de sección activa que daba el polling con offsetTop.
+  let activeSection: string | null = null;
 
-  // Mobile menu
+  const sectionObserver = new IntersectionObserver(
+    (entries) => {
+      // Procesamos todas las entradas y quedamos con la más alta en la página
+      // que esté intersectando, para que cuando hay varias a la vez siempre
+      // gane la que el usuario está leyendo (la más arriba).
+      entries.forEach(entry => {
+        if (entry.isIntersecting) activeSection = entry.target.id;
+      });
+
+      links.forEach(l => l.classList.toggle('active', l.dataset.section === activeSection));
+    },
+    { rootMargin: '-60px 0px -50% 0px', threshold: 0 }
+  );
+
+  sections.forEach(s => sectionObserver.observe(s));
+
+  // ─── Logo → scroll suave al top ────────────────────────────────────────────
+  logo.addEventListener('click', () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    closeMenu();
+  });
+
+  // ─── Mobile menu ───────────────────────────────────────────────────────────
+  // Usamos clases + transición CSS (ver estilos) en lugar de display:none/flex
+  // para que la apertura/cierre tenga animación suave.
   function openMenu() {
-    menu.classList.add('open'); overlay.classList.add('open');
+    menu.classList.add('open');
+    overlay.classList.add('open');
     toggle.setAttribute('aria-expanded', 'true');
     menu.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden'; // evita scroll de fondo en móvil
   }
   function closeMenu() {
-    menu.classList.remove('open'); overlay.classList.remove('open');
+    menu.classList.remove('open');
+    overlay.classList.remove('open');
     toggle.setAttribute('aria-expanded', 'false');
     menu.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
   }
-  toggle.addEventListener('click', () => menu.classList.contains('open') ? closeMenu() : openMenu());
-  overlay.addEventListener('click', closeMenu);
-  mobileLinks.forEach(l => l.addEventListener('click', closeMenu));
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeMenu(); closeDropdown(); } });
 
-  // Dropdown
+  toggle.addEventListener('click', () =>
+    menu.classList.contains('open') ? closeMenu() : openMenu()
+  );
+  overlay.addEventListener('click', closeMenu);
+
+  // Links del menú mobile → scroll suave + cierre del menú
+  mobileLinks.forEach(link => {
+    link.addEventListener('click', e => {
+      const href = link.getAttribute('href') ?? '';
+      if (href.startsWith('#')) {
+        e.preventDefault();
+        closeMenu();
+        const target = document.getElementById(href.slice(1));
+        if (target) {
+          // Pequeño delay para que el menú cierre antes de hacer scroll
+          setTimeout(() => {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 120);
+        }
+      } else {
+        closeMenu();
+      }
+    });
+  });
+
+  // Links del nav desktop → scroll suave también
+  links.forEach(link => {
+    link.addEventListener('click', e => {
+      const href = link.getAttribute('href') ?? '';
+      if (href.startsWith('#')) {
+        e.preventDefault();
+        const target = document.getElementById(href.slice(1));
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+
+  // ─── Dropdown usuario ──────────────────────────────────────────────────────
+  // Problema original: el click en el botón propagaba al document, que
+  // inmediatamente lo cerraba. Solución: usamos un flag para ignorar
+  // el primer click en document después de abrir.
+  let dropdownJustOpened = false;
+
   function openDropdown() {
     dropdown?.classList.add('open');
     userBtn?.setAttribute('aria-expanded', 'true');
     dropdown?.setAttribute('aria-hidden', 'false');
+    dropdownJustOpened = true;
+    // Limpiar flag después del frame actual
+    requestAnimationFrame(() => { dropdownJustOpened = false; });
   }
   function closeDropdown() {
     dropdown?.classList.remove('open');
     userBtn?.setAttribute('aria-expanded', 'false');
     dropdown?.setAttribute('aria-hidden', 'true');
   }
+
   userBtn?.addEventListener('click', e => {
     e.stopPropagation();
     dropdown?.classList.contains('open') ? closeDropdown() : openDropdown();
   });
+
   document.addEventListener('click', e => {
-    if (dropdown?.classList.contains('open') && !userBtn?.contains(e.target as Node) && !dropdown?.contains(e.target as Node)) closeDropdown();
+    if (dropdownJustOpened) return;
+    if (!dropdown?.classList.contains('open')) return;
+    const outside = !userBtn?.contains(e.target as Node) && !dropdown?.contains(e.target as Node);
+    if (outside) closeDropdown();
   });
 
-  // Logout
-  async function doLogout() {
-    await fetch('/api/signin', { method: 'DELETE' });
-    window.location.reload();
+  // Cerrar con Escape
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeMenu(); closeDropdown(); }
+  });
+
+  // ─── Panel botón principal ─────────────────────────────────────────────────
+  // Espera a que SlidePanel esté disponible (puede cargar después del navbar)
+  function openPanel(url: string, title: string) {
+    if (typeof (window as any).openSlidePanel === 'function') {
+      (window as any).openSlidePanel(url, title);
+    } else {
+      // Fallback: navegar directo si el panel no cargó
+      window.location.href = url;
+    }
   }
-  logoutBtn?.addEventListener('click', doLogout);
-  logoutMob?.addEventListener('click', doLogout);
+
+  panelBtn?.addEventListener('click', () => {
+    const url   = panelBtn.dataset.panelUrl   ?? '/usuario';
+    const title = panelBtn.dataset.panelTitle ?? 'Panel';
+    openPanel(url, title);
+  });
+
+  // Links del dropdown que abren el slide panel
+  document.querySelectorAll<HTMLElement>('[data-panel-url]:not(#nbPanelBtn):not(#nbMobilePanelBtn)').forEach(el => {
+    el.addEventListener('click', e => {
+      e.preventDefault();
+      const url   = el.dataset.panelUrl   ?? '/usuario';
+      const title = el.dataset.panelTitle ?? 'Panel';
+      closeDropdown();
+      closeMenu();
+      openPanel(url, title);
+    });
+  });
 
   // Botón mobile de panel
   const mobilePanelBtn = document.getElementById('nbMobilePanelBtn') as HTMLButtonElement | null;
   mobilePanelBtn?.addEventListener('click', () => {
     const url   = mobilePanelBtn.dataset.panelUrl   ?? '/usuario';
     const title = mobilePanelBtn.dataset.panelTitle ?? 'Panel';
-    (window as any).openSlidePanel?.(url, title);
+    openPanel(url, title);
     closeMenu();
   });
 
-  // Lápices de edición admin — abren el SlidePanel
+  // Lápices de edición admin
   document.querySelectorAll<HTMLButtonElement>('.nb-edit-pencil[data-panel-url]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', e => {
       e.stopPropagation();
-      const url   = btn.dataset.panelUrl   ?? '/admin';
-      const title = btn.dataset.panelTitle ?? 'Panel Admin';
-      (window as any).openSlidePanel?.(url, title);
+      openPanel(btn.dataset.panelUrl ?? '/admin', btn.dataset.panelTitle ?? 'Panel Admin');
     });
   });
+
+  // ─── Logout ────────────────────────────────────────────────────────────────
+  async function doLogout() {
+    await fetch('/api/signin', { method: 'DELETE' });
+    window.location.reload();
+  }
+  document.getElementById('nbLogout')?.addEventListener('click', doLogout);
+  document.getElementById('nbLogoutMobile')?.addEventListener('click', doLogout);
 </script>
