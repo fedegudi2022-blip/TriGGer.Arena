@@ -83,8 +83,7 @@ const jsonLd = {
 
   <!-- Canonical -->
   <link rel="canonical" href={canonicalURL} />
-  <!-- ✅ Favicon liviano: evita cargar trigger_fondo.webp (57KB) solo para el ícono de pestaña -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>" />
+ <link rel="icon" type="image/webp" href="/trigger_fondo.webp" />
 
   <!-- Datos estructurados (Organization + WebSite) -->
   <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
