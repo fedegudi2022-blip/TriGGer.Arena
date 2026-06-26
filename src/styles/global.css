@@ -1,6 +1,3 @@
-/* ── Font display: swap para evitar FOIT (Flash of Invisible Text) ── */
-@font-face { font-display: swap; }
-
 /* ── Reset ──────────────────────────────────────────── */
 *, *::before, *::after {
   box-sizing: border-box;
