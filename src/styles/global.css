@@ -28,7 +28,8 @@
 
   --font-display: 'Rajdhani', sans-serif;
   --font-body:    'Inter', sans-serif;
-  --font-mono:    'JetBrains Mono', monospace;
+  /* ✅ JetBrains Mono eliminada — system-ui monospace ahorra ~60KB de red */
+  --font-mono:    ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
 
   --container:    1100px;
   --radius:       4px;
@@ -54,12 +55,22 @@ html {
 }
 
 body {
-  background: radial-gradient(circle at top, rgba(56, 182, 255, 0.08), transparent 24%), var(--bg);
+  background: var(--bg);
   color: var(--text);
   font-family: var(--font-body);
   font-size: 15px;
   line-height: 1.75;
   -webkit-font-smoothing: antialiased;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(circle at top, rgba(56, 182, 255, 0.08), transparent 24%);
+  pointer-events: none;
+  will-change: transform; /* promueve a capa propia */
 }
 
 p, li {
@@ -106,6 +117,9 @@ textarea:focus-visible {
 
 section {
   scroll-margin-top: 90px;
+  content-visibility: auto;
+  /* Reserva espacio aproximado para evitar CLS al revelar la sección */
+  contain-intrinsic-size: 0 600px;
 }
 
 /* Section header shared pattern */
@@ -180,7 +194,8 @@ section {
   font-size: 0.95rem;
   text-decoration: none;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease,
+              border-color 0.2s ease, color 0.2s ease;
   user-select: none;
 }
 
@@ -207,19 +222,7 @@ section {
   color: var(--text);
 }
 
-/* ── Fondo por sección con fade entre bloques ────────── */
-/*
-  Uso: agregale a cualquier <section> el atributo data-bg y la
-  variable --section-bg con la ruta de la imagen, por ejemplo:
 
-  <section data-bg style="--section-bg: url('/images/servidores-bg.webp')">
-
-  El ::before pone la foto (oscurecida y desaturada para que combine
-  con el resto) y la desvanece arriba/abajo con una máscara. El
-  ::after agrega el mismo velo celeste de marca por encima. Donde la
-  máscara llega a transparente, se ve el fondo del body — por eso no
-  hay un corte duro entre una sección con foto y la siguiente.
-*/
 section[data-bg] {
   position: relative;
   isolation: isolate;
@@ -354,7 +357,6 @@ section[data-decor="grid"]::before {
   to { transform: scale(4); opacity: 0; }
 }
 
-/* ── Scroll suave nativo con offset via scroll-margin ── */
 section {
   scroll-margin-top: 74px;
 }
