@@ -80,7 +80,16 @@ function applySecurityHeaders(response: Response, pathname: string): Response {
   const isIframeRoute = IFRAME_ALLOWED_PATHS.some(p => pathname.startsWith(p));
 
   for (const [key, value] of Object.entries(BASE_SECURITY_HEADERS)) {
-    if (!response.headers.has(key)) response.headers.set(key, value);
+    if (!response.headers.has(key)) {
+      /*
+        BUGFIX: Cross-Origin-Opener-Policy: same-origin rompe el contexto
+        de navegación del iframe en Chrome/Edge. Para rutas que se cargan
+        en iframe (/admin, /usuario) lo omitimos — no es necesario porque
+        ya tienen frame-ancestors 'self' en el CSP que es más específico.
+      */
+      if (key === 'Cross-Origin-Opener-Policy' && isIframeRoute) continue;
+      response.headers.set(key, value);
+    }
   }
   if (!response.headers.has('X-Frame-Options')) {
     response.headers.set('X-Frame-Options', isIframeRoute ? 'SAMEORIGIN' : 'DENY');

@@ -485,21 +485,20 @@
 
   function showLoading() {
     loading.classList.remove('sp-hidden');
-    loading.style.visibility = '';
-    loading.style.opacity = '';
-    loading.style.display = '';
+    loading.style.cssText = '';
     errorEl.style.display = 'none';
     iframe.classList.remove('sp-ready');
     iframe.style.opacity = '0';
+    iframe.style.visibility = 'hidden';
     progress.classList.add('sp-indeterminate');
     progress.style.width = '';
   }
 
   function showReady() {
     loading.classList.add('sp-hidden');
-    // BUGFIX: forzar opacity en el iframe directamente, no solo via clase CSS
     iframe.classList.add('sp-ready');
     iframe.style.opacity = '1';
+    iframe.style.visibility = 'visible';
     progress.classList.remove('sp-indeterminate');
     progress.style.width = '100%';
     setTimeout(() => { progress.style.width = '0%'; }, 800);
