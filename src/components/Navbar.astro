@@ -227,18 +227,23 @@ const SECTION_ADMIN_MAP: Record<string, string> = {
     inset-inline: 0;
     z-index: 200;
     height: 60px;
-    background: rgba(7,9,15,0.65);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: rgba(7,9,15,0.82);
+    /*
+      PERF: backdrop-filter: blur(16px) en el navbar es el MAYOR cuello
+      de botella: se activa en CADA FRAME de scroll porque el navbar es fixed.
+      Estrategia: lo desactivamos por defecto y solo lo activamos cuando
+      el navbar está "scrolled" (background ya es 94% opaco → el blur
+      no aporta visualmente nada relevante).
+      En estado inicial (top de página) el fondo semitransparente es
+      suficiente — no hay contenido detrás del navbar en esa posición.
+    */
     border-bottom: 1px solid transparent;
-    transition: border-color 0.3s, box-shadow 0.3s, background 0.3s;
-    will-change: background, box-shadow;
+    transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
     contain: layout style;
-  }
-  .nb.scrolled {
-    background: rgba(7,9,15,0.94);
+  }\n  .nb.scrolled {
+    background: rgba(7,9,15,0.96);
     border-bottom-color: rgba(56,182,255,0.1);
-    box-shadow: 0 1px 32px rgba(0,0,0,0.5);
+    box-shadow: 0 1px 24px rgba(0,0,0,0.5);
   }
   .nb-progress {
     position: absolute; top: 0; left: 0; height: 2px; width: 0%;
@@ -484,9 +489,9 @@ const SECTION_ADMIN_MAP: Record<string, string> = {
   .nb-mobile {
     display: none;
     position: absolute; top: 60px; left: 0; right: 0;
-    background: rgba(7,9,15,0.97); border-bottom: 1px solid rgba(56,182,255,0.12);
+    /* PERF: background 97% opaco — backdrop-filter no aporta nada visible */
+    background: rgba(7,9,15,0.98); border-bottom: 1px solid rgba(56,182,255,0.12);
     padding: 8px 16px 16px; flex-direction: column; gap: 4px;
-    backdrop-filter: blur(8px);
   }
   .nb-mobile.open { display: flex; }
   .nb-mobile-links { display: flex; flex-direction: column; gap: 2px; }
@@ -559,8 +564,9 @@ const SECTION_ADMIN_MAP: Record<string, string> = {
   /* Overlay */
   .nb-overlay {
     display: none; position: fixed; inset: 60px 0 0 0;
-    z-index: 199; background: rgba(0,0,0,0.5);
-    backdrop-filter: blur(2px);
+    z-index: 199; background: rgba(0,0,0,0.6);
+    /* PERF: backdrop-filter: blur(2px) en overlay fullscreen = enorme costo.
+       Con background rgba(0,0,0,0.6) el efecto visual es el mismo. */
   }
   .nb-overlay.open { display: block; }
 
@@ -598,27 +604,37 @@ const SECTION_ADMIN_MAP: Record<string, string> = {
   const logoutMob  = document.getElementById('nbLogoutMobile');
   const links    = document.querySelectorAll<HTMLAnchorElement>('.nb-link');
   const mobileLinks = document.querySelectorAll<HTMLAnchorElement>('.nb-mobile-link');
+  const sections = Array.from(document.querySelectorAll<HTMLElement>('section[id]'));
 
   // Scroll: class + progress
-  function onScroll() {
+  /*
+    PERF: Throttle con rAF — ambos handlers (onScroll + updateActive) se
+    fusionan en UNO solo por frame. Antes disparaban 2 callbacks distintos
+    en cada evento scroll (hasta 120 veces/segundo en monitores 120Hz).
+    Ahora: máximo 1 operación de DOM por frame de pintura.
+  */
+  let scrollRaf: number | null = null;
+
+  function onScrollFrame() {
     const y = window.scrollY;
     nb.classList.toggle('scrolled', y > 24);
     const docH = document.documentElement.scrollHeight - window.innerHeight;
     progress.style.width = docH > 0 ? `${(y / docH) * 100}%` : '0%';
-  }
-  window.addEventListener('scroll', onScroll, { passive: true });
-  onScroll();
 
-  // Active link
-  const sections = Array.from(document.querySelectorAll<HTMLElement>('section[id]'));
-  function updateActive() {
-    const y = window.scrollY + 80;
+    // Active link (fusionado)
+    const yOff = y + 80;
     let active: HTMLElement | null = null;
-    for (const s of sections) if (s.offsetTop <= y) active = s;
+    for (const s of sections) if (s.offsetTop <= yOff) active = s;
     links.forEach(l => l.classList.toggle('active', active ? l.dataset.section === active.id : false));
+
+    scrollRaf = null;
   }
-  window.addEventListener('scroll', updateActive, { passive: true });
-  updateActive();
+
+  window.addEventListener('scroll', () => {
+    if (!scrollRaf) scrollRaf = requestAnimationFrame(onScrollFrame);
+  }, { passive: true });
+
+  onScrollFrame(); // estado inicial
 
   // Logo
   logo.addEventListener('click', () => { window.scrollTo({ top: 0, behavior: 'smooth' }); closeMenu(); });

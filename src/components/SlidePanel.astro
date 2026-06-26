@@ -113,12 +113,12 @@
     inset: 0;
     z-index: 799;
     background: rgba(0, 0, 0, 0);
-    transition: background 0.35s ease;
+    transition: background 0.3s ease;
   }
   .sp-overlay.sp-open {
     display: block;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(2px);
+    background: rgba(0, 0, 0, 0.65);
+    /* PERF: backdrop-filter en overlay fullscreen es innecesario y costoso */
   }
 
   /* ── Backdrop (wrapper invisible) ── */

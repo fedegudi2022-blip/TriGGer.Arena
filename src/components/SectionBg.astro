@@ -258,7 +258,8 @@ const glowStyle = glowColor ? `--sec-glow: ${glowColor};` : '';
       color-mix(in srgb, var(--sec-glow) 5%, transparent) 40%,
       transparent 70%
     );
-    filter: blur(2px);
+    /* PERF: filter: blur(2px) en elemento de 300px+ cada sección → eliminado.
+       El radial-gradient ya produce el efecto difuso sin costo de GPU. */
   }
 
   /* top-left */

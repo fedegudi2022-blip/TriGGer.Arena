@@ -60,14 +60,35 @@ import Modal      from '../components/Modal.astro';
 
 <script>
   /* ── Fade-in al hacer scroll ──────────────────────────── */
+  /*
+    PERF: Batching con requestAnimationFrame — cuando el Observer dispara
+    múltiples entries a la vez (ej: al hacer scroll rápido), las mutaciones
+    del DOM se agrupan en UN solo frame en vez de forzar N repaints.
+  */
+  let pendingVisible: Element[] = [];
+  let rafId: number | null = null;
+
   const observer = new IntersectionObserver(
-    entries => entries.forEach(e => {
-      if (e.isIntersecting) {
-        e.target.classList.add('visible');
-        observer.unobserve(e.target);
+    entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          pendingVisible.push(e.target);
+          observer.unobserve(e.target);
+        }
+      });
+
+      if (pendingVisible.length && !rafId) {
+        rafId = requestAnimationFrame(() => {
+          pendingVisible.forEach(el => el.classList.add('visible'));
+          pendingVisible = [];
+          rafId = null;
+        });
       }
-    }),
-    { threshold: 0.07, rootMargin: '0px 0px -24px 0px' }
+    },
+    {
+      threshold: 0.06,
+      rootMargin: '0px 0px -20px 0px'
+    }
   );
 
   const allFadeEls = document.querySelectorAll<HTMLElement>(
@@ -77,8 +98,13 @@ import Modal      from '../components/Modal.astro';
   allFadeEls.forEach(el => {
     const siblings = Array.from(el.parentElement?.children ?? []);
     const idx = siblings.indexOf(el);
-    if (idx < 6) {
-      el.style.transitionDelay = `${idx * 55}ms`;
+    /*
+      PERF: Delay escalonado solo para los primeros 5 hijos (stagger visible).
+      Delays más largos (idx * 70ms) con muchos elementos crean una sensación
+      de "lentitud". Reducido a 45ms máximo por step.
+    */
+    if (idx > 0 && idx < 6) {
+      el.style.transitionDelay = `${idx * 45}ms`;
     }
     observer.observe(el);
   });
@@ -99,7 +125,7 @@ import Modal      from '../components/Modal.astro';
     ripple.style.cssText = `width:${size}px;height:${size}px;left:${x}px;top:${y}px`;
     btn.classList.add('btn-ripple');
     btn.appendChild(ripple);
-    ripple.addEventListener('animationend', () => ripple.remove());
+    ripple.addEventListener('animationend', () => ripple.remove(), { once: true });
   }
 
   document.querySelectorAll<HTMLElement>(

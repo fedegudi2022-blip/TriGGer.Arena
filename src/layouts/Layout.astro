@@ -108,6 +108,15 @@ const jsonLd = {
 </head>
 <body>
 
+  <!--
+    PERF: Fondo decorativo como elementos reales en lugar de body::before/after.
+    Los pseudo-elementos del body se repintan en cada scroll porque están en
+    la misma capa que el contenido. Estos divs se pueden promover a su propia
+    capa de composición y el browser no los vuelve a pintar.
+  -->
+  <div class="bg-deco" aria-hidden="true"></div>
+  <div class="bg-grid" aria-hidden="true"></div>
+
   <!-- ── Pantalla de carga temática ── -->
   <div id="site-loader" aria-hidden="true">
     <div class="loader-crosshair">
@@ -179,6 +188,8 @@ const jsonLd = {
       border-radius: 50%;
       border: 1px solid rgba(56,182,255,0.25);
       will-change: transform;
+      /* PERF: contain:strict solo en el wrapper padre (loader-crosshair).
+         En los rings solo necesitamos el hint de composición */
     }
     .lch-ring--outer {
       width: 72px; height: 72px;
@@ -386,17 +397,22 @@ const jsonLd = {
       });
     });
 
-    // Mostrar dots después de hacer scroll
+    // Mostrar dots después de hacer scroll — throttled con rAF
     let dotsVisible = false;
+    let dotsRaf: number | null = null;
     window.addEventListener('scroll', () => {
-      if (!dotsNav) return;
-      if (!dotsVisible && window.scrollY > 200) {
-        dotsVisible = true;
-        dotsNav.classList.add('visible');
-      } else if (dotsVisible && window.scrollY <= 200) {
-        dotsVisible = false;
-        dotsNav.classList.remove('visible');
-      }
+      if (dotsRaf) return;
+      dotsRaf = requestAnimationFrame(() => {
+        if (!dotsNav) { dotsRaf = null; return; }
+        if (!dotsVisible && window.scrollY > 200) {
+          dotsVisible = true;
+          dotsNav.classList.add('visible');
+        } else if (dotsVisible && window.scrollY <= 200) {
+          dotsVisible = false;
+          dotsNav.classList.remove('visible');
+        }
+        dotsRaf = null;
+      });
     }, { passive: true });
 
     // Activar dot según sección visible
