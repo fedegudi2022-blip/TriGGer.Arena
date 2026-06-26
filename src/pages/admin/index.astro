@@ -65,20 +65,60 @@ const asuntoLabels: Record<string, string> = {
 const asuntoTone: Record<string, string> = {
   servidor: 'muted', ban: 'danger', planes: 'accent', otro: 'muted', cuenta: 'violet',
 };
+const asuntoSegColor: Record<string, string> = {
+  servidor: 'rgba(138,152,181,.4)', ban: 'rgba(239,68,68,.5)', planes: 'rgba(56,189,248,.4)',
+  otro: 'rgba(138,152,181,.3)', cuenta: 'rgba(167,139,250,.4)',
+};
 
 const totalMensajes  = contacts?.length ?? 0;
 const totalUsuarios  = profiles?.length ?? 0;
 const totalAdmins    = profiles?.filter(p => p.role === 'admin').length ?? 0;
 const totalDownloads = downloads?.length ?? 0;
 const totalPlans     = plans?.length ?? 0;
+const now = new Date();
 const esteM = contacts?.filter(c => {
-  const d = new Date(c.created_at), n = new Date();
-  return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear();
+  const d = new Date(c.created_at);
+  return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
 }).length ?? 0;
 const usuariosEsteM = profiles?.filter(p => {
-  const d = new Date(p.created_at), n = new Date();
-  return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear();
+  const d = new Date(p.created_at);
+  return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
 }).length ?? 0;
+
+// Datos de actividad de los últimos 6 meses para el gráfico
+function getLast6Months() {
+  const months: { label: string; msgs: number; users: number }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const m = d.getMonth(), y = d.getFullYear();
+    const label = d.toLocaleString('es-AR', { month: 'short' });
+    const msgs  = contacts?.filter(c => { const cd = new Date(c.created_at); return cd.getMonth() === m && cd.getFullYear() === y; }).length ?? 0;
+    const users = profiles?.filter(p => { const pd = new Date(p.created_at); return pd.getMonth() === m && pd.getFullYear() === y; }).length ?? 0;
+    months.push({ label, msgs, users });
+  }
+  return months;
+}
+const activityData = getLast6Months();
+const activityJson = JSON.stringify(activityData);
+
+// Mes anterior para tendencias
+const mesAnteriorMsgs = contacts?.filter(c => {
+  const d = new Date(c.created_at);
+  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  return d.getMonth() === prev.getMonth() && d.getFullYear() === prev.getFullYear();
+}).length ?? 0;
+const mesAnteriorUsers = profiles?.filter(p => {
+  const d = new Date(p.created_at);
+  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  return d.getMonth() === prev.getMonth() && d.getFullYear() === prev.getFullYear();
+}).length ?? 0;
+
+const trendMsgs  = mesAnteriorMsgs === 0 ? null : Math.round(((esteM - mesAnteriorMsgs) / mesAnteriorMsgs) * 100);
+const trendUsers = mesAnteriorUsers === 0 ? null : Math.round(((usuariosEsteM - mesAnteriorUsers) / mesAnteriorUsers) * 100);
+
+// Distribución de asuntos para el dashboard
+const asuntoCount: Record<string, number> = {};
+contacts?.forEach(c => { const k = c.asunto ?? 'otro'; asuntoCount[k] = (asuntoCount[k] ?? 0) + 1; });
 
 const displayName = profile?.username ?? user?.email ?? 'Admin';
 const avatarUrl   = profile?.avatar_url ?? '';
@@ -167,35 +207,60 @@ const avatarUrl   = profile?.avatar_url ?? '';
             <h1>Dashboard</h1>
             <p>Bienvenido, <strong>{displayName.split(' ')[0]}</strong>. Así está la comunidad hoy.</p>
           </div>
+          <div class="head-actions">
+            <button class="btn-ghost" id="dashRefreshBtn" title="Actualizar datos"><i class="ti ti-refresh"></i> Actualizar</button>
+          </div>
         </div>
 
+        <!-- Stats mejoradas con tendencia -->
         <div class="stat-row">
           <div class="stat">
-            <i class="ti ti-mail"></i>
-            <span class="stat-num">{totalMensajes}</span>
-            <span class="stat-label">Mensajes</span>
-            <span class="stat-delta">+{esteM} este mes</span>
+            <div class="stat-icon-wrap accent-bg"><i class="ti ti-mail"></i></div>
+            <div class="stat-body">
+              <span class="stat-num">{totalMensajes}</span>
+              <span class="stat-label">Mensajes</span>
+              <span class="stat-delta">
+                {trendMsgs !== null
+                  ? <><span class={trendMsgs >= 0 ? 'trend-up' : 'trend-down'}><i class={`ti ${trendMsgs >= 0 ? 'ti-trending-up' : 'ti-trending-down'}`}></i>{Math.abs(trendMsgs)}%</span> vs mes ant.</>
+                  : <>+{esteM} este mes</>}
+              </span>
+            </div>
+            <div class="stat-mini-chart" data-chart="msgs" data-activity={activityJson}></div>
           </div>
           <div class="stat">
-            <i class="ti ti-users"></i>
-            <span class="stat-num">{totalUsuarios}</span>
-            <span class="stat-label">Usuarios</span>
-            <span class="stat-delta">+{usuariosEsteM} este mes</span>
+            <div class="stat-icon-wrap blue-bg"><i class="ti ti-users"></i></div>
+            <div class="stat-body">
+              <span class="stat-num">{totalUsuarios}</span>
+              <span class="stat-label">Usuarios</span>
+              <span class="stat-delta">
+                {trendUsers !== null
+                  ? <><span class={trendUsers >= 0 ? 'trend-up' : 'trend-down'}><i class={`ti ${trendUsers >= 0 ? 'ti-trending-up' : 'ti-trending-down'}`}></i>{Math.abs(trendUsers)}%</span> vs mes ant.</>
+                  : <>+{usuariosEsteM} este mes</>}
+              </span>
+            </div>
+            <div class="stat-mini-chart" data-chart="users" data-activity={activityJson}></div>
           </div>
           <div class="stat">
-            <i class="ti ti-shield-filled"></i>
-            <span class="stat-num">{totalAdmins}</span>
-            <span class="stat-label">Administradores</span>
-            <span class="stat-delta muted">{totalUsuarios - totalAdmins} jugadores</span>
+            <div class="stat-icon-wrap violet-bg"><i class="ti ti-shield-filled"></i></div>
+            <div class="stat-body">
+              <span class="stat-num">{totalAdmins}</span>
+              <span class="stat-label">Administradores</span>
+              <span class="stat-delta muted">{totalUsuarios - totalAdmins} jugadores</span>
+            </div>
+            <div class="stat-donut" data-admins={totalAdmins} data-total={totalUsuarios}></div>
           </div>
           <div class="stat">
-            <i class="ti ti-files"></i>
-            <span class="stat-num">{totalDownloads}</span>
-            <span class="stat-label">Archivos</span>
-            <span class="stat-delta muted">{totalPlans} plan{totalPlans !== 1 ? 'es' : ''}</span>
+            <div class="stat-icon-wrap success-bg"><i class="ti ti-files"></i></div>
+            <div class="stat-body">
+              <span class="stat-num">{totalDownloads}</span>
+              <span class="stat-label">Archivos</span>
+              <span class="stat-delta muted">{totalPlans} plan{totalPlans !== 1 ? 'es' : ''}</span>
+            </div>
+            <div class="stat-donut" data-admins={totalDownloads} data-total={totalDownloads + totalPlans}></div>
           </div>
         </div>
 
+        <!-- Acciones rápidas -->
         <div class="card">
           <div class="card-head"><h2><i class="ti ti-bolt"></i> Acciones rápidas</h2></div>
           <div class="quick-row">
@@ -208,6 +273,44 @@ const avatarUrl   = profile?.avatar_url ?? '';
           </div>
         </div>
 
+        <!-- Gráfico de actividad + Estado de servidores -->
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head">
+              <h2><i class="ti ti-chart-bar"></i> Actividad — últimos 6 meses</h2>
+              <div class="chart-legend">
+                <span class="legend-dot accent"></span><span>Mensajes</span>
+                <span class="legend-dot blue" style="margin-left:10px"></span><span>Usuarios</span>
+              </div>
+            </div>
+            <div class="activity-chart-wrap">
+              <canvas id="activityChart" height="130" data-activity={activityJson}></canvas>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <h2><i class="ti ti-server-bolt"></i> Servidores — estado actual</h2>
+              <button class="link-btn" id="dashSrvRefresh"><i class="ti ti-refresh"></i> Refresh</button>
+            </div>
+            <div id="dashServersWrap">
+              {serverRows.length === 0
+                ? <div class="empty"><i class="ti ti-server-off"></i><p>Sin servidores configurados.</p></div>
+                : <div class="srv-mini-list">
+                    {serverRows.map(s => (
+                      <div class="srv-mini" data-srv-id={s.id}>
+                        <span class="srv-mini-dot loading"></span>
+                        <span class="srv-mini-name">{s.name}</span>
+                        <span class="srv-mini-info">Cargando…</span>
+                      </div>
+                    ))}
+                  </div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Distribución de mensajes + actividad reciente -->
         <div class="grid-2">
           <div class="card">
             <div class="card-head">
@@ -215,20 +318,32 @@ const avatarUrl   = profile?.avatar_url ?? '';
               <button class="link-btn" data-section="mensajes">Ver todos <i class="ti ti-arrow-right"></i></button>
             </div>
             {contacts && contacts.length > 0 ? (
-              <div class="tbl-wrap">
-                <table class="tbl">
-                  <thead><tr><th>Fecha</th><th>Nombre</th><th>Asunto</th></tr></thead>
-                  <tbody>
-                    {contacts.slice(0, 5).map(c => (
-                      <tr>
-                        <td class="mono dim">{formatDate(c.created_at)}</td>
-                        <td class="bold">{c.nombre}</td>
-                        <td>{c.asunto ? <span class={`tag ${asuntoTone[c.asunto] ?? ''}`}>{asuntoLabels[c.asunto] ?? c.asunto}</span> : <span class="dim">—</span>}</td>
-                      </tr>
+              <>
+                {/* Mini distribución por asunto */}
+                {Object.keys(asuntoCount).length > 0 && (
+                  <div class="asunto-bar-wrap">
+                    {Object.entries(asuntoCount).map(([k, v]) => (
+                      <div class="asunto-seg" style={`width:${Math.round((v / totalMensajes) * 100)}%;background:${asuntoSegColor[k] ?? 'rgba(138,152,181,.3)'}`} title={`${asuntoLabels[k] ?? k}: ${v}`}>
+                        <span class={`tag ${asuntoTone[k] ?? 'muted'}`}>{asuntoLabels[k] ?? k} {v}</span>
+                      </div>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                  </div>
+                )}
+                <div class="tbl-wrap">
+                  <table class="tbl">
+                    <thead><tr><th>Fecha</th><th>Nombre</th><th>Asunto</th></tr></thead>
+                    <tbody>
+                      {contacts.slice(0, 6).map(c => (
+                        <tr>
+                          <td class="mono dim">{formatDate(c.created_at)}</td>
+                          <td class="bold">{c.nombre}</td>
+                          <td>{c.asunto ? <span class={`tag ${asuntoTone[c.asunto] ?? ''}`}>{asuntoLabels[c.asunto] ?? c.asunto}</span> : <span class="dim">—</span>}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             ) : <div class="empty"><i class="ti ti-inbox-off"></i><p>Sin mensajes aún.</p></div>}
           </div>
 
@@ -242,9 +357,18 @@ const avatarUrl   = profile?.avatar_url ?? '';
                 <table class="tbl">
                   <thead><tr><th>Usuario</th><th>Rol</th><th>Registro</th></tr></thead>
                   <tbody>
-                    {profiles.slice(0, 5).map(p => (
+                    {profiles.slice(0, 6).map(p => (
                       <tr>
-                        <td class="bold">{p.username ?? p.email?.split('@')[0] ?? '—'}</td>
+                        <td>
+                          <div class="user-cell">
+                            <div class="avatar-sm">
+                              {p.avatar_url
+                                ? <img src={p.avatar_url} alt="" width="24" height="24" />
+                                : <span>{(p.username?.[0] ?? p.email?.[0] ?? '?').toUpperCase()}</span>}
+                            </div>
+                            <span class="bold">{p.username ?? p.email?.split('@')[0] ?? '—'}</span>
+                          </div>
+                        </td>
                         <td>{p.role === 'admin' ? <span class="tag accent">Admin</span> : <span class="tag muted">User</span>}</td>
                         <td class="mono dim">{formatDateShort(p.created_at)}</td>
                       </tr>
@@ -261,11 +385,14 @@ const avatarUrl   = profile?.avatar_url ?? '';
       <section class="section" id="sec-mensajes">
         <div class="page-head">
           <div><h1>Mensajes</h1><p>{totalMensajes} mensaje{totalMensajes !== 1 ? 's' : ''} recibido{totalMensajes !== 1 ? 's' : ''}</p></div>
+          <div class="head-actions">
+            <button class="btn-ghost" id="exportMsgsCsvBtn" title="Exportar como CSV"><i class="ti ti-file-download"></i> Exportar CSV</button>
+          </div>
         </div>
         <div class="card">
           <div class="card-head">
             <h2><i class="ti ti-inbox"></i> Bandeja de entrada</h2>
-            <div class="tools">
+            <div class="tools tools-wrap">
               <div class="search">
                 <i class="ti ti-search"></i>
                 <input type="text" id="msgSearch" placeholder="Buscar por nombre…" />
@@ -279,7 +406,16 @@ const avatarUrl   = profile?.avatar_url ?? '';
                 <option value="ban">Ban</option>
                 <option value="otro">Otro</option>
               </select>
+              <input type="date" class="select" id="msgDateFrom" title="Desde fecha" />
+              <input type="date" class="select" id="msgDateTo" title="Hasta fecha" />
+              <button class="btn-ghost btn-sm" id="msgDateClear" title="Limpiar fechas"><i class="ti ti-x"></i></button>
             </div>
+          </div>
+          <div class="msg-stats-strip" id="msgStatsStrip">
+            <span id="msgVisibleCount">{totalMensajes} mensajes</span>
+            {Object.entries(asuntoCount).map(([k, v]) => (
+              <span class={`tag ${asuntoTone[k] ?? 'muted'}`}>{asuntoLabels[k] ?? k}: {v}</span>
+            ))}
           </div>
           {contacts && contacts.length > 0 ? (
             <div class="tbl-wrap">
@@ -287,7 +423,7 @@ const avatarUrl   = profile?.avatar_url ?? '';
                 <thead><tr><th>Fecha</th><th>Nombre</th><th>Email</th><th>Asunto</th><th>Mensaje</th><th></th></tr></thead>
                 <tbody id="msgBody">
                   {contacts.map(c => (
-                    <tr id={`row-${c.id}`} data-nombre={c.nombre.toLowerCase()} data-asunto={c.asunto ?? ''}>
+                    <tr id={`row-${c.id}`} data-nombre={c.nombre.toLowerCase()} data-asunto={c.asunto ?? ''} data-date={c.created_at}>
                       <td class="mono dim">{formatDate(c.created_at)}</td>
                       <td class="bold">{c.nombre}</td>
                       <td><a href={`mailto:${c.email}`} class="text-link"><i class="ti ti-mail"></i>{c.email}</a></td>
@@ -1034,13 +1170,59 @@ const avatarUrl   = profile?.avatar_url ?? '';
   .head-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
   /* ══ Stats ══ */
-  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 18px; }
-  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 4px; }
-  .stat .ti { font-size: 18px; color: var(--accent); margin-bottom: 4px; }
+  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 16px 12px; display: flex; flex-direction: row; align-items: flex-start; gap: 12px; position: relative; overflow: hidden; }
+  .stat-icon-wrap { width: 38px; height: 38px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .stat-icon-wrap .ti { font-size: 18px; }
+  .accent-bg  { background: var(--accent-soft);  color: var(--accent); }
+  .blue-bg    { background: var(--blue-soft);    color: var(--blue); }
+  .violet-bg  { background: rgba(139,92,246,.12); color: #a78bfa; }
+  .success-bg { background: var(--success-soft); color: var(--success); }
+  .stat-body { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
   .stat-num { font-size: 1.55rem; font-weight: 800; line-height: 1; }
   .stat-label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
-  .stat-delta { font-size: 0.7rem; color: var(--olive); font-weight: 600; }
-  .stat-delta.muted { color: var(--muted); font-weight: 500; }
+  .stat-delta { font-size: 0.7rem; color: var(--muted); font-weight: 500; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .trend-up   { color: var(--success); font-weight: 700; display: inline-flex; align-items: center; gap: 2px; }
+  .trend-down { color: var(--danger);  font-weight: 700; display: inline-flex; align-items: center; gap: 2px; }
+  .stat-mini-chart { position: absolute; bottom: 0; right: 0; width: 80px; height: 40px; opacity: 0.35; pointer-events: none; }
+  .stat-donut { position: absolute; bottom: 8px; right: 10px; width: 38px; height: 38px; opacity: 0.55; pointer-events: none; }
+
+  /* ══ Activity chart ══ */
+  .activity-chart-wrap { padding: 12px 16px 16px; }
+  .chart-legend { display: flex; align-items: center; gap: 5px; font-size: 0.7rem; color: var(--muted); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .legend-dot.accent { background: var(--accent); }
+  .legend-dot.blue   { background: var(--blue); }
+
+  /* ══ Servidores mini (dashboard) ══ */
+  .srv-mini-list { padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .srv-mini { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: var(--radius-sm); background: var(--surface-2); border: 1px solid var(--border); }
+  .srv-mini-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex-shrink: 0; transition: background 0.3s; }
+  .srv-mini-dot.online  { background: var(--success); box-shadow: 0 0 6px var(--success); }
+  .srv-mini-dot.offline { background: var(--danger); }
+  .srv-mini-dot.loading { background: var(--muted); animation: pulse 1s infinite; }
+  .srv-mini-name { font-size: 0.8rem; font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .srv-mini-info { font-size: 0.7rem; color: var(--muted); font-family: var(--font-mono); white-space: nowrap; }
+  .srv-mini-info.online  { color: var(--success); }
+  .srv-mini-info.offline { color: var(--danger); }
+
+  /* ══ Asunto distribution bar ══ */
+  .asunto-bar-wrap { display: flex; height: 6px; border-radius: 3px; overflow: hidden; margin: 10px 16px 4px; gap: 1px; }
+  .asunto-seg { position: relative; min-width: 8px; cursor: default; }
+  .asunto-seg .tag { display: none; position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); white-space: nowrap; z-index: 5; }
+  .asunto-seg:hover .tag { display: inline-flex; }
+  .tag.muted   { background: rgba(138,152,181,.18); color: var(--muted); }
+  .tag.danger  { background: var(--danger-soft);  color: var(--danger);  }
+  .tag.accent  { background: var(--accent-soft);  color: var(--accent);  }
+  .tag.violet  { background: rgba(139,92,246,.12); color: #a78bfa; }
+
+  /* ══ Msg stats strip ══ */
+  .msg-stats-strip { display: flex; align-items: center; gap: 8px; padding: 7px 16px; background: var(--surface-2); border-bottom: 1px solid var(--border); font-size: 0.72rem; color: var(--muted); flex-wrap: wrap; }
+  .msg-stats-strip .tag { font-size: 0.67rem; }
+
+  /* ══ Tools wrap (multi-row filters) ══ */
+  .tools-wrap { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .btn-sm { padding: 5px 8px; font-size: 0.72rem; }
 
   /* ══ Card ══ */
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; overflow: hidden; }
@@ -1051,6 +1233,7 @@ const avatarUrl   = profile?.avatar_url ?? '';
   .link-btn:hover { text-decoration: underline; }
 
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
 
   /* ══ Tools / search ══ */
   .tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -1298,9 +1481,16 @@ const avatarUrl   = profile?.avatar_url ?? '';
   .toast.show .toast-progress { animation: shrink 3s linear forwards; }
   @keyframes shrink { from { width: 100%; } to { width: 0%; } }
   @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
 
   /* ══ Responsive ══ */
   @media (max-width: 1100px) { .grid-2 { grid-template-columns: 1fr; } }
+  @media (max-width: 640px) {
+    .stat { flex-direction: column; gap: 6px; }
+    .stat-mini-chart { display: none; }
+    .stat-donut { display: none; }
+    .asunto-bar-wrap { display: none; }
+  }
   @media (max-width: 960px) {
     .sidebar { transform: translateX(-100%); }
     .sidebar.open { transform: translateX(0); }
@@ -1434,6 +1624,7 @@ const avatarUrl   = profile?.avatar_url ?? '';
       if (tab) setTimeout(() => activateContentTab(tab), 0);
     }
     if (name === 'portal') loadPortal();
+    if (name === 'dashboard') loadDashServers();
     if (updateHash) history.replaceState(null, '', tab ? `#${name}:${tab}` : `#${name}`);
     closeSidebar();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1503,18 +1694,7 @@ const avatarUrl   = profile?.avatar_url ?? '';
   $('dlSearchClear')?.addEventListener('click', () => { inp('dlSearch').value = ''; filterDownloads(); });
 
   // ── Mensajes ──────────────────────────────────────────────
-  function filterMessages() {
-    const q = inp('msgSearch').value.toLowerCase().trim();
-    const f = sel('msgFilter').value.toLowerCase();
-    let count = 0;
-    document.querySelectorAll<HTMLTableRowElement>('#msgBody tr').forEach(row => {
-      const match = (!q || (row.dataset.nombre ?? '').includes(q)) && (!f || (row.dataset.asunto ?? '') === f);
-      row.classList.toggle('hidden', !match);
-      if (match) count++;
-    });
-    const countEl = document.getElementById('msgCount');
-    if (countEl) countEl.textContent = `${count} mensaje${count !== 1 ? 's' : ''}`;
-  }
+  // filterMessages is defined below with date support
   document.getElementById('msgSearch')?.addEventListener('input', filterMessages);
   document.getElementById('msgFilter')?.addEventListener('change', filterMessages);
 
@@ -1944,6 +2124,223 @@ const avatarUrl   = profile?.avatar_url ?? '';
       closeSidebar();
     }
   });
+
+  // ── Dashboard refresh ─────────────────────────────────────
+  document.getElementById('dashRefreshBtn')?.addEventListener('click', () => { window.location.reload(); });
+
+  // ── Mini charts (sparkline SVG en stat cards) ─────────────
+  function drawSparkline(canvas: HTMLElement, values: number[], color: string) {
+    if (!values.length) return;
+    const max = Math.max(...values, 1);
+    const w = 80, h = 40, pts = values.length;
+    const xs = values.map((_, i) => (i / (pts - 1)) * w);
+    const ys = values.map(v => h - (v / max) * (h - 4) - 2);
+    const path = xs.map((x, i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
+    const areaPath = path + ` L${w},${h} L0,${h} Z`;
+    canvas.innerHTML = `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" width="${w}" height="${h}">
+      <defs><linearGradient id="sg${color.replace('#','')}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${color}" stop-opacity="0.4"/>
+        <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+      </linearGradient></defs>
+      <path d="${areaPath}" fill="url(#sg${color.replace('#','')})" />
+      <path d="${path}" stroke="${color}" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
+  }
+
+  function drawDonut(canvas: HTMLElement, value: number, total: number, color: string) {
+    const pct = total === 0 ? 0 : value / total;
+    const r = 14, cx = 19, cy = 19, circ = 2 * Math.PI * r;
+    const dash = pct * circ;
+    canvas.innerHTML = `<svg viewBox="0 0 38 38" xmlns="http://www.w3.org/2000/svg" width="38" height="38">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="4"/>
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="4"
+        stroke-dasharray="${dash.toFixed(1)} ${circ.toFixed(1)}" stroke-dashoffset="${(circ * 0.25).toFixed(1)}"
+        stroke-linecap="round"/>
+    </svg>`;
+  }
+
+  function initStatCharts() {
+    const DATA_ATTR = 'data-activity';
+    // Sparklines
+    document.querySelectorAll<HTMLElement>('.stat-mini-chart').forEach(el => {
+      const raw = el.getAttribute(DATA_ATTR);
+      if (!raw) return;
+      try {
+        const activity: Array<{msgs: number; users: number}> = JSON.parse(raw);
+        const key = el.getAttribute('data-chart');
+        const values = activity.map(a => key === 'msgs' ? a.msgs : a.users);
+        const color = key === 'msgs' ? '#38bdf8' : '#2563eb';
+        drawSparkline(el, values, color);
+      } catch {}
+    });
+    // Donuts
+    document.querySelectorAll<HTMLElement>('.stat-donut').forEach(el => {
+      const admins = parseInt(el.getAttribute('data-admins') ?? '0');
+      const total  = parseInt(el.getAttribute('data-total') ?? '0');
+      drawDonut(el, admins, total, '#a78bfa');
+    });
+  }
+  initStatCharts();
+
+  // ── Activity bar chart (canvas) ───────────────────────────
+  // Polyfill roundRect for older browsers
+  if (!CanvasRenderingContext2D.prototype.roundRect) {
+    (CanvasRenderingContext2D.prototype as any).roundRect = function(x: number, y: number, w: number, h: number, r: number | number[]) {
+      const radius = Array.isArray(r) ? r[0] : r;
+      this.beginPath();
+      this.moveTo(x + radius, y);
+      this.lineTo(x + w - radius, y);
+      this.quadraticCurveTo(x + w, y, x + w, y + radius);
+      this.lineTo(x + w, y + h);
+      this.lineTo(x, y + h);
+      this.lineTo(x, y + radius);
+      this.quadraticCurveTo(x, y, x + radius, y);
+      this.closePath();
+    };
+  }
+  function initActivityChart() {
+    const canvas = document.getElementById('activityChart') as HTMLCanvasElement | null;
+    if (!canvas) return;
+    const raw = canvas.getAttribute('data-activity');
+    if (!raw) return;
+    let activity: Array<{label: string; msgs: number; users: number}> = [];
+    try { activity = JSON.parse(raw); } catch { return; }
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const dpr = window.devicePixelRatio || 1;
+    const W = canvas.offsetWidth || 400, H = 130;
+    canvas.width = W * dpr; canvas.height = H * dpr; ctx.scale(dpr, dpr);
+    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    const n = activity.length;
+    const barW = Math.floor((W - 40) / n * 0.35);
+    const maxVal = Math.max(...activity.map(a => Math.max(a.msgs, a.users)), 1);
+    const chartH = H - 30;
+    const ACCENT = '#38bdf8', BLUE = '#2563eb';
+    const slotW = (W - 40) / n;
+    ctx.clearRect(0, 0, W, H);
+    // Grid lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1;
+    [0.25, 0.5, 0.75, 1].forEach(f => {
+      const y = chartH - chartH * f + 4;
+      ctx.beginPath(); ctx.moveTo(30, y); ctx.lineTo(W - 10, y); ctx.stroke();
+      ctx.fillStyle = 'rgba(138,152,181,0.5)'; ctx.font = '9px Inter,sans-serif'; ctx.textAlign = 'right';
+      ctx.fillText(String(Math.round(maxVal * f)), 27, y + 3);
+    });
+    activity.forEach((a, i) => {
+      const x = 30 + slotW * i + slotW / 2;
+      const msgH = a.msgs / maxVal * chartH;
+      const usrH = a.users / maxVal * chartH;
+      // Bars
+      ctx.fillStyle = ACCENT;
+      ctx.beginPath(); ctx.roundRect(x - barW - 1, chartH - msgH + 4, barW, msgH, [3, 3, 0, 0]); ctx.fill();
+      ctx.fillStyle = BLUE;
+      ctx.beginPath(); ctx.roundRect(x + 1, chartH - usrH + 4, barW, usrH, [3, 3, 0, 0]); ctx.fill();
+      // Labels
+      ctx.fillStyle = 'rgba(138,152,181,0.8)'; ctx.font = '9px Inter,sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(a.label, x, H - 6);
+    });
+  }
+  initActivityChart();
+  window.addEventListener('resize', initActivityChart);
+
+  // ── Dashboard servers mini status ─────────────────────────
+  async function loadDashServers() {
+    const wrap = document.getElementById('dashServersWrap');
+    if (!wrap) return;
+    const dots = wrap.querySelectorAll<HTMLElement>('.srv-mini-dot');
+    const infos = wrap.querySelectorAll<HTMLElement>('.srv-mini-info');
+    dots.forEach(d => { d.className = 'srv-mini-dot loading'; });
+    infos.forEach(i => { i.textContent = 'Cargando…'; i.className = 'srv-mini-info'; });
+    try {
+      const res = await fetch('/api/servers.json');
+      const data: any[] = await res.json();
+      wrap.querySelectorAll<HTMLElement>('.srv-mini').forEach(row => {
+        const id = row.getAttribute('data-srv-id');
+        const s = data.find(x => String(x.id) === id);
+        const dot  = row.querySelector<HTMLElement>('.srv-mini-dot');
+        const info = row.querySelector<HTMLElement>('.srv-mini-info');
+        if (!dot || !info) return;
+        if (s?.online) {
+          dot.className  = 'srv-mini-dot online';
+          info.className = 'srv-mini-info online';
+          info.textContent = `${s.players}/${s.maxPlayers} · ${s.map ?? '—'}`;
+        } else {
+          dot.className  = 'srv-mini-dot offline';
+          info.className = 'srv-mini-info offline';
+          info.textContent = 'Offline';
+        }
+      });
+    } catch {
+      infos.forEach(i => { i.textContent = 'Error'; });
+    }
+  }
+  // Cargar al entrar al dashboard y con el botón de refresh
+  document.getElementById('dashSrvRefresh')?.addEventListener('click', loadDashServers);
+  // Auto-load when landing on dashboard
+  loadDashServers();
+  // Re-load when navigating to dashboard
+  const _origGoTo = (window as any).__goTo;
+
+  // ── Mensajes: filtro por fecha ────────────────────────────
+  function filterMessages() {
+    const q  = (document.getElementById('msgSearch') as HTMLInputElement)?.value.toLowerCase() ?? '';
+    const f  = (document.getElementById('msgFilter') as HTMLSelectElement)?.value ?? '';
+    const df = (document.getElementById('msgDateFrom') as HTMLInputElement)?.value ?? '';
+    const dt = (document.getElementById('msgDateTo') as HTMLInputElement)?.value ?? '';
+    const rows = document.querySelectorAll<HTMLElement>('#msgBody tr');
+    let visible = 0;
+    rows.forEach(row => {
+      const nombre = row.dataset.nombre ?? '';
+      const asunto = row.dataset.asunto ?? '';
+      const dateStr = row.dataset.date ?? '';
+      const rowDate = dateStr ? new Date(dateStr).toISOString().slice(0,10) : '';
+      const matchQ = !q || nombre.includes(q);
+      const matchF = !f || asunto === f;
+      const matchDf = !df || rowDate >= df;
+      const matchDt = !dt || rowDate <= dt;
+      const match = matchQ && matchF && matchDf && matchDt;
+      row.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    const countEl = document.getElementById('msgVisibleCount');
+    if (countEl) countEl.textContent = `${visible} mensaje${visible !== 1 ? 's' : ''}`;
+  }
+
+  document.getElementById('msgDateFrom')?.addEventListener('change', filterMessages);
+  document.getElementById('msgDateTo')?.addEventListener('change', filterMessages);
+  document.getElementById('msgDateClear')?.addEventListener('click', () => {
+    (document.getElementById('msgDateFrom') as HTMLInputElement).value = '';
+    (document.getElementById('msgDateTo')   as HTMLInputElement).value = '';
+    filterMessages();
+  });
+
+  // ── Mensajes: exportar CSV ────────────────────────────────
+  document.getElementById('exportMsgsCsvBtn')?.addEventListener('click', () => {
+    const rows = Array.from(document.querySelectorAll<HTMLElement>('#msgBody tr'))
+      .filter(r => r.style.display !== 'none');
+    const header = ['Fecha', 'Nombre', 'Email', 'Asunto', 'Mensaje'];
+    const csvRows = [header.join(',')];
+    rows.forEach(row => {
+      const cells = Array.from(row.querySelectorAll('td'));
+      const fecha   = cells[0]?.textContent?.trim() ?? '';
+      const nombre  = cells[1]?.textContent?.trim() ?? '';
+      const emailEl = cells[2]?.querySelector('a');
+      const email   = emailEl?.textContent?.trim() ?? '';
+      const asuntoEl = cells[3]?.querySelector('.tag');
+      const asunto  = asuntoEl?.textContent?.trim() ?? '';
+      const msgBtn  = cells[4]?.querySelector<HTMLElement>('.msg-btn');
+      const msg     = (msgBtn?.dataset.msg ?? '').replace(/"/g, '""');
+      csvRows.push([`"${fecha}"`, `"${nombre}"`, `"${email}"`, `"${asunto}"`, `"${msg}"`].join(','));
+    });
+    const blob = new Blob(['\uFEFF' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = `mensajes_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+    toast('CSV exportado');
+  });
+
+
 
   // ── CONTENT BLOCKS ────────────────────────────────────────
   const CB_DEFAULTS: Record<string, any> = {

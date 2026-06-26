@@ -4,6 +4,7 @@ import type { APIRoute } from 'astro';
 import { requireAdmin, jsonResponse } from '../../lib/api';
 import { invalidateSiteDataCache } from '../../lib/site-data';
 import { query, execute } from '../../lib/db';
+import { logAdminAction } from '../../lib/audit-log';
 
 const VALID_KEYS = ['hero', 'howto', 'rules', 'effexo', 'footer', 'social'] as const;
 
@@ -17,7 +18,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
 };
 
 export const POST: APIRoute = async ({ request, cookies }) => {
-  const { error } = await requireAdmin(request, cookies);
+  const { user, profile, error } = await requireAdmin(request, cookies);
   if (error) return error;
 
   let body: { key?: string; value?: unknown };
@@ -37,9 +38,20 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       { key: body.key, value: JSON.stringify(body.value) }
     );
   } catch (err) {
+    // Se añade 'return' para cortar la ejecución si falla la base de datos
     return jsonResponse({ error: (err as Error).message }, 500);
   }
 
   invalidateSiteDataCache('content_blocks');
+
+  await logAdminAction({
+    adminId: user!.id,
+    adminUsername: profile?.username ?? undefined, // <-- Corrección del tipo 'null'
+    action: 'content_block.update',
+    targetType: 'content_block',
+    targetId: body.key,
+    request,
+  });
+
   return jsonResponse({ ok: true });
 };

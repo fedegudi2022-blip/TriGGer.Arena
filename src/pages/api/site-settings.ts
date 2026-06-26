@@ -4,9 +4,10 @@ import type { APIRoute } from 'astro';
 import { requireAdmin, jsonResponse } from '../../lib/api';
 import { invalidateSiteDataCache } from '../../lib/site-data';
 import { execute } from '../../lib/db';
+import { logAdminAction } from '../../lib/audit-log';
 
 export const POST: APIRoute = async ({ request, cookies }) => {
-  const { error } = await requireAdmin(request, cookies);
+  const { user, profile, error } = await requireAdmin(request, cookies);
   if (error) return error;
 
   let body: {
@@ -41,5 +42,14 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   }
 
   invalidateSiteDataCache('site_settings');
+
+  await logAdminAction({
+    adminId: user!.id,
+    adminUsername: profile?.username ?? undefined, // <-- Corrección del tipo 'null'
+    action: 'site_settings.update',
+    targetType: 'site_settings',
+    request,
+  });
+
   return jsonResponse({ ok: true });
 };

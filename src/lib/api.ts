@@ -24,6 +24,11 @@ export async function requireAuth(
   return { user: session?.user ?? null, profile: session?.profile ?? null };
 }
 
+// ── IP del cliente (mismo patrón que ya usaba signin.ts para rate limit) ──
+export function getClientIp(request: Request): string {
+  return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+}
+
 // ── Guard: sesión + rol admin ──────────────────────────────────────────────
 export async function requireAdmin(
   request: Request,
