@@ -25,10 +25,6 @@ const SECTION_ADMIN_MAP: Record<string, string> = {
 ---
 
 <header class="nb" id="nb" data-admin={isAdmin ? '1' : '0'} data-admin-edit-map={isAdmin ? JSON.stringify(SECTION_ADMIN_MAP) : undefined}>
-  <div class="nb-bg" aria-hidden="true">
-    <div class="nb-glow"></div>
-    <div class="nb-scanline"></div>
-  </div>
   <div class="nb-progress" id="nbProgress" aria-hidden="true"></div>
 
   <div class="container nb-inner">
@@ -231,29 +227,18 @@ const SECTION_ADMIN_MAP: Record<string, string> = {
     inset-inline: 0;
     z-index: 200;
     height: 60px;
-    background: rgba(7,9,15,0.7);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-bottom: 1px solid rgba(56,182,255,0.07);
-    transition: border-color 0.4s, box-shadow 0.4s, background 0.4s;
-    /* ✅ Promueve navbar a capa propia — blur y transiciones no afectan al resto */
+    background: rgba(7,9,15,0.65);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.3s, box-shadow 0.3s, background 0.3s;
     will-change: background, box-shadow;
     contain: layout style;
   }
   .nb.scrolled {
-    background: rgba(7,9,15,0.96);
-    border-bottom-color: rgba(56,182,255,0.18);
-    box-shadow: 0 4px 40px rgba(0,0,0,0.7), 0 1px 0 rgba(56,182,255,0.06);
-  }
-  .nb-bg { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-  .nb-glow {
-    position: absolute; top: -60px; left: 0; right: 0; height: 120px;
-    background: radial-gradient(ellipse 70% 100% at 50% 0%, rgba(56,182,255,0.06) 0%, transparent 70%);
-  }
-  .nb-scanline {
-    position: absolute; inset: 0; opacity: 0.015;
-    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.5) 2px, rgba(255,255,255,0.5) 3px);
-    background-size: 100% 3px;
+    background: rgba(7,9,15,0.94);
+    border-bottom-color: rgba(56,182,255,0.1);
+    box-shadow: 0 1px 32px rgba(0,0,0,0.5);
   }
   .nb-progress {
     position: absolute; top: 0; left: 0; height: 2px; width: 0%;

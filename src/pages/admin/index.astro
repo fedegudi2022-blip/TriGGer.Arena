@@ -1,2097 +1,459 @@
 ---
-export const prerender = false;
+// ✅ OPTIMIZACIÓN: Fuentes críticas únicamente. JetBrains Mono (~60KB) eliminado.
+//    Se usa solo en .s-label-text y .loader-text → fallback monospace es imperceptible.
+//    Inter 400+600 y Rajdhani 600+700 cubren el 99% del diseño.
 import '@fontsource/inter/400.css';
-import '@fontsource/inter/500.css';
 import '@fontsource/inter/600.css';
-import '@fontsource/inter/700.css';
-import '@fontsource/inter/800.css';
-import '@fontsource/jetbrains-mono/400.css';
-import '@fontsource/jetbrains-mono/500.css';
-import { query } from '../../lib/db';
-import { DEFAULT_SERVERS, DEFAULT_SITE_SETTINGS, serverIp } from '../../lib/site-data';
+import '@fontsource/rajdhani/600.css';
+import '@fontsource/rajdhani/700.css';
+import { ClientRouter } from 'astro:transitions';
+import WhatsAppFloat from '../../components/WhatsAppFloat.astro';
+import { SITE_TITLE, SITE_DESCRIPTION, SITE_URL, DISCORD_URL, INSTAGRAM_URL, WHATSAPP_URL } from '../../config';
 
-const user    = Astro.locals.user!;
-const profile = Astro.locals.profile;
 
-interface ContactRow { id: string; nombre: string; email: string; asunto: string | null; mensaje: string; created_at: string }
-interface PlanRow { id: string; tag: string; price: string; descripcion: string | null; featured: number; badge: string | null; cta: string | null; sort_order: number; features: unknown }
-interface DownloadRow { id: string; nombre: string; descripcion: string | null; url: string; categoria: string | null; size_label: string | null; sort_order: number }
-interface ProfileRow { id: string; email: string; username: string | null; avatar_url: string | null; role: string | null; created_at: string }
-
-const [contacts, plans, downloads, profiles] = await Promise.all([
-  query<ContactRow>('SELECT * FROM contacts ORDER BY created_at DESC'),
-  query<PlanRow>('SELECT * FROM plans ORDER BY sort_order ASC'),
-  query<DownloadRow>('SELECT * FROM downloads ORDER BY sort_order ASC'),
-  query<ProfileRow>(`
-    SELECT u.id, u.email, p.username, p.avatar_url, p.role, u.created_at
-      FROM users u JOIN profiles p ON p.id = u.id
-     ORDER BY u.created_at DESC
-  `),
-]);
-
-const serverRows    = Astro.locals.servers ?? DEFAULT_SERVERS;
-const siteSettings  = Astro.locals.siteSettings ?? DEFAULT_SITE_SETTINGS;
-const serverConfigsJson = JSON.stringify(
-  serverRows.map(s => ({ id: s.id, name: s.name, ip: serverIp(s), color: s.color, active: s.active !== false }))
-);
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleString('es-AR', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  });
-}
-function formatDateShort(iso: string) {
-  return new Date(iso).toLocaleDateString('es-AR', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-  });
+export interface Props {
+  title?: string;
+  description?: string;
+  /** Pone noindex,nofollow en páginas que no deberían aparecer en buscadores. */
+  noindex?: boolean;
 }
 
-const asuntoLabels: Record<string, string> = {
-  servidor: 'Servidor', ban: 'Ban', planes: 'Planes', otro: 'Otro', cuenta: 'Cuenta',
-};
-const asuntoTone: Record<string, string> = {
-  servidor: 'muted', ban: 'danger', planes: 'accent', otro: 'muted', cuenta: 'violet',
-};
+const {
+  title = SITE_TITLE,
+  description = SITE_DESCRIPTION,
+  noindex = false,
+} = Astro.props;
 
-const totalMensajes  = contacts?.length ?? 0;
-const totalUsuarios  = profiles?.length ?? 0;
-const totalAdmins    = profiles?.filter(p => p.role === 'admin').length ?? 0;
-const totalDownloads = downloads?.length ?? 0;
-const totalPlans     = plans?.length ?? 0;
-const esteM = contacts?.filter(c => {
-  const d = new Date(c.created_at), n = new Date();
-  return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear();
-}).length ?? 0;
-const usuariosEsteM = profiles?.filter(p => {
-  const d = new Date(p.created_at), n = new Date();
-  return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear();
-}).length ?? 0;
+// Canonical y OG image calculados por página (antes quedaban fijos en la
+// home en TODAS las páginas, lo cual confundía a los buscadores).
+const canonicalURL = new URL(Astro.url.pathname, SITE_URL).toString();
+const OG_IMAGE = new URL('/trigger_fondo.webp', SITE_URL).toString();
 
-const displayName = profile?.username ?? user?.email ?? 'Admin';
-const avatarUrl   = profile?.avatar_url ?? '';
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': `${SITE_URL}/#organization`,
+      name: 'TriGGer.Arena',
+      url: SITE_URL,
+      logo: OG_IMAGE,
+      sameAs: [DISCORD_URL, INSTAGRAM_URL, WHATSAPP_URL],
+    },
+    {
+      '@type': 'WebSite',
+      '@id': `${SITE_URL}/#website`,
+      name: SITE_TITLE,
+      url: SITE_URL,
+      publisher: { '@id': `${SITE_URL}/#organization` },
+      inLanguage: 'es-AR',
+    },
+  ],
+};
 ---
-
 <!DOCTYPE html>
 <html lang="es-AR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin — TriGGer.Arena</title>
-  <meta name="robots" content="noindex, nofollow" />
-  <link rel="icon" type="image/webp" href="/trigger_fondo.webp" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" />
+  <title>{title}</title>
+  <meta name="description" content={description} />
+  <meta name="theme-color" content="#07090f" />
+  <meta name="author" content="TriGGer.Arena" />
+  <meta name="keywords" content="Counter-Strike 1.6, CS 1.6, servidor, comunidad argentina, gaming" />
+  <meta name="robots" content={noindex ? 'noindex, nofollow' : 'index, follow'} />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content={canonicalURL} />
+  <meta property="og:title" content={title} />
+  <meta property="og:description" content={description} />
+  <meta property="og:image" content={OG_IMAGE} />
+  <meta property="og:image:width" content="1254" />
+  <meta property="og:image:height" content="1254" />
+  <meta property="og:image:alt" content="TriGGer.Arena — Comunidad CS 1.6" />
+  <meta property="og:image:type" content="image/webp" />
+  <meta property="og:locale" content="es_AR" />
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image" />
+  <meta property="twitter:title" content={title} />
+  <meta property="twitter:description" content={description} />
+  <meta property="twitter:image" content={OG_IMAGE} />
+  <meta property="twitter:image:alt" content="TriGGer.Arena — Comunidad CS 1.6" />
+
+  <!-- Canonical -->
+  <link rel="canonical" href={canonicalURL} />
+ <link rel="icon" type="image/webp" href="/trigger_fondo.webp" />
+
+  <!-- Datos estructurados (Organization + WebSite) -->
+  <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+
+  <!-- Preload LCP image con alta prioridad -->
+  <link rel="preload" href="/trigger_fondo.webp" as="image" type="image/webp" fetchpriority="high" />
+
+  <!-- Preconnect CDN (evita DNS lookup en el critical path) -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
+
+  <!-- Tabler Icons: no-bloqueante (los íconos no son críticos para LCP) -->
+  <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" /></noscript>
+
+  <!-- Client Router (View Transitions) entre páginas -->
+  <ClientRouter />
+
+  <style is:global>
+    @import '../styles/global.css';
+  </style>
 </head>
-<body data-servers={serverConfigsJson}>
+<body>
 
-<div class="shell">
+  <!--
+    PERF: Fondo decorativo como elementos reales en lugar de body::before/after.
+    Los pseudo-elementos del body se repintan en cada scroll porque están en
+    la misma capa que el contenido. Estos divs se pueden promover a su propia
+    capa de composición y el browser no los vuelve a pintar.
+  -->
+  <div class="bg-deco" aria-hidden="true"></div>
+  <div class="bg-grid" aria-hidden="true"></div>
 
-  <!-- ══ SIDEBAR ══ -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-top">
-      <a href="/" class="brand">
-        <img src="/trigger_fondo.webp" alt="" width="22" height="22" class="brand-img" />
-        <span class="brand-txt">TriGGer<span class="brand-dot">.</span>Arena</span>
-      </a>
-      <span class="brand-tag">PANEL</span>
+  <!-- ── Pantalla de carga temática ── -->
+  <div id="site-loader" aria-hidden="true">
+    <div class="loader-crosshair">
+      <span class="lch-ring lch-ring--outer"></span>
+      <span class="lch-ring lch-ring--inner"></span>
+      <span class="lch-seg lch-top"></span>
+      <span class="lch-seg lch-bottom"></span>
+      <span class="lch-seg lch-left"></span>
+      <span class="lch-seg lch-right"></span>
+      <span class="lch-dot"></span>
     </div>
-
-    <nav class="side-nav" id="sideNav">
-      <button class="nav-item active" data-section="dashboard"><i class="ti ti-layout-dashboard"></i><span>Dashboard</span></button>
-      <button class="nav-item" data-section="mensajes">
-        <i class="ti ti-inbox"></i><span>Mensajes</span>
-        {totalMensajes > 0 && <span class="nav-count">{totalMensajes}</span>}
-      </button>
-      <button class="nav-item" data-section="usuarios"><i class="ti ti-users"></i><span>Usuarios</span></button>
-      <button class="nav-item" data-section="planes"><i class="ti ti-diamond"></i><span>Planes</span></button>
-      <button class="nav-item" data-section="servidores"><i class="ti ti-server"></i><span>Servidores</span></button>
-      <button class="nav-item" data-section="descargas"><i class="ti ti-download"></i><span>Descargas</span></button>
-      <button class="nav-item" data-section="contenido"><i class="ti ti-writing"></i><span>Contenido</span></button>
-      <button class="nav-item" data-section="configuracion"><i class="ti ti-settings"></i><span>Config</span></button>
-      <div class="nav-divider"></div>
-      <button class="nav-item nav-item-portal" data-section="portal"><i class="ti ti-user-circle"></i><span>Mi Portal</span></button>
-    </nav>
-
-    <div class="sidebar-bottom">
-      <button class="side-user" data-section="portal" title="Mi portal">
-        {avatarUrl
-          ? <img src={avatarUrl} alt="" width="30" height="30" class="side-avatar" />
-          : <span class="side-avatar side-avatar-fb"><i class="ti ti-user"></i></span>}
-        <span class="side-uname">{displayName.split(' ')[0]}</span>
-      </button>
-      <button class="side-logout" id="logoutBtn" title="Cerrar sesión"><i class="ti ti-logout"></i></button>
-    </div>
-  </aside>
-
-  <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-  <!-- ══ MAIN ══ -->
-  <div class="content">
-
-    <header class="topbar">
-      <button class="topbar-menu" id="menuBtn" aria-label="Menú"><i class="ti ti-menu-2"></i></button>
-      <div class="topbar-crumb">
-        <span class="crumb-root">Admin</span>
-        <i class="ti ti-chevron-right"></i>
-        <span class="crumb-current" id="crumbCurrent">Dashboard</span>
-      </div>
-      <div class="topbar-clock" id="topClock"></div>
-    </header>
-
-    <main class="main">
-
-      <!-- ─── DASHBOARD ─── -->
-      <section class="section active" id="sec-dashboard">
-        <div class="page-head">
-          <div>
-            <h1>Dashboard</h1>
-            <p>Bienvenido, <strong>{displayName.split(' ')[0]}</strong>. Así está la comunidad hoy.</p>
-          </div>
-        </div>
-
-        <div class="stat-row">
-          <div class="stat">
-            <i class="ti ti-mail"></i>
-            <span class="stat-num">{totalMensajes}</span>
-            <span class="stat-label">Mensajes</span>
-            <span class="stat-delta">+{esteM} este mes</span>
-          </div>
-          <div class="stat">
-            <i class="ti ti-users"></i>
-            <span class="stat-num">{totalUsuarios}</span>
-            <span class="stat-label">Usuarios</span>
-            <span class="stat-delta">+{usuariosEsteM} este mes</span>
-          </div>
-          <div class="stat">
-            <i class="ti ti-shield-filled"></i>
-            <span class="stat-num">{totalAdmins}</span>
-            <span class="stat-label">Administradores</span>
-            <span class="stat-delta muted">{totalUsuarios - totalAdmins} jugadores</span>
-          </div>
-          <div class="stat">
-            <i class="ti ti-files"></i>
-            <span class="stat-num">{totalDownloads}</span>
-            <span class="stat-label">Archivos</span>
-            <span class="stat-delta muted">{totalPlans} plan{totalPlans !== 1 ? 'es' : ''}</span>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-head"><h2><i class="ti ti-bolt"></i> Acciones rápidas</h2></div>
-          <div class="quick-row">
-            <button class="quick" data-section="mensajes"><i class="ti ti-inbox"></i><div><strong>Mensajes</strong><span>{totalMensajes} en bandeja</span></div></button>
-            <button class="quick" data-section="usuarios"><i class="ti ti-users"></i><div><strong>Usuarios</strong><span>{totalUsuarios} registrados</span></div></button>
-            <button class="quick" id="qkNewPlan"><i class="ti ti-diamond"></i><div><strong>Nuevo plan</strong><span>Agregar a la lista</span></div></button>
-            <button class="quick" id="qkNewDownload"><i class="ti ti-download"></i><div><strong>Nuevo archivo</strong><span>Subir a descargas</span></div></button>
-            <button class="quick" data-section="servidores"><i class="ti ti-server"></i><div><strong>Servidores</strong><span>Estado en vivo</span></div></button>
-            <button class="quick" data-section="contenido"><i class="ti ti-writing"></i><div><strong>Contenido</strong><span>Hero, reglas, pasos…</span></div></button>
-          </div>
-        </div>
-
-        <div class="grid-2">
-          <div class="card">
-            <div class="card-head">
-              <h2><i class="ti ti-clock-hour-4"></i> Últimos mensajes</h2>
-              <button class="link-btn" data-section="mensajes">Ver todos <i class="ti ti-arrow-right"></i></button>
-            </div>
-            {contacts && contacts.length > 0 ? (
-              <div class="tbl-wrap">
-                <table class="tbl">
-                  <thead><tr><th>Fecha</th><th>Nombre</th><th>Asunto</th></tr></thead>
-                  <tbody>
-                    {contacts.slice(0, 5).map(c => (
-                      <tr>
-                        <td class="mono dim">{formatDate(c.created_at)}</td>
-                        <td class="bold">{c.nombre}</td>
-                        <td>{c.asunto ? <span class={`tag ${asuntoTone[c.asunto] ?? ''}`}>{asuntoLabels[c.asunto] ?? c.asunto}</span> : <span class="dim">—</span>}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : <div class="empty"><i class="ti ti-inbox-off"></i><p>Sin mensajes aún.</p></div>}
-          </div>
-
-          <div class="card">
-            <div class="card-head">
-              <h2><i class="ti ti-users"></i> Últimos usuarios</h2>
-              <button class="link-btn" data-section="usuarios">Ver todos <i class="ti ti-arrow-right"></i></button>
-            </div>
-            {profiles && profiles.length > 0 ? (
-              <div class="tbl-wrap">
-                <table class="tbl">
-                  <thead><tr><th>Usuario</th><th>Rol</th><th>Registro</th></tr></thead>
-                  <tbody>
-                    {profiles.slice(0, 5).map(p => (
-                      <tr>
-                        <td class="bold">{p.username ?? p.email?.split('@')[0] ?? '—'}</td>
-                        <td>{p.role === 'admin' ? <span class="tag accent">Admin</span> : <span class="tag muted">User</span>}</td>
-                        <td class="mono dim">{formatDateShort(p.created_at)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : <div class="empty"><i class="ti ti-users-off"></i><p>Sin usuarios aún.</p></div>}
-          </div>
-        </div>
-      </section>
-
-      <!-- ─── MENSAJES ─── -->
-      <section class="section" id="sec-mensajes">
-        <div class="page-head">
-          <div><h1>Mensajes</h1><p>{totalMensajes} mensaje{totalMensajes !== 1 ? 's' : ''} recibido{totalMensajes !== 1 ? 's' : ''}</p></div>
-        </div>
-        <div class="card">
-          <div class="card-head">
-            <h2><i class="ti ti-inbox"></i> Bandeja de entrada</h2>
-            <div class="tools">
-              <div class="search">
-                <i class="ti ti-search"></i>
-                <input type="text" id="msgSearch" placeholder="Buscar por nombre…" />
-                <button class="search-x" id="msgSearchClear" title="Limpiar"><i class="ti ti-x"></i></button>
-              </div>
-              <select class="select" id="msgFilter">
-                <option value="">Todos los asuntos</option>
-                <option value="servidor">Servidor</option>
-                <option value="cuenta">Cuenta</option>
-                <option value="planes">Planes</option>
-                <option value="ban">Ban</option>
-                <option value="otro">Otro</option>
-              </select>
-            </div>
-          </div>
-          {contacts && contacts.length > 0 ? (
-            <div class="tbl-wrap">
-              <table class="tbl" id="msgTable">
-                <thead><tr><th>Fecha</th><th>Nombre</th><th>Email</th><th>Asunto</th><th>Mensaje</th><th></th></tr></thead>
-                <tbody id="msgBody">
-                  {contacts.map(c => (
-                    <tr id={`row-${c.id}`} data-nombre={c.nombre.toLowerCase()} data-asunto={c.asunto ?? ''}>
-                      <td class="mono dim">{formatDate(c.created_at)}</td>
-                      <td class="bold">{c.nombre}</td>
-                      <td><a href={`mailto:${c.email}`} class="text-link"><i class="ti ti-mail"></i>{c.email}</a></td>
-                      <td>{c.asunto ? <span class={`tag ${asuntoTone[c.asunto] ?? ''}`}>{asuntoLabels[c.asunto] ?? c.asunto}</span> : <span class="dim">—</span>}</td>
-                      <td class="msg-cell">
-                        <button class="msg-btn" data-msg={c.mensaje} data-nombre={c.nombre} data-email={c.email}>
-                          <span>{c.mensaje?.slice(0, 60)}{c.mensaje?.length > 60 ? '…' : ''}</span>
-                          <i class="ti ti-eye"></i>
-                        </button>
-                      </td>
-                      <td>
-                        <div class="row-actions">
-                          <a href={`mailto:${c.email}?subject=Re: ${c.asunto ?? 'Tu consulta'} - TriGGer.Arena`} class="icon-btn" title="Responder"><i class="ti ti-corner-up-left"></i></a>
-                          <button class="icon-btn danger delete-contact" data-id={c.id} title="Eliminar"><i class="ti ti-trash"></i></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : <div class="empty"><i class="ti ti-inbox-off"></i><p>No hay mensajes.</p></div>}
-          <div class="tbl-foot"><span id="msgCount">{totalMensajes} mensaje{totalMensajes !== 1 ? 's' : ''}</span></div>
-        </div>
-      </section>
-
-      <!-- ─── USUARIOS ─── -->
-      <section class="section" id="sec-usuarios">
-        <div class="page-head">
-          <div><h1>Usuarios</h1><p>{totalUsuarios} usuario{totalUsuarios !== 1 ? 's' : ''} · {totalAdmins} admin{totalAdmins !== 1 ? 's' : ''}</p></div>
-        </div>
-        <div class="card">
-          <div class="card-head">
-            <h2><i class="ti ti-users"></i> Comunidad</h2>
-            <div class="tools">
-              <div class="search">
-                <i class="ti ti-search"></i>
-                <input type="text" id="userSearch" placeholder="Buscar usuario o email…" />
-                <button class="search-x" id="userSearchClear" title="Limpiar"><i class="ti ti-x"></i></button>
-              </div>
-              <select class="select" id="userRoleFilter">
-                <option value="">Todos los roles</option>
-                <option value="admin">Admin</option>
-                <option value="user">Usuario</option>
-              </select>
-            </div>
-          </div>
-          {profiles && profiles.length > 0 ? (
-            <div class="tbl-wrap">
-              <table class="tbl">
-                <thead><tr><th>Usuario</th><th>Email</th><th>Rol</th><th>Registro</th><th></th></tr></thead>
-                <tbody id="usersBody">
-                  {profiles.map(p => (
-                    <tr id={`profile-${p.id}`} data-username={(p.username ?? '').toLowerCase()} data-email={(p.email ?? '').toLowerCase()} data-role={p.role ?? 'user'}>
-                      <td>
-                        <div class="user-cell">
-                          <div class="avatar-sm" id={`thumb-${p.id}`}>
-                            {p.avatar_url
-                              ? <img src={p.avatar_url} alt="" width="28" height="28" id={`thumbimg-${p.id}`} />
-                              : <span>{(p.username?.[0] ?? p.email?.[0] ?? '?').toUpperCase()}</span>}
-                          </div>
-                          <span class="bold" id={`uname-${p.id}`}>{p.username ?? '—'}</span>
-                        </div>
-                      </td>
-                      <td><a href={`mailto:${p.email}`} class="text-link">{p.email}</a></td>
-                      <td>
-                        <span class={`tag ${p.role === 'admin' ? 'accent' : 'muted'}`} id={`role-${p.id}`}>
-                          {p.role === 'admin' ? 'Admin' : 'User'}
-                        </span>
-                      </td>
-                      <td class="mono dim">{formatDateShort(p.created_at)}</td>
-                      <td>
-                        <div class="row-actions">
-                          <button class="icon-btn edit-user" data-id={p.id} data-username={p.username ?? ''} data-avatar={p.avatar_url ?? ''} data-role={p.role ?? 'user'} data-email={p.email ?? ''} title="Editar"><i class="ti ti-pencil"></i></button>
-                          {p.role === 'admin'
-                            ? <button class="text-btn btn-role" data-id={p.id} data-role="user" title="Quitar admin"><i class="ti ti-shield-off"></i> Quitar</button>
-                            : <button class="text-btn btn-role promote" data-id={p.id} data-role="admin" title="Dar admin"><i class="ti ti-shield"></i> Admin</button>}
-                          <button class="icon-btn danger delete-user" data-id={p.id} title="Eliminar"><i class="ti ti-trash"></i></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : <div class="empty"><i class="ti ti-users-off"></i><p>No hay usuarios registrados.</p></div>}
-          <div class="tbl-foot"><span id="userCount">{totalUsuarios} usuario{totalUsuarios !== 1 ? 's' : ''}</span></div>
-        </div>
-      </section>
-
-      <!-- ─── PLANES ─── -->
-      <section class="section" id="sec-planes">
-        <div class="page-head">
-          <div><h1>Planes</h1><p>{totalPlans} plan{totalPlans !== 1 ? 'es' : ''} activo{totalPlans !== 1 ? 's' : ''}</p></div>
-          <button class="btn-primary" id="btnNewPlan"><i class="ti ti-plus"></i> Nuevo plan</button>
-        </div>
-        {plans && plans.length > 0 ? (
-          <div class="plan-grid">
-            {plans.map(p => (
-              <div class={`plan-card ${p.featured ? 'featured' : ''}`} id={`plan-${p.id}`}>
-                {p.badge && <span class="plan-badge">{p.badge}</span>}
-                <div class="plan-top"><span class="tag">{p.tag}</span><span class="plan-price">${p.price}</span></div>
-                {p.descripcion && <p class="plan-desc">{p.descripcion}</p>}
-                {Array.isArray(p.features) && p.features.length > 0 && (
-                  <ul class="plan-feats">
-                    {p.features.map((f: any) => (
-                      <li class={f.ok ? 'yes' : 'no'}><i class={`ti ${f.ok ? 'ti-check' : 'ti-x'}`}></i>{f.text}</li>
-                    ))}
-                  </ul>
-                )}
-                <div class="plan-actions">
-                  <button class="text-btn edit-plan" data-id={p.id} data-plan={JSON.stringify(p)}><i class="ti ti-pencil"></i> Editar</button>
-                  <button class="icon-btn danger delete-plan" data-id={p.id} title="Eliminar"><i class="ti ti-trash"></i></button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : <div class="card"><div class="empty"><i class="ti ti-diamond-off"></i><p>No hay planes. Creá el primero.</p></div></div>}
-      </section>
-
-      <!-- ─── SERVIDORES ─── -->
-      <section class="section" id="sec-servidores">
-        <div class="page-head">
-          <div><h1>Servidores</h1><p>Estado en vivo · CS 1.6 · {serverRows.length} configurado{serverRows.length !== 1 ? 's' : ''}</p></div>
-          <div class="head-actions">
-            <button class="btn-ghost" id="btnRefreshServers"><i class="ti ti-refresh" id="refreshIcon"></i> Actualizar</button>
-            <span class="dim mono" id="refreshCountdown"></span>
-            <button class="btn-primary" id="btnNewServer"><i class="ti ti-plus"></i> Nuevo servidor</button>
-          </div>
-        </div>
-
-        <div class="server-grid" id="serversWrap">
-          <div class="skel"></div>
-          <div class="skel"></div>
-        </div>
-
-        <div class="card">
-          <div class="card-head"><h2><i class="ti ti-table"></i> Configuración</h2></div>
-          <div class="tbl-wrap">
-            <table class="tbl">
-              <thead><tr><th>Nombre</th><th>Modo</th><th>Host:Puerto</th><th>Activo</th><th>Orden</th><th></th></tr></thead>
-              <tbody id="serversBody">
-                {serverRows.map(s => (
-                  <tr id={`srv-${s.id}`}>
-                    <td class="bold">{s.name}</td>
-                    <td class="dim">{s.mode ?? '—'}</td>
-                    <td class="mono dim">{serverIp(s)}</td>
-                    <td>{s.active !== false ? <span class="tag olive">Sí</span> : <span class="dim">No</span>}</td>
-                    <td class="mono dim">{s.sort_order}</td>
-                    <td>
-                      <div class="row-actions">
-                        <button class="icon-btn edit-server" data-id={s.id} data-server={JSON.stringify(s)} title="Editar"><i class="ti ti-pencil"></i></button>
-                        <button class="icon-btn danger delete-server" data-id={s.id} title="Eliminar"><i class="ti ti-trash"></i></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {serverRows.length === 0 && <div class="empty"><i class="ti ti-server-off"></i><p>No hay servidores configurados.</p></div>}
-          </div>
-        </div>
-      </section>
-
-      <!-- ─── DESCARGAS ─── -->
-      <section class="section" id="sec-descargas">
-        <div class="page-head">
-          <div><h1>Descargas</h1><p>{totalDownloads} archivo{totalDownloads !== 1 ? 's' : ''} publicado{totalDownloads !== 1 ? 's' : ''}</p></div>
-          <button class="btn-primary" id="btnNewDownload"><i class="ti ti-plus"></i> Nuevo archivo</button>
-        </div>
-        <div class="card">
-          <div class="card-head">
-            <h2><i class="ti ti-files"></i> Archivos</h2>
-            <div class="tools">
-              <div class="search">
-                <i class="ti ti-search"></i>
-                <input type="text" id="dlSearch" placeholder="Buscar archivos…" />
-                <button class="search-x" id="dlSearchClear" title="Limpiar"><i class="ti ti-x"></i></button>
-              </div>
-            </div>
-          </div>
-          <div class="tbl-wrap">
-            <table class="tbl">
-              <thead><tr><th>Nombre</th><th>Categoría</th><th>Tamaño</th><th>URL</th><th></th></tr></thead>
-              <tbody id="downloadsBody">
-                {downloads && downloads.map(d => (
-                  <tr id={`dl-${d.id}`} data-nombre={(d.nombre ?? '').toLowerCase()} data-cat={(d.categoria ?? '').toLowerCase()}>
-                    <td><span class="bold">{d.nombre}</span>{d.descripcion && <span class="row-sub">{d.descripcion}</span>}</td>
-                    <td>{d.categoria ? <span class="tag violet">{d.categoria}</span> : <span class="dim">—</span>}</td>
-                    <td class="mono dim">{d.size_label ?? '—'}</td>
-                    <td><a href={d.url} class="text-link" target="_blank" rel="noopener" title={d.url}><i class="ti ti-external-link"></i>{d.url.length > 26 ? d.url.slice(0, 26) + '…' : d.url}</a></td>
-                    <td>
-                      <div class="row-actions">
-                        <button class="icon-btn edit-download" data-id={d.id} data-download={JSON.stringify(d)} title="Editar"><i class="ti ti-pencil"></i></button>
-                        <button class="icon-btn danger delete-download" data-id={d.id} title="Eliminar"><i class="ti ti-trash"></i></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {(!downloads || downloads.length === 0) && <div class="empty"><i class="ti ti-file-off"></i><p>No hay archivos.</p></div>}
-          </div>
-          <div class="tbl-foot"><span id="dlCount">{totalDownloads} archivo{totalDownloads !== 1 ? 's' : ''}</span></div>
-        </div>
-      </section>
-
-      <!-- ─── CONTENIDO ─── -->
-      <section class="section" id="sec-contenido">
-        <div class="page-head">
-          <div><h1>Contenido</h1><p>Editá los textos visibles en el sitio público</p></div>
-        </div>
-
-        <div class="content-tabs">
-          <button class="ctab active" data-ctab="hero"><i class="ti ti-home"></i> Hero</button>
-          <button class="ctab" data-ctab="howto"><i class="ti ti-list-numbers"></i> Cómo jugar</button>
-          <button class="ctab" data-ctab="rules"><i class="ti ti-shield"></i> Reglas</button>
-          <button class="ctab" data-ctab="effexo"><i class="ti ti-bolt"></i> Effexo</button>
-          <button class="ctab" data-ctab="social"><i class="ti ti-share"></i> Redes</button>
-          <button class="ctab" data-ctab="footer"><i class="ti ti-layout-bottombar"></i> Footer</button>
-        </div>
-
-        <div class="ctab-panel active" id="ctab-hero">
-          <div class="card">
-            <div class="card-head"><h2><i class="ti ti-home"></i> Sección Hero</h2></div>
-            <div class="form-pad">
-              <div class="field"><label>Eyebrow</label><input type="text" id="heroEyebrow" /></div>
-              <div class="field"><label>Título principal</label><input type="text" id="heroTitle" placeholder="TriGGer.Arena" /></div>
-              <div class="field"><label>Subtítulo <span class="hint">(usá \n para salto de línea)</span></label><textarea id="heroSubtitle" rows="2"></textarea></div>
-              <div class="field"><label>Texto del botón</label><input type="text" id="heroBtnLabel" /></div>
-              <div class="divider"></div>
-              <div class="form-row-3">
-                <div class="field"><label>Stat 1 — Valor</label><input type="text" id="heroStat1Val" /></div>
-                <div class="field"><label>Stat 1 — Etiqueta</label><input type="text" id="heroStat1Key" /></div>
-              </div>
-              <div class="form-row-3">
-                <div class="field"><label>Stat 2 — Valor</label><input type="text" id="heroStat2Val" /></div>
-                <div class="field"><label>Stat 2 — Etiqueta</label><input type="text" id="heroStat2Key" /></div>
-              </div>
-              <div class="form-row-3">
-                <div class="field"><label>Stat 3 — Valor</label><input type="text" id="heroStat3Val" /></div>
-                <div class="field"><label>Stat 3 — Etiqueta</label><input type="text" id="heroStat3Key" /></div>
-              </div>
-              <p class="error" id="heroErr"></p>
-              <button class="btn-primary" id="heroSaveBtn" onclick="saveContentBlock('hero')">
-                <span class="btn-label"><i class="ti ti-check"></i> Guardar Hero</span>
-                <span class="btn-spin"></span>
-                <span class="btn-ok"><i class="ti ti-check"></i> Guardado</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div class="ctab-panel" id="ctab-howto">
-          <div class="card">
-            <div class="card-head"><h2><i class="ti ti-list-numbers"></i> Cómo jugar — 3 pasos</h2></div>
-            <div class="form-pad">
-              <div class="form-row">
-                <div class="field"><label>Título de sección</label><input type="text" id="howtoTitle" /></div>
-                <div class="field"><label>Subtítulo de sección</label><input type="text" id="howtoSub" /></div>
-              </div>
-              {[1, 2, 3].map(n => (
-                <div class="step-block">
-                  <span class="tag">Paso {n}</span>
-                  <div class="form-row">
-                    <div class="field"><label>Título</label><input type="text" id={`howtoStep${n}Title`} /></div>
-                    <div class="field"><label>Descripción</label><textarea id={`howtoStep${n}Body`} rows="2"></textarea></div>
-                  </div>
-                </div>
-              ))}
-              <p class="error" id="howtoErr"></p>
-              <button class="btn-primary" id="howtoSaveBtn" onclick="saveContentBlock('howto')">
-                <span class="btn-label"><i class="ti ti-check"></i> Guardar</span>
-                <span class="btn-spin"></span>
-                <span class="btn-ok"><i class="ti ti-check"></i> Guardado</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div class="ctab-panel" id="ctab-rules">
-          <div class="card">
-            <div class="card-head"><h2><i class="ti ti-shield"></i> Reglas de la comunidad</h2></div>
-            <div class="form-pad">
-              <div class="form-row">
-                <div class="field"><label>Título de sección</label><input type="text" id="rulesTitle" /></div>
-                <div class="field"><label>Subtítulo de sección</label><input type="text" id="rulesSub" /></div>
-              </div>
-              <div id="rulesEditor" class="rules-list"></div>
-              <button class="btn-ghost" id="addRuleBtn"><i class="ti ti-plus"></i> Agregar regla</button>
-              <p class="error" id="rulesErr"></p>
-              <button class="btn-primary" id="rulesSaveBtn" onclick="saveContentBlock('rules')">
-                <span class="btn-label"><i class="ti ti-check"></i> Guardar</span>
-                <span class="btn-spin"></span>
-                <span class="btn-ok"><i class="ti ti-check"></i> Guardado</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div class="ctab-panel" id="ctab-effexo">
-          <div class="card">
-            <div class="card-head"><h2><i class="ti ti-bolt"></i> Sección Effexo</h2></div>
-            <div class="form-pad">
-              <div class="form-row">
-                <div class="field"><label>Badge</label><input type="text" id="effexoBadge" /></div>
-                <div class="field"><label>Título</label><input type="text" id="effexoTitle" /></div>
-              </div>
-              <div class="field"><label>Descripción</label><textarea id="effexoDesc" rows="3"></textarea></div>
-              <div class="field"><label>Features <span class="hint">(una por línea)</span></label><textarea id="effexoFeatures" rows="4"></textarea></div>
-              <div class="form-row">
-                <div class="field"><label>Texto del botón</label><input type="text" id="effexoBtnLabel" /></div>
-                <div class="field"><label>URL del botón</label><input type="url" id="effexoBtnUrl" /></div>
-              </div>
-              <p class="error" id="effexoErr"></p>
-              <button class="btn-primary" id="effexoSaveBtn" onclick="saveContentBlock('effexo')">
-                <span class="btn-label"><i class="ti ti-check"></i> Guardar</span>
-                <span class="btn-spin"></span>
-                <span class="btn-ok"><i class="ti ti-check"></i> Guardado</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div class="ctab-panel" id="ctab-social">
-          <div class="card">
-            <div class="card-head"><h2><i class="ti ti-share"></i> Sección Redes</h2></div>
-            <div class="form-pad">
-              <p class="hint">Las URLs se editan en Configuración → Control del sitio. Acá editás los textos de cada card.</p>
-              <div class="form-row">
-                <div class="field"><label>Título de sección</label><input type="text" id="socialTitle" /></div>
-                <div class="field"><label>Subtítulo de sección</label><input type="text" id="socialSub" /></div>
-              </div>
-              {['discord', 'whatsapp', 'instagram'].map(net => (
-                <div class="step-block">
-                  <span class="tag">{net.charAt(0).toUpperCase() + net.slice(1)}</span>
-                  <div class="form-row">
-                    <div class="field"><label>Handle / nombre</label><input type="text" id={`social${net.charAt(0).toUpperCase() + net.slice(1)}Handle`} /></div>
-                    <div class="field"><label>Descripción</label><input type="text" id={`social${net.charAt(0).toUpperCase() + net.slice(1)}Desc`} /></div>
-                  </div>
-                </div>
-              ))}
-              <p class="error" id="socialErr"></p>
-              <button class="btn-primary" id="socialSaveBtn" onclick="saveContentBlock('social')">
-                <span class="btn-label"><i class="ti ti-check"></i> Guardar</span>
-                <span class="btn-spin"></span>
-                <span class="btn-ok"><i class="ti ti-check"></i> Guardado</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div class="ctab-panel" id="ctab-footer">
-          <div class="card">
-            <div class="card-head"><h2><i class="ti ti-layout-bottombar"></i> Pie de página</h2></div>
-            <div class="form-pad">
-              <div class="field"><label>Tagline</label><textarea id="footerTagline" rows="2" placeholder="Comunidad Argentina de CS 1.6…"></textarea></div>
-              <p class="hint">El estado y el año de copyright se actualizan solos.</p>
-              <p class="error" id="footerErr"></p>
-              <button class="btn-primary" id="footerSaveBtn" onclick="saveContentBlock('footer')">
-                <span class="btn-label"><i class="ti ti-check"></i> Guardar</span>
-                <span class="btn-spin"></span>
-                <span class="btn-ok"><i class="ti ti-check"></i> Guardado</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ─── CONFIGURACIÓN ─── -->
-      <section class="section" id="sec-configuracion">
-        <div class="page-head">
-          <div><h1>Configuración</h1><p>Controlá el sitio público — los cambios se ven al instante</p></div>
-        </div>
-
-        <div class="grid-2">
-          <div class="card">
-            <div class="card-head"><h2><i class="ti ti-info-circle"></i> Estado</h2></div>
-            <div class="info-list">
-              <div class="info-row"><span>Sitio</span><span class="info-val" id="siteStatusInfo"><span class={`dot ${siteSettings.site_status === 'operativo' ? 'olive' : 'accent'}`}></span>{siteSettings.site_status === 'operativo' ? 'Operativo' : 'Mantenimiento'}</span></div>
-              <div class="info-row"><span>Backend</span><span class="info-val"><span class="dot olive"></span>MySQL</span></div>
-              <div class="info-row"><span>Usuarios</span><span class="info-val">{totalUsuarios}</span></div>
-              <div class="info-row"><span>Admins</span><span class="info-val">{totalAdmins}</span></div>
-              <div class="info-row"><span>Planes</span><span class="info-val">{totalPlans}</span></div>
-              <div class="info-row"><span>Archivos</span><span class="info-val">{totalDownloads}</span></div>
-              <div class="info-row"><span>Servidores</span><span class="info-val">{serverRows.length}</span></div>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-head"><h2><i class="ti ti-adjustments"></i> Control del sitio</h2></div>
-            <form class="form-pad" id="siteSettingsForm">
-              <div class="field"><label>URL de WhatsApp</label><input type="url" id="cfgWhatsapp" value={siteSettings.whatsapp_url} placeholder="https://chat.whatsapp.com/…" /></div>
-              <div class="field"><label>URL de Discord</label><input type="url" id="cfgDiscord" value={siteSettings.discord_url} placeholder="https://discord.gg/…" /></div>
-              <div class="field"><label>URL de Instagram</label><input type="url" id="cfgInstagram" value={siteSettings.instagram_url} placeholder="https://instagram.com/…" /></div>
-
-              <div class="divider"></div>
-
-              <div class="toggle-row">
-                <div><strong>Modo mantenimiento</strong><p class="row-sub">Bloquea el sitio público. El admin mantiene acceso.</p></div>
-                <label class="switch">
-                  <input type="checkbox" id="cfgMaintenance" checked={siteSettings.site_status === 'mantenimiento'} />
-                  <span></span>
-                </label>
-              </div>
-              <div class="field"><label>Mensaje de mantenimiento</label><textarea id="cfgMaintenanceMsg" rows="2">{siteSettings.maintenance_message}</textarea></div>
-
-              <p class="error" id="cfgErr"></p>
-              <button type="submit" class="btn-primary" id="cfgSaveBtn">
-                <span class="btn-label"><i class="ti ti-check"></i> Guardar configuración</span>
-                <span class="btn-spin"></span>
-                <span class="btn-ok"><i class="ti ti-check"></i> Guardado</span>
-              </button>
-            </form>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-head">
-            <h2><i class="ti ti-server"></i> Servidores configurados</h2>
-            <button class="link-btn" data-section="servidores">Gestionar <i class="ti ti-arrow-right"></i></button>
-          </div>
-          <div class="info-list">
-            {serverRows.map(s => (
-              <div class="info-row">
-                <span>{s.name}</span>
-                <span class="info-val mono">{serverIp(s)}<button class="copy-mini" data-copy={serverIp(s)} title="Copiar"><i class="ti ti-copy"></i></button></span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-head"><h2><i class="ti ti-link"></i> Accesos directos</h2></div>
-          <div class="link-list">
-            <button class="link-row" data-section="portal"><i class="ti ti-user-circle"></i><span>Panel de usuario</span><i class="ti ti-arrow-right end"></i></button>
-            <a href="/" target="_blank" class="link-row"><i class="ti ti-home"></i><span>Sitio principal</span><i class="ti ti-external-link end"></i></a>
-            <a href="/auth" target="_blank" class="link-row"><i class="ti ti-login"></i><span>Página de auth</span><i class="ti ti-external-link end"></i></a>
-          </div>
-        </div>
-      </section>
-
-      <!-- ─── PORTAL (Mi cuenta embebido) ─── -->
-      <section class="section" id="sec-portal">
-        <div class="page-head">
-          <div>
-            <h1>Mi Portal</h1>
-            <p>Tu panel de usuario — misma sesión, sin cambiar de página</p>
-          </div>
-          <div class="head-actions">
-            <a href="/usuario" target="_blank" class="btn-ghost"><i class="ti ti-external-link"></i> Abrir en nueva pestaña</a>
-            <button class="btn-ghost" id="portalReloadBtn" title="Recargar"><i class="ti ti-refresh"></i> Recargar</button>
-          </div>
-        </div>
-        <div class="portal-frame-wrap">
-          <iframe
-            id="portalFrame"
-            src=""
-            title="Panel de usuario"
-            class="portal-frame"
-            loading="lazy"
-            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-top-navigation-by-user-activation"
-          ></iframe>
-          <div class="portal-loading" id="portalLoading">
-            <div class="portal-spinner"></div>
-            <span>Cargando portal…</span>
-          </div>
-        </div>
-      </section>
-
-    </main>
+    <span class="loader-text">CARGANDO<span class="loader-dots"><span>.</span><span>.</span><span>.</span></span></span>
   </div>
-</div>
 
-<!-- ══ MODALES ══ -->
+  <slot />
+  <WhatsAppFloat />
 
-<div class="overlay" id="msgOverlay">
-  <div class="modal">
-    <div class="modal-head">
-      <span class="modal-title"><i class="ti ti-message"></i> Mensaje de <span id="msgFromName"></span></span>
-      <button class="icon-btn" id="msgClose"><i class="ti ti-x"></i></button>
-    </div>
-    <p class="modal-text" id="msgBodyText"></p>
-    <div class="modal-foot-bar">
-      <a class="btn-ghost" id="msgReplyBtn" href="#" target="_blank"><i class="ti ti-corner-up-left"></i> Responder por email</a>
-    </div>
-  </div>
-</div>
+  <!-- ── Indicador lateral de sección ── -->
+  <nav class="section-dots" id="sectionDots" aria-label="Navegación de secciones">
+    <button class="sdot" data-target="inicio"      aria-label="Inicio"></button>
+    <button class="sdot" data-target="redes"        aria-label="Redes"></button>
+    <button class="sdot" data-target="servidores"   aria-label="Servidores"></button>
+    <button class="sdot" data-target="descargas"    aria-label="Descargas"></button>
+    <button class="sdot" data-target="effexo"       aria-label="Effexo"></button>
+    <button class="sdot" data-target="ventas"       aria-label="Planes"></button>
+    <button class="sdot" data-target="howto"        aria-label="Cómo jugar"></button>
+    <button class="sdot" data-target="reglas"       aria-label="Reglas"></button>
+    <button class="sdot" data-target="contacto"     aria-label="Contacto"></button>
+  </nav>
 
-<div class="overlay" id="userOverlay">
-  <div class="modal modal-lg">
-    <div class="modal-head">
-      <span class="modal-title"><i class="ti ti-user-edit"></i> Editar perfil de usuario</span>
-      <button class="icon-btn" id="userClose"><i class="ti ti-x"></i></button>
-    </div>
-    <div class="form-pad">
-      <input type="hidden" id="editUserId" />
-      <div class="avatar-edit-row">
-        <div class="avatar-edit-preview" id="userAvatarPreview"><i class="ti ti-user"></i></div>
-        <div class="field" style="flex:1">
-          <label>URL de avatar</label>
-          <input type="url" id="editUserAvatar" placeholder="https://…" />
-          <span class="hint">Dejá vacío para avatar por defecto</span>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="field"><label>Nombre de usuario</label><input type="text" id="editUserUsername" placeholder="nombre_usuario" minlength="3" maxlength="20" /></div>
-        <div class="field"><label>Email <span class="hint">(solo lectura)</span></label><input type="email" id="editUserEmail" disabled /></div>
-      </div>
-      <div class="field">
-        <label>Rol</label>
-        <select id="editUserRole"><option value="user">Usuario</option><option value="admin">Administrador</option></select>
-      </div>
-      <div class="banner" id="userEditInfo"></div>
-      <p class="error" id="userEditErr"></p>
-      <div class="modal-foot">
-        <button class="btn-ghost" id="userCancel">Cancelar</button>
-        <button class="btn-primary" id="userSave"><i class="ti ti-check"></i> Guardar cambios</button>
-      </div>
-    </div>
-  </div>
-</div>
+  <!-- ── Toast de notificaciones ── -->
+  <div id="toast-container" role="status" aria-live="polite" aria-atomic="true"></div>
 
-<div class="overlay" id="planOverlay">
-  <div class="modal modal-lg">
-    <div class="modal-head">
-      <span class="modal-title" id="planModalTitle"><i class="ti ti-diamond"></i> Nuevo plan</span>
-      <button class="icon-btn" id="planClose"><i class="ti ti-x"></i></button>
-    </div>
-    <div class="form-pad">
-      <input type="hidden" id="planId" />
-      <div class="form-row">
-        <div class="field"><label>Tag <span class="req">*</span></label><input type="text" id="planTag" placeholder="ADMIN" /></div>
-        <div class="field"><label>Precio <span class="req">*</span></label><input type="text" id="planPrice" placeholder="2500" /></div>
-      </div>
-      <div class="field"><label>Descripción</label><input type="text" id="planDesc" placeholder="Descripción corta" /></div>
-      <div class="form-row-3">
-        <div class="field"><label>Badge</label><input type="text" id="planBadge" placeholder="MÁS POPULAR" /></div>
-        <div class="field"><label>CTA (botón)</label><input type="text" id="planCta" placeholder="Comprar Admin" /></div>
-        <div class="field"><label>Orden</label><input type="number" id="planOrder" placeholder="1" /></div>
-      </div>
-      <div class="field">
-        <label>Features <span class="hint">(✓ o ✗ al inicio, una por línea)</span></label>
-        <textarea id="planFeatures" rows="5" placeholder={"✓ Comandos admin\n✗ Sin slot reservado"}></textarea>
-      </div>
-      <label class="checkline"><input type="checkbox" id="planFeatured" /> Marcar como destacado</label>
-      <p class="error" id="planErr"></p>
-      <div class="modal-foot">
-        <button class="btn-ghost" id="planCancel">Cancelar</button>
-        <button class="btn-primary" id="planSave"><i class="ti ti-check"></i> Guardar plan</button>
-      </div>
-    </div>
-  </div>
-</div>
+  <style is:global>
+    /* ────────────────────────────────────────────────────────
+       LOADER
+    ──────────────────────────────────────────────────────── */
+    #site-loader {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: #07090f;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+      transition: opacity 0.4s ease, visibility 0.4s ease;
+    }
+    #site-loader.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
 
-<div class="overlay" id="dlOverlay">
-  <div class="modal modal-lg">
-    <div class="modal-head">
-      <span class="modal-title" id="dlModalTitle"><i class="ti ti-download"></i> Nuevo archivo</span>
-      <button class="icon-btn" id="dlClose"><i class="ti ti-x"></i></button>
-    </div>
-    <div class="form-pad">
-      <input type="hidden" id="dlId" />
-      <div class="field"><label>Nombre <span class="req">*</span></label><input type="text" id="dlNombre" placeholder="Cliente CS 1.6 Completo" /></div>
-      <div class="field"><label>Descripción</label><input type="text" id="dlDesc" placeholder="Descripción del archivo" /></div>
-      <div class="field"><label>URL <span class="req">*</span></label><input type="url" id="dlUrl" placeholder="https://…" /></div>
-      <div class="form-row-3">
-        <div class="field"><label>Categoría</label><input type="text" id="dlCat" placeholder="cliente, config, mods…" /></div>
-        <div class="field"><label>Tamaño</label><input type="text" id="dlSize" placeholder="24 MB" /></div>
-        <div class="field"><label>Orden</label><input type="number" id="dlOrder" placeholder="1" /></div>
-      </div>
-      <p class="error" id="dlErr"></p>
-      <div class="modal-foot">
-        <button class="btn-ghost" id="dlCancel">Cancelar</button>
-        <button class="btn-primary" id="dlSave"><i class="ti ti-check"></i> Guardar archivo</button>
-      </div>
-    </div>
-  </div>
-</div>
+    .loader-crosshair {
+      position: relative;
+      width: 72px;
+      height: 72px;
+      /* ✅ Promueve a capa de composición propia — evita repaint del resto del DOM */
+      will-change: transform;
+      contain: strict;
+    }
 
-<div class="overlay" id="srvOverlay">
-  <div class="modal modal-lg">
-    <div class="modal-head">
-      <span class="modal-title" id="srvModalTitle"><i class="ti ti-server"></i> Nuevo servidor</span>
-      <button class="icon-btn" id="srvClose"><i class="ti ti-x"></i></button>
-    </div>
-    <div class="form-pad">
-      <input type="hidden" id="srvId" />
-      <div class="form-row">
-        <div class="field"><label>Nombre <span class="req">*</span></label><input type="text" id="srvName" placeholder="#1 [TriGGer.Arena]" /></div>
-        <div class="field"><label>Modo</label><input type="text" id="srvMode" placeholder="~|AutoMix|~" /></div>
-      </div>
-      <div class="field"><label>Descripción</label><input type="text" id="srvDesc" placeholder="Mix automático…" /></div>
-      <div class="form-row">
-        <div class="field"><label>Host <span class="req">*</span></label><input type="text" id="srvHost" placeholder="45.235.98.30" /></div>
-        <div class="field"><label>Puerto <span class="req">*</span></label><input type="number" id="srvPort" placeholder="27515" /></div>
-      </div>
-      <div class="form-row">
-        <div class="field"><label>Color</label><input type="text" id="srvColor" placeholder="#d9712b" /></div>
-        <div class="field"><label>Orden</label><input type="number" id="srvOrder" placeholder="1" /></div>
-      </div>
-      <label class="checkline"><input type="checkbox" id="srvActive" checked /> Servidor activo (visible en el sitio)</label>
-      <p class="error" id="srvErr"></p>
-      <div class="modal-foot">
-        <button class="btn-ghost" id="srvCancel">Cancelar</button>
-        <button class="btn-primary" id="srvSave"><i class="ti ti-check"></i> Guardar servidor</button>
-      </div>
-    </div>
-  </div>
-</div>
+    .lch-ring {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      border: 1px solid rgba(56,182,255,0.25);
+      will-change: transform;
+    }
+    .lch-ring--outer {
+      width: 72px; height: 72px;
+      animation: lch-spin 3s linear infinite;
+      border-top-color: rgba(56,182,255,0.7);
+    }
+    .lch-ring--inner {
+      width: 46px; height: 46px;
+      animation: lch-spin 2s linear infinite reverse;
+      border-right-color: rgba(56,182,255,0.5);
+    }
+    @keyframes lch-spin { to { transform: translate(-50%,-50%) rotate(360deg); } }
 
-<div class="overlay" id="confirmOverlay">
-  <div class="modal modal-sm">
-    <div class="modal-head"><span class="modal-title danger"><i class="ti ti-alert-triangle"></i> Confirmar acción</span></div>
-    <div class="form-pad">
-      <p class="confirm-msg" id="confirmMsg">¿Estás seguro?</p>
-      <div class="modal-foot">
-        <button class="btn-ghost" id="confirmCancel">Cancelar</button>
-        <button class="btn-danger" id="confirmOk"><i class="ti ti-check"></i> Confirmar</button>
-      </div>
-    </div>
-  </div>
-</div>
+    .lch-seg {
+      position: absolute;
+      background: rgba(56,182,255,0.55);
+    }
+    .lch-top    { width: 1px; height: 14px; top: 4px;    left: 50%; transform: translateX(-50%); }
+    .lch-bottom { width: 1px; height: 14px; bottom: 4px; left: 50%; transform: translateX(-50%); }
+    .lch-left   { height: 1px; width: 14px; left: 4px;   top: 50%;  transform: translateY(-50%); }
+    .lch-right  { height: 1px; width: 14px; right: 4px;  top: 50%;  transform: translateY(-50%); }
+    .lch-dot {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%,-50%);
+      width: 4px; height: 4px;
+      background: #38b6ff;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #38b6ff, 0 0 16px rgba(56,182,255,0.4);
+      animation: lch-pulse 1.4s ease-in-out infinite;
+    }
+    @keyframes lch-pulse { 0%,100% { opacity:0.4; } 50% { opacity:1; } }
 
-<div class="toast" id="toast" role="status" aria-live="polite">
-  <i class="toast-icon ti" id="toastIcon"></i>
-  <span id="toastMsg"></span>
-  <div class="toast-progress" id="toastProgress"></div>
-</div>
+    .loader-text {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      font-weight: 500;
+      letter-spacing: 0.22em;
+      color: rgba(56,182,255,0.6);
+      text-transform: uppercase;
+    }
+    .loader-dots span {
+      animation: lch-blink 1.2s step-end infinite;
+    }
+    .loader-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .loader-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes lch-blink { 0%,100%{opacity:1} 50%{opacity:0} }
 
+    /* ────────────────────────────────────────────────────────
+       INDICADOR LATERAL DE SECCIONES
+    ──────────────────────────────────────────────────────── */
+    .section-dots {
+      position: fixed;
+      right: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 90;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+    .section-dots.visible { opacity: 1; }
+
+    .sdot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(56,182,255,0.22);
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.2s, height 0.2s;
+      flex-shrink: 0;
+    }
+    .sdot:hover {
+      background: rgba(56,182,255,0.55);
+      transform: scale(1.4);
+    }
+    .sdot.active {
+      background: #38b6ff;
+      height: 18px;
+      border-radius: 3px;
+      box-shadow: 0 0 6px rgba(56,182,255,0.5);
+    }
+
+    @media (max-width: 900px) {
+      .section-dots { display: none; }
+    }
+
+    /* ────────────────────────────────────────────────────────
+       TOAST NOTIFICATIONS
+    ──────────────────────────────────────────────────────── */
+    #toast-container {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9998;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .toast {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 20px;
+      border-radius: 6px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: #e8eeff;
+      background: #0c1018;
+      border: 1px solid rgba(56,182,255,0.2);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(56,182,255,0.06);
+      pointer-events: auto;
+      animation: toast-in 0.3s cubic-bezier(0.34,1.56,0.64,1) forwards;
+      max-width: 340px;
+      text-align: center;
+    }
+    .toast.toast--success { border-color: rgba(74,222,128,0.35); }
+    .toast.toast--success .toast-icon { color: #4ade80; }
+    .toast.toast--error   { border-color: rgba(248,113,113,0.35); }
+    .toast.toast--error   .toast-icon { color: #f87171; }
+    .toast.toast--info    { border-color: rgba(56,182,255,0.35); }
+    .toast.toast--info    .toast-icon { color: #38b6ff; }
+    .toast-icon { font-size: 16px; flex-shrink: 0; }
+
+    .toast.toast--out {
+      animation: toast-out 0.25s ease forwards;
+    }
+
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateY(12px) scale(0.95); }
+      to   { opacity: 1; transform: translateY(0)    scale(1); }
+    }
+    @keyframes toast-out {
+      to { opacity: 0; transform: translateY(8px) scale(0.95); }
+    }
+
+    /* ────────────────────────────────────────────────────────
+       BOTÓN: FEEDBACK DE CLICK (ripple)
+    ──────────────────────────────────────────────────────── */
+    .hero-btn-main {
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-btn-main::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.18);
+      border-radius: inherit;
+      opacity: 0;
+      transform: scale(0.8);
+      transition: opacity 0.15s, transform 0.15s;
+    }
+    .hero-btn-main:active::after {
+      opacity: 1;
+      transform: scale(1);
+      transition: none;
+    }
+  </style>
+
+  <script>
+    if (history.scrollRestoration) history.scrollRestoration = 'manual';
+    window.scrollTo(0, 0);
+
+    /* ── Loader ───────────────────────────────────────── */
+    const loader = document.getElementById('site-loader');
+    function hideLoader() {
+      if (!loader) return;
+      loader.classList.add('hidden');
+      setTimeout(() => loader.remove(), 400);
+    }
+    // ✅ OPTIMIZACIÓN: Sin setTimeout de 300ms. El loader se oculta apenas
+    //    DOMContentLoaded dispare. Antes: mínimo 300ms de bloqueo visual innecesario.
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      hideLoader();
+    } else {
+      document.addEventListener('DOMContentLoaded', hideLoader, { once: true });
+    }
+
+    /* ── Indicador lateral de secciones ──────────────── */
+    const dotsNav = document.getElementById('sectionDots');
+    const dots    = dotsNav ? Array.from(dotsNav.querySelectorAll<HTMLButtonElement>('.sdot')) : [];
+
+    function activateDot(target: string) {
+      dots.forEach(d => d.classList.toggle('active', d.dataset.target === target));
+    }
+
+    dots.forEach(dot => {
+      dot.addEventListener('click', () => {
+        const id = dot.dataset.target;
+        if (!id) return;
+        const el = document.getElementById(id);
+        if (!el) return;
+        const offset = 58 + 16;
+        const top = el.getBoundingClientRect().top + window.scrollY - offset;
+        window.scrollTo({ top, behavior: 'smooth' });
+      });
+    });
+
+    // Mostrar dots después de hacer scroll
+    let dotsVisible = false;
+    window.addEventListener('scroll', () => {
+      if (!dotsNav) return;
+      if (!dotsVisible && window.scrollY > 200) {
+        dotsVisible = true;
+        dotsNav.classList.add('visible');
+      } else if (dotsVisible && window.scrollY <= 200) {
+        dotsVisible = false;
+        dotsNav.classList.remove('visible');
+      }
+    }, { passive: true });
+
+    // Activar dot según sección visible
+    const sections = Array.from(document.querySelectorAll<HTMLElement>('section[id]'));
+    const sectionObserver = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) activateDot(e.target.id);
+      });
+    }, { threshold: 0.35 });
+    sections.forEach(s => sectionObserver.observe(s));
+
+    /* ── Toast global ─────────────────────────────────── */
+    type ToastType = 'success' | 'error' | 'info';
+    const ICONS: Record<ToastType, string> = {
+      success: 'ti-circle-check',
+      error:   'ti-circle-x',
+      info:    'ti-info-circle',
+    };
+
+    window.showToast = function(message: string, type: ToastType = 'info', duration = 3500) {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+
+      const toast = document.createElement('div');
+      toast.className = `toast toast--${type}`;
+      toast.innerHTML = `<i class="ti ${ICONS[type]} toast-icon" aria-hidden="true"></i><span>${message}</span>`;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.add('toast--out');
+        setTimeout(() => toast.remove(), 300);
+      }, duration);
+    };
+
+    /* ── Scroll con offset correcto para navbar fija ──── */
+    document.addEventListener('click', (e) => {
+      const anchor = (e.target as Element).closest<HTMLAnchorElement>('a[href^="#"]');
+      if (!anchor) return;
+      const hash = anchor.getAttribute('href');
+      if (!hash || hash === '#') return;
+      const target = document.querySelector(hash);
+      if (!target) return;
+      e.preventDefault();
+      const offset = 58 + 16;
+      const top = target.getBoundingClientRect().top + window.scrollY - offset;
+      window.scrollTo({ top, behavior: 'smooth' });
+    });
+  </script>
 </body>
 </html>
-
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-  --bg:            #0b1220;
-  --surface:       #142038;
-  --surface-2:     #18233b;
-
-  /* Bordes */
-  --border:        #25324f;
-  --border-strong: #33466e;
-
-  /* Texto */
-  --ink:           #f4f8ff;
-  --ink-soft:      #c8d4ea;
-  --muted:         #8a98b5;
-
-  /* Color principal (Celeste) */
-  --accent:        #38bdf8;
-  --accent-dark:   #0ea5e9;
-  --accent-soft:   #0f2433;
-
-  /* Azul principal */
-  --blue:          #2563eb;
-  --blue-dark:     #1d4ed8;
-  --blue-soft:     #172554;
-
-  /* Estados */
-  --success:       #22c55e;
-  --success-soft:  #10261a;
-
-  --danger:        #ef4444;
-  --danger-soft:   #311515;
-
-
-    --radius-sm: 5px;
-    --radius:    9px;
-    --font-mono: 'JetBrains Mono', monospace;
-    --header-h: 56px;
-    --side-w: 230px;
-  }
-
-  html, body { background: var(--bg); color: var(--ink); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; -webkit-font-smoothing: antialiased; }
-
-  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
-
-  .shell { display: flex; min-height: 100vh; }
-
-  /* ══ SIDEBAR ══ */
-  .sidebar {
-    width: var(--side-w); flex-shrink: 0;
-    background: var(--surface); border-right: 1px solid var(--border);
-    display: flex; flex-direction: column;
-    position: fixed; top: 0; left: 0; bottom: 0; z-index: 60;
-    transition: transform 0.25s ease;
-  }
-  .sidebar-top { padding: 18px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-  .brand { display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--ink); }
-  .brand-img { border-radius: 5px; }
-  .brand-txt { font-weight: 800; font-size: 0.86rem; letter-spacing: -0.01em; }
-  .brand-dot { color: var(--accent); }
-  .brand-tag { font-family: var(--font-mono); font-size: 0.5rem; letter-spacing: 0.14em; color: var(--accent); background: var(--accent-soft); border-radius: 3px; padding: 2px 6px; }
-
-  .side-nav { flex: 1; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
-  .nav-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 9px 11px; border-radius: var(--radius-sm); border: none; background: none;
-    color: var(--ink-soft); font-family: inherit; font-size: 0.82rem; font-weight: 500;
-    cursor: pointer; text-align: left; position: relative;
-  }
-  .nav-item .ti { font-size: 16px; width: 16px; flex-shrink: 0; }
-  .nav-item span { flex: 1; }
-  .nav-item:hover { background: var(--surface-2); color: var(--ink); }
-  .nav-item.active { background: var(--accent-soft); color: var(--accent-dark); font-weight: 600; }
-  .nav-item.active::before { content: ''; position: absolute; left: -10px; top: 6px; bottom: 6px; width: 3px; background: var(--accent); border-radius: 0 3px 3px 0; }
-  .nav-count { font-family: var(--font-mono); font-size: 0.6rem; font-weight: 700; background: var(--accent); color: #fff; border-radius: 8px; padding: 1px 6px; }
-
-  .sidebar-bottom { border-top: 1px solid var(--border); padding: 12px; display: flex; align-items: center; gap: 8px; }
-  .side-avatar { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); flex-shrink: 0; }
-  .side-avatar-fb { display: flex; align-items: center; justify-content: center; background: var(--surface-2); color: var(--muted); font-size: 15px; }
-  .side-uname { font-size: 0.8rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .side-logout { width: 32px; height: 32px; flex-shrink: 0; border-radius: var(--radius-sm); border: 1px solid var(--border); background: none; color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; }
-  .side-logout:hover { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }
-
-  .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(20,22,16,0.4); z-index: 55; }
-  .sidebar-overlay.show { display: block; }
-
-  /* ══ CONTENT ══ */
-  .content { flex: 1; margin-left: var(--side-w); min-width: 0; display: flex; flex-direction: column; }
-
-  .topbar {
-    height: var(--header-h); flex-shrink: 0;
-    display: flex; align-items: center; gap: 12px; padding: 0 24px;
-    background: var(--surface); border-bottom: 1px solid var(--border);
-    position: sticky; top: 0; z-index: 40;
-  }
-  .topbar-menu { display: none; width: 32px; height: 32px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: none; color: var(--ink-soft); align-items: center; justify-content: center; cursor: pointer; }
-  .topbar-crumb { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; }
-  .crumb-root { color: var(--muted); }
-  .topbar-crumb .ti { font-size: 12px; color: var(--muted); }
-  .crumb-current { font-weight: 700; }
-  .topbar-clock { margin-left: auto; font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); }
-
-  .main { flex: 1; }
-  .section { display: none; padding: 26px 28px 48px; max-width: 1400px; }
-  .section.active { display: block; }
-
-  .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 22px; }
-  .page-head h1 { font-size: 1.4rem; font-weight: 800; letter-spacing: -0.01em; }
-  .page-head p { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
-  .head-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-
-  /* ══ Stats ══ */
-  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 18px; }
-  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 4px; }
-  .stat .ti { font-size: 18px; color: var(--accent); margin-bottom: 4px; }
-  .stat-num { font-size: 1.55rem; font-weight: 800; line-height: 1; }
-  .stat-label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
-  .stat-delta { font-size: 0.7rem; color: var(--olive); font-weight: 600; }
-  .stat-delta.muted { color: var(--muted); font-weight: 500; }
-
-  /* ══ Card ══ */
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; overflow: hidden; }
-  .card-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 13px 18px; border-bottom: 1px solid var(--border); }
-  .card-head h2 { font-size: 0.86rem; font-weight: 700; display: flex; align-items: center; gap: 7px; }
-  .card-head h2 .ti { color: var(--accent); font-size: 15px; }
-  .link-btn { background: none; border: none; color: var(--accent-dark); font-family: inherit; font-size: 0.74rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
-  .link-btn:hover { text-decoration: underline; }
-
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-
-  /* ══ Tools / search ══ */
-  .tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .search { display: flex; align-items: center; gap: 7px; padding: 6px 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); }
-  .search .ti { font-size: 13px; color: var(--muted); }
-  .search input { background: none; border: none; outline: none; font-family: inherit; font-size: 0.8rem; width: 160px; color: var(--ink); }
-  .search-x { background: none; border: none; color: var(--muted); cursor: pointer; display: flex; align-items: center; }
-  .select { padding: 6px 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--ink-soft); font-family: var(--font-mono); font-size: 0.7rem; cursor: pointer; }
-
-  /* ══ Tables ══ */
-  .tbl-wrap { overflow-x: auto; }
-  .tbl { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-  .tbl th { padding: 9px 16px; text-align: left; font-size: 0.62rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); white-space: nowrap; }
-  .tbl td { padding: 10px 16px; border-bottom: 1px solid var(--surface-2); vertical-align: middle; color: var(--ink-soft); }
-  .tbl tbody tr:last-child td { border-bottom: none; }
-  .tbl tbody tr:hover { background: var(--surface-2); }
-  .tbl tbody tr.hidden { display: none; }
-  .mono { font-family: var(--font-mono); }
-  .dim { color: var(--muted); }
-  .bold { color: var(--ink); font-weight: 600; }
-  .row-sub { display: block; font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
-  .row-actions { display: flex; gap: 6px; align-items: center; }
-  .tbl-foot { padding: 10px 18px; border-top: 1px solid var(--border); }
-  .tbl-foot span { font-family: var(--font-mono); font-size: 0.66rem; color: var(--muted); }
-
-  .text-link { color: var(--accent-dark); text-decoration: none; display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; }
-  .text-link:hover { text-decoration: underline; }
-
-  .msg-cell { max-width: 230px; }
-  .msg-btn { background: none; border: none; cursor: pointer; padding: 0; text-align: left; font-family: inherit; font-size: 0.78rem; color: var(--ink-soft); display: flex; align-items: center; gap: 6px; }
-  .msg-btn span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .msg-btn .ti { font-size: 12px; color: var(--muted); flex-shrink: 0; }
-  .msg-btn:hover { color: var(--ink); }
-
-  .user-cell { display: flex; align-items: center; gap: 10px; }
-  .avatar-sm { width: 28px; height: 28px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-dark); display: flex; align-items: center; justify-content: center; font-size: 0.62rem; font-weight: 700; overflow: hidden; flex-shrink: 0; }
-  .avatar-sm img { width: 100%; height: 100%; object-fit: cover; }
-
-  /* ══ Tags ══ */
-  .tag { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.02em; border-radius: 4px; padding: 3px 7px; color: var(--ink-soft); background: var(--surface-2); border: 1px solid var(--border); white-space: nowrap; }
-  .tag.accent { color: var(--accent-dark); background: var(--accent-soft); border-color: rgba(217,113,43,0.3); }
-  .tag.olive  { color: var(--olive); background: var(--olive-soft); border-color: rgba(85,104,60,0.25); }
-  .tag.danger { color: var(--danger); background: var(--danger-soft); border-color: rgba(192,57,43,0.25); }
-  .tag.violet { color: var(--violet); background: var(--violet-soft); border-color: rgba(108,92,142,0.25); }
-  .tag.muted  { color: var(--muted); }
-
-  .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 6px; }
-  .dot.olive  { background: var(--olive); }
-  .dot.accent { background: var(--accent); }
-
-  /* ══ Buttons ══ */
-  .btn-primary {
-    position: relative; display: inline-flex; align-items: center; gap: 6px;
-    padding: 9px 16px; background: var(--accent); color: #fff;
-    font-family: inherit; font-weight: 700; font-size: 0.78rem;
-    border-radius: var(--radius-sm); border: none; cursor: pointer;
-  }
-  .btn-primary:hover:not(:disabled) { background: var(--accent-dark); }
-  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-  .btn-primary::before, .btn-primary::after { content: ''; position: absolute; width: 7px; height: 7px; opacity: 0; transition: opacity 0.15s; }
-  .btn-primary::before { top: -3px; left: -3px; border-top: 2px solid rgba(255,255,255,0.85); border-left: 2px solid rgba(255,255,255,0.85); }
-  .btn-primary::after  { bottom: -3px; right: -3px; border-bottom: 2px solid rgba(255,255,255,0.85); border-right: 2px solid rgba(255,255,255,0.85); }
-  .btn-primary:hover::before, .btn-primary:hover::after { opacity: 1; }
-  .btn-ok { display: none; align-items: center; gap: 6px; }
-  .btn-primary.loading .btn-label { display: none; }
-  .btn-primary.loading .btn-spin  { display: block; }
-  .btn-primary.success .btn-label { display: none; }
-  .btn-primary.success .btn-ok    { display: inline-flex; }
-  .btn-primary.success { background: var(--olive); }
-  .btn-spin { display: none; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
-
-  .btn-ghost { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--ink-soft); font-family: inherit; font-size: 0.78rem; cursor: pointer; text-decoration: none; }
-  .btn-ghost:hover { border-color: var(--border-strong); color: var(--ink); background: var(--surface-2); }
-
-  .btn-danger { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: var(--danger); color: #fff; border: none; border-radius: var(--radius-sm); font-family: inherit; font-size: 0.78rem; cursor: pointer; }
-  .btn-danger:hover { background: #a3301f; }
-
-  .icon-btn { width: 28px; height: 28px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: none; color: var(--muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; text-decoration: none; }
-  .icon-btn:hover { border-color: var(--border-strong); color: var(--ink); background: var(--surface-2); }
-  .icon-btn.danger:hover { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }
-
-  .text-btn { display: inline-flex; align-items: center; gap: 5px; background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 11px; font-family: inherit; font-size: 0.74rem; color: var(--ink-soft); cursor: pointer; }
-  .text-btn:hover { background: var(--surface-2); }
-  .btn-role.promote { color: var(--accent-dark); border-color: rgba(217,113,43,0.35); background: var(--accent-soft); }
-  .btn-role:not(.promote):hover { color: var(--danger); border-color: var(--danger); background: var(--danger-soft); }
-
-  .copy-mini { background: none; border: none; color: var(--muted); cursor: pointer; padding: 2px 4px; display: inline-flex; align-items: center; }
-  .copy-mini:hover { color: var(--accent-dark); }
-
-  /* ══ Empty ══ */
-  .empty { padding: 44px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--muted); }
-  .empty .ti { font-size: 26px; opacity: 0.35; }
-  .empty p { font-size: 0.78rem; }
-
-  /* ══ Quick actions ══ */
-  .quick-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; padding: 16px 18px; }
-  .quick { display: flex; align-items: center; gap: 11px; padding: 13px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; text-align: left; font-family: inherit; }
-  .quick .ti { font-size: 19px; color: var(--accent); flex-shrink: 0; }
-  .quick:hover { border-color: var(--border-strong); background: var(--surface); }
-  .quick div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-  .quick strong { font-size: 0.78rem; color: var(--ink); }
-  .quick span { font-size: 0.66rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-  /* ══ Plans ══ */
-  .plan-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
-  .plan-card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; display: flex; flex-direction: column; gap: 10px; }
-  .plan-card.featured { border-left: 3px solid var(--accent); }
-  .plan-badge { position: absolute; top: -9px; right: 14px; font-family: var(--font-mono); font-size: 0.56rem; letter-spacing: 0.06em; color: var(--accent-dark); background: var(--accent-soft); border: 1px solid rgba(217,113,43,0.3); border-radius: 10px; padding: 2px 9px; }
-  .plan-top { display: flex; align-items: center; justify-content: space-between; }
-  .plan-price { font-size: 1.2rem; font-weight: 800; }
-  .plan-desc { font-size: 0.76rem; color: var(--ink-soft); line-height: 1.5; }
-  .plan-feats { list-style: none; display: flex; flex-direction: column; gap: 5px; }
-  .plan-feats li { display: flex; align-items: center; gap: 7px; font-size: 0.74rem; color: var(--ink-soft); }
-  .plan-feats li.yes .ti { color: var(--olive); }
-  .plan-feats li.no { opacity: 0.55; }
-  .plan-feats li.no .ti { color: var(--muted); }
-  .plan-actions { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 4px; }
-
-  /* ══ Servers ══ */
-  .server-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-bottom: 16px; }
-  .skel { height: 150px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); position: relative; overflow: hidden; }
-  .skel::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, var(--surface-2), transparent); animation: shimmer 1.4s infinite; }
-  @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
-
-  .srv { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-  .srv-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-  .srv-name { font-weight: 700; font-size: 0.9rem; }
-  .pill { font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 9px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; }
-  .pill.on { color: var(--olive); background: var(--olive-soft); }
-  .pill.off { color: var(--danger); background: var(--danger-soft); }
-  .pill-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-  .srv-stats { display: flex; gap: 18px; }
-  .srv-stat { display: flex; flex-direction: column; gap: 1px; }
-  .srv-stat strong { font-size: 1rem; }
-  .srv-stat span { font-size: 0.6rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
-  .srv-players { font-size: 0.72rem; color: var(--ink-soft); line-height: 1.5; }
-  .srv-players strong { color: var(--muted); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 3px; font-weight: 600; }
-  .srv-offline { display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 14px 0; color: var(--muted); }
-  .srv-offline .ti { font-size: 22px; opacity: 0.4; }
-  .srv-offline span { font-size: 0.76rem; }
-  .srv-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 10px; border-top: 1px solid var(--border); }
-  .srv-ip { font-family: var(--font-mono); font-size: 0.74rem; color: var(--ink-soft); }
-  .srv-copy { display: flex; align-items: center; gap: 5px; padding: 5px 10px; background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--muted); font-family: var(--font-mono); font-size: 0.66rem; cursor: pointer; }
-  .srv-copy:hover { border-color: var(--accent); color: var(--accent-dark); }
-
-  /* ══ Config ══ */
-  .info-list { padding: 4px 0; }
-  .info-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 18px; border-bottom: 1px solid var(--surface-2); font-size: 0.78rem; }
-  .info-row:last-child { border-bottom: none; }
-  .info-row > span:first-child { color: var(--muted); }
-  .info-val { font-weight: 600; display: flex; align-items: center; gap: 4px; }
-  .info-val.mono { font-family: var(--font-mono); font-weight: 500; }
-
-  .link-list { display: flex; flex-direction: column; }
-  .link-row { display: flex; align-items: center; gap: 11px; padding: 12px 18px; text-decoration: none; color: var(--ink-soft); border-bottom: 1px solid var(--surface-2); font-size: 0.82rem; }
-  .link-row:last-child { border-bottom: none; }
-  .link-row:hover { background: var(--surface-2); color: var(--ink); }
-  .link-row > .ti:first-child { color: var(--accent); font-size: 16px; }
-  .link-row span { flex: 1; font-weight: 600; }
-  .link-row .end { opacity: 0.4; font-size: 13px; }
-
-  /* ══ Forms ══ */
-  .form-pad { padding: 18px; display: flex; flex-direction: column; gap: 13px; }
-  .field { display: flex; flex-direction: column; gap: 5px; }
-  .field label { font-size: 0.66rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
-  .field input, .field textarea, .field select {
-    padding: 9px 11px; background: var(--surface-2); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); color: var(--ink); font-family: inherit; font-size: 0.84rem; outline: none; width: 100%;
-  }
-  .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--accent); background: var(--surface); }
-  .field input:disabled { opacity: 0.55; }
-  .field textarea { resize: vertical; min-height: 70px; }
-  .hint { font-size: 0.68rem; color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: 0; }
-  .req { color: var(--accent); }
-  .error { font-size: 0.74rem; color: var(--danger); min-height: 1px; }
-  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .form-row-3 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .checkline { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--ink-soft); }
-  .divider { height: 1px; background: var(--border); margin: 2px 0; }
-
-  .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; }
-  .toggle-row strong { font-size: 0.82rem; }
-  .row-sub { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
-  .switch { position: relative; flex-shrink: 0; }
-  .switch input { opacity: 0; width: 0; height: 0; position: absolute; }
-  .switch span { display: block; width: 38px; height: 21px; border-radius: 11px; background: var(--border-strong); cursor: pointer; position: relative; transition: background 0.2s; }
-  .switch span::after { content: ''; position: absolute; width: 15px; height: 15px; border-radius: 50%; background: #fff; top: 3px; left: 3px; transition: transform 0.2s; }
-  .switch input:checked + span { background: var(--accent); }
-  .switch input:checked + span::after { transform: translateX(17px); }
-
-  .banner { font-size: 0.76rem; padding: 9px 12px; border-radius: var(--radius-sm); display: none; }
-  .banner.show { display: block; background: var(--accent-soft); color: var(--accent-dark); }
-  .avatar-edit-row { display: flex; align-items: flex-end; gap: 14px; }
-  .avatar-edit-preview { width: 52px; height: 52px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-dark); display: flex; align-items: center; justify-content: center; overflow: hidden; font-size: 20px; flex-shrink: 0; }
-  .avatar-edit-preview img { width: 100%; height: 100%; object-fit: cover; }
-
-  /* ══ Content tabs ══ */
-  .content-tabs { display: flex; gap: 4px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px; margin-bottom: 16px; }
-  .ctab { display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; border-radius: 5px; background: none; border: none; color: var(--muted); font-family: inherit; font-size: 0.76rem; font-weight: 500; cursor: pointer; }
-  .ctab:hover { color: var(--ink-soft); }
-  .ctab.active { background: var(--accent-soft); color: var(--accent-dark); font-weight: 600; }
-  .ctab-panel { display: none; }
-  .ctab-panel.active { display: block; }
-
-  .step-block { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
-  .step-block .tag { align-self: flex-start; }
-
-  .rules-list { display: flex; flex-direction: column; gap: 12px; }
-  .rule-row { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
-  .rule-row-head { display: flex; align-items: center; justify-content: space-between; }
-  .rule-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .rule-grid .field:nth-child(3),
-  .rule-grid .field.full { grid-column: 1 / -1; }
-
-  /* ══ Modals ══ */
-  .overlay { position: fixed; inset: 0; z-index: 100; background: rgba(20,22,16,0.55); display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.18s; }
-  .overlay.open { opacity: 1; pointer-events: auto; }
-  .modal { width: 100%; max-width: 440px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; max-height: 90vh; overflow-y: auto; transform: translateY(10px); transition: transform 0.2s; }
-  .overlay.open .modal { transform: translateY(0); }
-  .modal-lg { max-width: 560px; }
-  .modal-sm { max-width: 340px; }
-  .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); }
-  .modal-title { font-size: 0.86rem; font-weight: 700; display: flex; align-items: center; gap: 7px; }
-  .modal-title .ti { color: var(--accent); }
-  .modal-title.danger .ti { color: var(--danger); }
-  .modal-text { padding: 20px; font-size: 0.84rem; color: var(--ink-soft); line-height: 1.7; white-space: pre-wrap; }
-  .modal-foot-bar { padding: 12px 18px; border-top: 1px solid var(--border); }
-  .modal-foot { display: flex; justify-content: flex-end; gap: 8px; }
-  .confirm-msg { font-size: 0.84rem; color: var(--ink-soft); line-height: 1.6; }
-
-  /* ══ Toast ══ */
-  .toast {
-    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(70px);
-    background: var(--ink); color: #fff; border-radius: 8px; padding: 11px 16px;
-    font-size: 0.8rem; display: flex; align-items: center; gap: 9px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
-    transition: transform 0.25s ease, opacity 0.2s; z-index: 200; pointer-events: none;
-    min-width: 200px; overflow: hidden; opacity: 0; white-space: nowrap;
-  }
-  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
-  .toast-icon { font-size: 14px; }
-  .toast.ok .toast-icon { color: #8fd17a; }
-  .toast.err .toast-icon { color: #f08a7a; }
-  .toast-progress { position: absolute; bottom: 0; left: 0; height: 2px; background: var(--accent); }
-  .toast.show .toast-progress { animation: shrink 3s linear forwards; }
-  @keyframes shrink { from { width: 100%; } to { width: 0%; } }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* ══ Responsive ══ */
-  @media (max-width: 1100px) { .grid-2 { grid-template-columns: 1fr; } }
-  @media (max-width: 960px) {
-    .sidebar { transform: translateX(-100%); }
-    .sidebar.open { transform: translateX(0); }
-    .content { margin-left: 0; }
-    .topbar-menu { display: flex; }
-    .topbar-clock { display: none; }
-  }
-  @media (max-width: 720px) {
-    .section { padding: 18px 16px 36px; }
-    .form-row, .form-row-3, .rule-grid { grid-template-columns: 1fr; }
-    .search input { width: 110px; }
-    .page-head { flex-direction: column; align-items: stretch; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
-  }
-
-  /* ══ Nav divider & portal item ══ */
-  .nav-divider { height: 1px; background: var(--border); margin: 8px 4px; }
-  .nav-item-portal { color: var(--muted); }
-  .nav-item-portal:hover { color: var(--accent-dark); }
-  .nav-item-portal.active { background: var(--accent-soft); color: var(--accent-dark); }
-
-  /* ══ Side user as button ══ */
-  .side-user { flex: 1; display: flex; align-items: center; gap: 9px; background: none; border: none; cursor: pointer; color: var(--ink); padding: 6px 8px; border-radius: var(--radius-sm); min-width: 0; font-family: inherit; text-align: left; }
-  .side-user:hover { background: var(--surface-2); }
-
-  /* ══ Portal iframe ══ */
-  .portal-frame-wrap {
-    position: relative;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-    background: var(--surface);
-    height: calc(100vh - var(--header-h) - 120px);
-    min-height: 600px;
-  }
-  .portal-frame {
-    width: 100%; height: 100%;
-    border: none; display: block;
-    background: var(--bg);
-  }
-  .portal-loading {
-    position: absolute; inset: 0;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 14px; background: var(--surface);
-    color: var(--muted); font-size: 0.82rem;
-    transition: opacity 0.3s;
-    pointer-events: none;
-  }
-  .portal-loading.hidden { opacity: 0; }
-  .portal-spinner {
-    width: 28px; height: 28px;
-    border: 2px solid var(--border-strong);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-  }
-</style>
-
-<script>
-  const $   = (id: string) => document.getElementById(id)!;
-  const inp = (id: string) => $(id) as HTMLInputElement;
-  const sel = (id: string) => $(id) as HTMLSelectElement;
-  const ta  = (id: string) => $(id) as HTMLTextAreaElement;
-  const inpV = (id: string) => document.getElementById(id) as HTMLInputElement | null;
-  const taV  = (id: string) => document.getElementById(id) as HTMLTextAreaElement | null;
-
-  // ── Clock ─────────────────────────────────────────────────
-  function updateClock() {
-    const now = new Date();
-    const el  = document.getElementById('topClock');
-    if (el) el.textContent = now.toLocaleString('es-AR', {
-      weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
-    });
-  }
-  updateClock();
-  setInterval(updateClock, 1000);
-
-  // ── Sidebar toggle (mobile) ───────────────────────────────
-  const sidebar     = $('sidebar');
-  const sideOverlay  = $('sidebarOverlay');
-  const menuBtn      = $('menuBtn');
-  function openSidebar()  { sidebar.classList.add('open');    sideOverlay.classList.add('show'); }
-  function closeSidebar() { sidebar.classList.remove('open'); sideOverlay.classList.remove('show'); }
-  menuBtn.addEventListener('click', () => sidebar.classList.contains('open') ? closeSidebar() : openSidebar());
-  sideOverlay.addEventListener('click', closeSidebar);
-
-  // ── Section navigation ────────────────────────────────────
-  const LABELS: Record<string, string> = {
-    dashboard: 'Dashboard', mensajes: 'Mensajes', usuarios: 'Usuarios',
-    planes: 'Planes', servidores: 'Servidores', descargas: 'Descargas',
-    contenido: 'Contenido', configuracion: 'Configuración', portal: 'Mi Portal',
-  };
-
-  const navItems = document.querySelectorAll<HTMLButtonElement>('.nav-item');
-  const sections = document.querySelectorAll<HTMLElement>('.section');
-  let cbLoaded = false;
-
-  // ── Portal iframe ─────────────────────────────────────────
-  let portalLoaded = false;
-  function loadPortal() {
-    const frame   = document.getElementById('portalFrame') as HTMLIFrameElement;
-    const loading = document.getElementById('portalLoading');
-    if (!frame || !loading) return;
-    if (portalLoaded) return;
-    portalLoaded = true;
-    loading.classList.remove('hidden');
-    frame.src = '/usuario';
-    frame.addEventListener('load', () => { loading.classList.add('hidden'); }, { once: true });
-  }
-
-  function activateContentTab(tabKey: string) {
-    const tab = document.querySelector<HTMLButtonElement>(`.ctab[data-ctab="${tabKey}"]`);
-    if (!tab) return;
-    document.querySelectorAll('.ctab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.ctab-panel').forEach(p => p.classList.remove('active'));
-    tab.classList.add('active');
-    document.getElementById(`ctab-${tabKey}`)?.classList.add('active');
-  }
-
-  function goTo(name: string, opts: { updateHash?: boolean; tab?: string } = {}) {
-    const { updateHash = true, tab } = opts;
-    navItems.forEach(t => t.classList.toggle('active', t.dataset.section === name));
-    sections.forEach(s => s.classList.toggle('active', s.id === `sec-${name}`));
-    const crumb = document.getElementById('crumbCurrent');
-    if (crumb) crumb.textContent = LABELS[name] ?? name;
-    if (name === 'servidores') loadServers();
-    if (name === 'contenido') {
-      if (!cbLoaded) { cbLoaded = true; loadContentBlocks(); }
-      if (tab) setTimeout(() => activateContentTab(tab), 0);
-    }
-    if (name === 'portal') loadPortal();
-    if (updateHash) history.replaceState(null, '', tab ? `#${name}:${tab}` : `#${name}`);
-    closeSidebar();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  navItems.forEach(t => t.addEventListener('click', () => goTo(t.dataset.section!)));
-  document.querySelectorAll<HTMLElement>('[data-section]:not(.nav-item)').forEach(btn =>
-    btn.addEventListener('click', () => goTo(btn.dataset.section!))
-  );
-
-  function applyHashRoute() {
-    const raw = location.hash.replace(/^#/, '');
-    if (!raw) return;
-    const [section, tab] = raw.split(':');
-    if (!section || !LABELS[section]) return;
-    goTo(section, { updateHash: false, tab });
-  }
-  applyHashRoute();
-
-  // ── Portal reload button ───────────────────────────────────
-  document.getElementById('portalReloadBtn')?.addEventListener('click', () => {
-    const frame   = document.getElementById('portalFrame') as HTMLIFrameElement;
-    const loading = document.getElementById('portalLoading');
-    if (!frame || !loading) return;
-    loading.classList.remove('hidden');
-    frame.src = '/usuario';
-    frame.addEventListener('load', () => { loading.classList.add('hidden'); }, { once: true });
-  });
-
-  // ── Toast ─────────────────────────────────────────────────
-  let toastTimer: ReturnType<typeof setTimeout>;
-  function toast(msg: string, type: 'ok' | 'err' = 'ok') {
-    clearTimeout(toastTimer);
-    const el = $('toast'), icon = $('toastIcon'), msgEl = $('toastMsg'), prog = $('toastProgress');
-    el.classList.remove('show', 'ok', 'err');
-    prog.style.animation = 'none'; prog.getBoundingClientRect(); prog.style.animation = '';
-    icon.className = `toast-icon ti ${type === 'ok' ? 'ti-check' : 'ti-alert-circle'}`;
-    msgEl.textContent = msg;
-    el.classList.add(type, 'show');
-    toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
-  }
-
-  // ── Modal helpers ─────────────────────────────────────────
-  const openModal  = (id: string) => $(id).classList.add('open');
-  const closeModal = (id: string) => $(id).classList.remove('open');
-
-  let confirmResolve: ((v: boolean) => void) | null = null;
-  function confirmAction(msg: string): Promise<boolean> {
-    return new Promise(res => { confirmResolve = res; $('confirmMsg').textContent = msg; openModal('confirmOverlay'); });
-  }
-  $('confirmOk').addEventListener('click',     () => { closeModal('confirmOverlay'); confirmResolve?.(true); });
-  $('confirmCancel').addEventListener('click', () => { closeModal('confirmOverlay'); confirmResolve?.(false); });
-
-  // ── Logout ────────────────────────────────────────────────
-  $('logoutBtn').addEventListener('click', async () => {
-    await fetch('/api/signin', { method: 'DELETE' });
-    window.location.href = '/auth';
-  });
-
-  // ── Quick shortcuts ───────────────────────────────────────
-  $('qkNewPlan')?.addEventListener('click', () => { goTo('planes'); setTimeout(() => openPlanModal(), 50); });
-  $('qkNewDownload')?.addEventListener('click', () => { goTo('descargas'); setTimeout(() => openDlModal(), 50); });
-
-  // ── Search clears ─────────────────────────────────────────
-  $('msgSearchClear')?.addEventListener('click', () => { inp('msgSearch').value = ''; filterMessages(); });
-  $('userSearchClear')?.addEventListener('click', () => { inp('userSearch').value = ''; filterUsers(); });
-  $('dlSearchClear')?.addEventListener('click', () => { inp('dlSearch').value = ''; filterDownloads(); });
-
-  // ── Mensajes ──────────────────────────────────────────────
-  function filterMessages() {
-    const q = inp('msgSearch').value.toLowerCase().trim();
-    const f = sel('msgFilter').value.toLowerCase();
-    let count = 0;
-    document.querySelectorAll<HTMLTableRowElement>('#msgBody tr').forEach(row => {
-      const match = (!q || (row.dataset.nombre ?? '').includes(q)) && (!f || (row.dataset.asunto ?? '') === f);
-      row.classList.toggle('hidden', !match);
-      if (match) count++;
-    });
-    const countEl = document.getElementById('msgCount');
-    if (countEl) countEl.textContent = `${count} mensaje${count !== 1 ? 's' : ''}`;
-  }
-  document.getElementById('msgSearch')?.addEventListener('input', filterMessages);
-  document.getElementById('msgFilter')?.addEventListener('change', filterMessages);
-
-  document.querySelectorAll<HTMLButtonElement>('.msg-btn').forEach(btn =>
-    btn.addEventListener('click', () => {
-      $('msgBodyText').textContent = btn.dataset.msg ?? '';
-      $('msgFromName').textContent = btn.dataset.nombre ?? '';
-      const email = btn.dataset.email ?? '';
-      ($('msgReplyBtn') as HTMLAnchorElement).href = `mailto:${email}?subject=Re: Tu consulta en TriGGer.Arena`;
-      openModal('msgOverlay');
-    })
-  );
-  $('msgClose').addEventListener('click', () => closeModal('msgOverlay'));
-  $('msgOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal('msgOverlay'); });
-
-  document.querySelectorAll<HTMLButtonElement>('.delete-contact').forEach(btn =>
-    btn.addEventListener('click', async () => {
-      if (!await confirmAction('¿Eliminar este mensaje? No se puede deshacer.')) return;
-      const res = await fetch('/api/delete-contacts', {
-        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contactId: btn.dataset.id }),
-      });
-      if (!res.ok) { toast('Error al eliminar', 'err'); return; }
-      document.getElementById(`row-${btn.dataset.id}`)?.remove();
-      toast('Mensaje eliminado');
-      filterMessages();
-    })
-  );
-
-  // ── Usuarios ──────────────────────────────────────────────
-  function filterUsers() {
-    const q = inpV('userSearch')?.value.toLowerCase().trim() ?? '';
-    const r = (document.getElementById('userRoleFilter') as HTMLSelectElement)?.value ?? '';
-    let count = 0;
-    document.querySelectorAll<HTMLTableRowElement>('#usersBody tr').forEach(row => {
-      const match = (!q || (row.dataset.username ?? '').includes(q) || (row.dataset.email ?? '').includes(q)) && (!r || (row.dataset.role ?? '') === r);
-      row.classList.toggle('hidden', !match);
-      if (match) count++;
-    });
-    const countEl = document.getElementById('userCount');
-    if (countEl) countEl.textContent = `${count} usuario${count !== 1 ? 's' : ''}`;
-  }
-  document.getElementById('userSearch')?.addEventListener('input', filterUsers);
-  document.getElementById('userRoleFilter')?.addEventListener('change', filterUsers);
-
-  function openUserModal(data: { id: string; username: string; avatar: string; role: string; email: string }) {
-    inp('editUserId').value = data.id;
-    inp('editUserUsername').value = data.username;
-    inp('editUserAvatar').value = data.avatar;
-    inp('editUserEmail').value = data.email;
-    sel('editUserRole').value = data.role;
-    const preview = $('userAvatarPreview');
-    if (data.avatar && /^https?:\/\//.test(data.avatar)) {
-      const img = document.createElement('img'); img.src = data.avatar; img.alt = '';
-      img.onerror = () => { preview.innerHTML = `<i class="ti ti-user"></i>`; };
-      preview.innerHTML = ''; preview.appendChild(img);
-    } else { preview.innerHTML = `<i class="ti ti-user"></i>`; }
-    const info = $('userEditInfo');
-    info.textContent = `Editando perfil de: ${data.email}`;
-    info.classList.add('show');
-    $('userEditErr').textContent = '';
-    openModal('userOverlay');
-  }
-
-  inp('editUserAvatar').addEventListener('input', function () {
-    const preview = $('userAvatarPreview');
-    const raw = this.value.trim();
-    if (raw && /^https?:\/\/[^\s<>"']+$/.test(raw)) {
-      const img = document.createElement('img'); img.alt = '';
-      img.onerror = () => { preview.innerHTML = `<i class="ti ti-user"></i>`; };
-      img.onload  = () => { preview.innerHTML = ''; preview.appendChild(img); };
-      img.src = raw;
-    } else { preview.innerHTML = `<i class="ti ti-user"></i>`; }
-  });
-
-  document.querySelectorAll<HTMLButtonElement>('.edit-user').forEach(btn =>
-    btn.addEventListener('click', () => openUserModal({
-      id: btn.dataset.id!, username: btn.dataset.username!, avatar: btn.dataset.avatar!,
-      role: btn.dataset.role!, email: btn.dataset.email!,
-    }))
-  );
-  $('userClose').addEventListener('click',  () => closeModal('userOverlay'));
-  $('userCancel').addEventListener('click', () => closeModal('userOverlay'));
-  $('userOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal('userOverlay'); });
-
-  function setRoleTag(id: string, role: string) {
-    const badge = document.getElementById(`role-${id}`);
-    if (badge) { badge.className = `tag ${role === 'admin' ? 'accent' : 'muted'}`; badge.textContent = role === 'admin' ? 'Admin' : 'User'; }
-  }
-  function setRoleButton(btn: HTMLButtonElement, role: string) {
-    if (role === 'admin') { btn.className = 'text-btn btn-role'; btn.dataset.role = 'user'; btn.innerHTML = '<i class="ti ti-shield-off"></i> Quitar'; }
-    else { btn.className = 'text-btn btn-role promote'; btn.dataset.role = 'admin'; btn.innerHTML = '<i class="ti ti-shield"></i> Admin'; }
-  }
-
-  $('userSave').addEventListener('click', async () => {
-    const id = inp('editUserId').value;
-    const username = inp('editUserUsername').value.trim();
-    const avatar = inp('editUserAvatar').value.trim();
-    const role = sel('editUserRole').value;
-    const errEl = $('userEditErr');
-    errEl.textContent = '';
-    if (username.length < 3 || username.length > 20) { errEl.textContent = 'El usuario debe tener entre 3 y 20 caracteres.'; return; }
-    if (!/^[a-zA-Z0-9_]+$/.test(username)) { errEl.textContent = 'Solo letras, números y guión bajo.'; return; }
-    const saveBtn = $('userSave') as HTMLButtonElement;
-    saveBtn.disabled = true;
-    const res = await fetch('/api/admin-update-user', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, username, avatar_url: avatar || null, role }),
-    });
-    const result = await res.json().catch(() => ({}));
-    saveBtn.disabled = false;
-    if (!res.ok) { errEl.textContent = result.error ?? 'Error al guardar'; return; }
-    const uname = document.getElementById(`uname-${id}`);
-    if (uname) uname.textContent = username;
-    setRoleTag(id, role);
-    const thumb = document.getElementById(`thumb-${id}`);
-    if (thumb) {
-      if (avatar) { const img = document.createElement('img'); img.src = avatar; img.width = 28; img.height = 28; img.id = `thumbimg-${id}`; thumb.innerHTML = ''; thumb.appendChild(img); }
-      else { thumb.innerHTML = `<span>${(username[0] ?? '?').toUpperCase()}</span>`; }
-    }
-    const row = document.getElementById(`profile-${id}`);
-    if (row) { row.dataset.username = username.toLowerCase(); row.dataset.role = role; }
-    document.querySelectorAll<HTMLButtonElement>(`[data-id="${id}"].btn-role`).forEach(b => setRoleButton(b, role));
-    closeModal('userOverlay');
-    toast('Perfil actualizado');
-  });
-
-  document.querySelectorAll<HTMLButtonElement>('.btn-role').forEach(btn =>
-    btn.addEventListener('click', async () => {
-      const id = btn.dataset.id!, newRole = btn.dataset.role!;
-      if (!await confirmAction(`¿${newRole === 'admin' ? 'Dar admin a' : 'Quitar admin de'} este usuario?`)) return;
-      const res = await fetch('/api/set-role', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: id, role: newRole }),
-      });
-      if (!res.ok) { const d = await res.json().catch(() => ({})); toast(d.error ?? 'Error', 'err'); return; }
-      setRoleTag(id, newRole);
-      setRoleButton(btn, newRole);
-      const row = document.getElementById(`profile-${id}`);
-      if (row) row.dataset.role = newRole;
-      toast(newRole === 'admin' ? '¡Admin asignado!' : 'Rol actualizado');
-    })
-  );
-
-  document.querySelectorAll<HTMLButtonElement>('.delete-user').forEach(btn =>
-    btn.addEventListener('click', async () => {
-      if (!await confirmAction('¿Eliminar este usuario permanentemente? No se puede deshacer.')) return;
-      const res = await fetch('/api/delete-users', {
-        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: btn.dataset.id }),
-      });
-      if (!res.ok) { const d = await res.json().catch(() => ({})); toast(d.error ?? 'Error', 'err'); return; }
-      document.getElementById(`profile-${btn.dataset.id}`)?.remove();
-      toast('Usuario eliminado');
-      filterUsers();
-    })
-  );
-
-  // ── Descargas ─────────────────────────────────────────────
-  function filterDownloads() {
-    const q = inpV('dlSearch')?.value.toLowerCase().trim() ?? '';
-    let count = 0;
-    document.querySelectorAll<HTMLTableRowElement>('#downloadsBody tr').forEach(row => {
-      const match = !q || (row.dataset.nombre ?? '').includes(q) || (row.dataset.cat ?? '').includes(q);
-      row.classList.toggle('hidden', !match);
-      if (match) count++;
-    });
-    const countEl = document.getElementById('dlCount');
-    if (countEl) countEl.textContent = `${count} archivo${count !== 1 ? 's' : ''}`;
-  }
-  document.getElementById('dlSearch')?.addEventListener('input', filterDownloads);
-
-  // ── Planes modal ──────────────────────────────────────────
-  function openPlanModal(plan?: any) {
-    inp('planId').value = plan?.id ?? '';
-    inp('planTag').value = plan?.tag ?? '';
-    inp('planPrice').value = plan?.price ?? '';
-    inp('planDesc').value = plan?.descripcion ?? '';
-    inp('planBadge').value = plan?.badge ?? '';
-    inp('planCta').value = plan?.cta ?? '';
-    inp('planOrder').value = plan?.sort_order ?? '0';
-    (inp('planFeatured') as any).checked = plan?.featured ?? false;
-    ta('planFeatures').value = Array.isArray(plan?.features) ? plan.features.map((f: any) => `${f.ok ? '✓' : '✗'} ${f.text}`).join('\n') : '';
-    $('planModalTitle').innerHTML = `<i class="ti ti-diamond"></i> ${plan ? 'Editar plan' : 'Nuevo plan'}`;
-    $('planErr').textContent = '';
-    openModal('planOverlay');
-  }
-
-  $('btnNewPlan')?.addEventListener('click', () => openPlanModal());
-  $('planClose').addEventListener('click',  () => closeModal('planOverlay'));
-  $('planCancel').addEventListener('click', () => closeModal('planOverlay'));
-  $('planOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal('planOverlay'); });
-
-  document.querySelectorAll<HTMLButtonElement>('.edit-plan').forEach(btn => btn.addEventListener('click', () => openPlanModal(JSON.parse(btn.dataset.plan!))));
-
-  $('planSave').addEventListener('click', async () => {
-    const id = inp('planId').value, tag = inp('planTag').value.trim(), price = inp('planPrice').value.trim();
-    const errEl = $('planErr'); errEl.textContent = '';
-    if (!tag || !price) { errEl.textContent = 'Tag y Precio son obligatorios.'; return; }
-    const features = ta('planFeatures').value.split('\n').filter(l => l.trim())
-      .map(l => ({ ok: l.trimStart().startsWith('✓'), text: l.replace(/^[✓✗]\s*/, '').trim() }));
-    const payload = {
-      tag, price, descripcion: inp('planDesc').value.trim() || null, badge: inp('planBadge').value.trim() || null,
-      cta: inp('planCta').value.trim() || null, sort_order: parseInt(inp('planOrder').value) || 0,
-      featured: (inp('planFeatured') as any).checked, features,
-    };
-    const res = id
-      ? await fetch('/api/plans', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, ...payload }) })
-      : await fetch('/api/plans', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    const result = await res.json().catch(() => ({}));
-    if (!res.ok) { errEl.textContent = result.error ?? 'Error al guardar'; return; }
-    toast(id ? 'Plan actualizado' : 'Plan creado');
-    closeModal('planOverlay');
-    setTimeout(() => window.location.reload(), 700);
-  });
-
-  document.querySelectorAll<HTMLButtonElement>('.delete-plan').forEach(btn =>
-    btn.addEventListener('click', async () => {
-      if (!await confirmAction('¿Eliminar este plan?')) return;
-      const res = await fetch('/api/plans', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: btn.dataset.id }) });
-      if (!res.ok) { toast('Error al eliminar', 'err'); return; }
-      document.getElementById(`plan-${btn.dataset.id}`)?.remove();
-      toast('Plan eliminado');
-    })
-  );
-
-  // ── Descargas modal ───────────────────────────────────────
-  function openDlModal(dl?: any) {
-    inp('dlId').value = dl?.id ?? ''; inp('dlNombre').value = dl?.nombre ?? ''; inp('dlDesc').value = dl?.descripcion ?? '';
-    inp('dlUrl').value = dl?.url ?? ''; inp('dlCat').value = dl?.categoria ?? ''; inp('dlSize').value = dl?.size_label ?? '';
-    inp('dlOrder').value = dl?.sort_order ?? '0';
-    $('dlModalTitle').innerHTML = `<i class="ti ti-download"></i> ${dl ? 'Editar archivo' : 'Nuevo archivo'}`;
-    $('dlErr').textContent = '';
-    openModal('dlOverlay');
-  }
-
-  $('btnNewDownload')?.addEventListener('click', () => openDlModal());
-  $('dlClose').addEventListener('click',  () => closeModal('dlOverlay'));
-  $('dlCancel').addEventListener('click', () => closeModal('dlOverlay'));
-  $('dlOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal('dlOverlay'); });
-
-  document.querySelectorAll<HTMLButtonElement>('.edit-download').forEach(btn => btn.addEventListener('click', () => openDlModal(JSON.parse(btn.dataset.download!))));
-
-  $('dlSave').addEventListener('click', async () => {
-    const id = inp('dlId').value, nombre = inp('dlNombre').value.trim(), url = inp('dlUrl').value.trim();
-    const errEl = $('dlErr'); errEl.textContent = '';
-    if (!nombre || !url) { errEl.textContent = 'Nombre y URL son obligatorios.'; return; }
-    const payload = {
-      nombre, url, descripcion: inp('dlDesc').value.trim() || null, categoria: inp('dlCat').value.trim() || 'general',
-      size_label: inp('dlSize').value.trim() || null, sort_order: parseInt(inp('dlOrder').value) || 0,
-    };
-    const res = await fetch('/api/downloads', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(id ? { id, ...payload } : payload),
-    });
-    const result = await res.json().catch(() => ({}));
-    if (!res.ok) { errEl.textContent = result.error ?? 'Error al guardar'; return; }
-    toast(id ? 'Archivo actualizado' : 'Archivo agregado');
-    closeModal('dlOverlay');
-    setTimeout(() => window.location.reload(), 700);
-  });
-
-  document.querySelectorAll<HTMLButtonElement>('.delete-download').forEach(btn =>
-    btn.addEventListener('click', async () => {
-      if (!await confirmAction('¿Eliminar este archivo?')) return;
-      const res = await fetch('/api/downloads', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: btn.dataset.id }) });
-      if (!res.ok) { toast('Error al eliminar', 'err'); return; }
-      document.getElementById(`dl-${btn.dataset.id}`)?.remove();
-      toast('Archivo eliminado');
-      filterDownloads();
-    })
-  );
-
-  // ── Copy helpers ──────────────────────────────────────────
-  document.querySelectorAll<HTMLButtonElement>('.copy-mini').forEach(btn =>
-    btn.addEventListener('click', () => { navigator.clipboard.writeText(btn.dataset.copy!).then(() => toast('IP copiada')); })
-  );
-
-  // ── Servidores ────────────────────────────────────────────
-  interface ServerCfg { id: number; name: string; ip: string; color: string; active: boolean }
-  const ALL_SERVER_CONFIGS: ServerCfg[] = JSON.parse(document.body.dataset.servers || '[]');
-  const SERVER_CONFIGS = ALL_SERVER_CONFIGS.filter(s => s.active !== false);
-
-  let refreshInterval: ReturnType<typeof setInterval> | null = null;
-  let refreshCountdown = 60;
-
-  function startRefreshCountdown() {
-    if (refreshInterval) clearInterval(refreshInterval);
-    refreshCountdown = 60;
-    const cdEl = document.getElementById('refreshCountdown');
-    refreshInterval = setInterval(() => {
-      refreshCountdown--;
-      if (cdEl) cdEl.textContent = `Auto-refresh en ${refreshCountdown}s`;
-      if (refreshCountdown <= 0) { loadServers(); refreshCountdown = 60; }
-    }, 1000);
-    if (cdEl) cdEl.textContent = `Auto-refresh en ${refreshCountdown}s`;
-  }
-
-  async function loadServers() {
-    const wrap = document.getElementById('serversWrap');
-    if (!wrap) return;
-    wrap.innerHTML = SERVER_CONFIGS.map(() => `<div class="skel"></div>`).join('');
-    try {
-      const res  = await fetch('/api/servers.json');
-      const data: any[] = await res.json();
-      wrap.innerHTML = SERVER_CONFIGS.map(cfg => {
-        const s = data.find(x => x.id === cfg.id);
-        const online = s?.online ?? false;
-        const players: string[] = online && Array.isArray(s.playerList) ? s.playerList : [];
-        return `
-          <div class="srv">
-            <div class="srv-head">
-              <span class="srv-name">${cfg.name}</span>
-              <span class="pill ${online ? 'on' : 'off'}"><span class="pill-dot"></span>${online ? 'Online' : 'Offline'}</span>
-            </div>
-            ${online ? `
-              <div class="srv-stats">
-                <div class="srv-stat"><strong>${s.map ?? '—'}</strong><span>Mapa</span></div>
-                <div class="srv-stat"><strong>${s.players}/${s.maxPlayers}</strong><span>Jugadores</span></div>
-                <div class="srv-stat"><strong>${s.ping ?? '—'} ms</strong><span>Ping</span></div>
-              </div>
-              ${players.length > 0 ? `<div class="srv-players"><strong>En servidor</strong>${players.slice(0, 8).join(', ')}${players.length > 8 ? ` +${players.length - 8}` : ''}</div>` : ''}
-            ` : `
-              <div class="srv-offline">
-                <i class="ti ti-server-off"></i>
-                <span>Servidor sin respuesta</span>
-              </div>`}
-            <div class="srv-foot">
-              <span class="srv-ip">${cfg.ip}</span>
-              <button class="srv-copy" data-ip="${cfg.ip}"><i class="ti ti-copy"></i> Copiar IP</button>
-            </div>
-          </div>`;
-      }).join('');
-      wrap.querySelectorAll<HTMLButtonElement>('.srv-copy').forEach(btn =>
-        btn.addEventListener('click', () => { navigator.clipboard.writeText(btn.dataset.ip!); toast('IP copiada'); })
-      );
-    } catch {
-      wrap.innerHTML = `<div class="empty" style="grid-column:1/-1"><i class="ti ti-wifi-off"></i><p>Error al cargar servidores.</p></div>`;
-    }
-    startRefreshCountdown();
-  }
-
-  document.getElementById('btnRefreshServers')?.addEventListener('click', loadServers);
-
-  // ── Servidores modal ──────────────────────────────────────
-  function openServerModal(server?: any) {
-    inp('srvId').value = server?.id ?? ''; inp('srvName').value = server?.name ?? ''; inp('srvMode').value = server?.mode ?? '';
-    inp('srvDesc').value = server?.description ?? ''; inp('srvHost').value = server?.host ?? ''; inp('srvPort').value = server?.port ?? '';
-    inp('srvColor').value = server?.color ?? '#d9712b'; inp('srvOrder').value = server?.sort_order ?? '0';
-    (inp('srvActive') as any).checked = server?.active ?? true;
-    $('srvModalTitle').innerHTML = `<i class="ti ti-server"></i> ${server ? 'Editar servidor' : 'Nuevo servidor'}`;
-    $('srvErr').textContent = '';
-    openModal('srvOverlay');
-  }
-
-  $('btnNewServer')?.addEventListener('click', () => openServerModal());
-  $('srvClose').addEventListener('click',  () => closeModal('srvOverlay'));
-  $('srvCancel').addEventListener('click', () => closeModal('srvOverlay'));
-  $('srvOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal('srvOverlay'); });
-
-  document.querySelectorAll<HTMLButtonElement>('.edit-server').forEach(btn => btn.addEventListener('click', () => openServerModal(JSON.parse(btn.dataset.server!))));
-
-  $('srvSave').addEventListener('click', async () => {
-    const id = inp('srvId').value, name = inp('srvName').value.trim(), host = inp('srvHost').value.trim(), port = parseInt(inp('srvPort').value);
-    const errEl = $('srvErr'); errEl.textContent = '';
-    if (!name || !host || !port) { errEl.textContent = 'Nombre, Host y Puerto son obligatorios.'; return; }
-    const payload = {
-      name, host, port, mode: inp('srvMode').value.trim() || null, description: inp('srvDesc').value.trim() || null,
-      color: inp('srvColor').value.trim() || '#ffff', sort_order: parseInt(inp('srvOrder').value) || 0,
-      active: (inp('srvActive') as any).checked,
-    };
-    const res = await fetch('/api/admin-servers', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(id ? { id, ...payload } : payload),
-    });
-    const result = await res.json().catch(() => ({}));
-    if (!res.ok) { errEl.textContent = result.error ?? 'Error al guardar'; return; }
-    toast(id ? 'Servidor actualizado' : 'Servidor creado');
-    closeModal('srvOverlay');
-    setTimeout(() => window.location.reload(), 700);
-  });
-
-  document.querySelectorAll<HTMLButtonElement>('.delete-server').forEach(btn =>
-    btn.addEventListener('click', async () => {
-      if (!await confirmAction('¿Eliminar este servidor?')) return;
-      const res = await fetch('/api/admin-servers', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: btn.dataset.id }) });
-      if (!res.ok) { toast('Error al eliminar', 'err'); return; }
-      toast('Servidor eliminado');
-      setTimeout(() => window.location.reload(), 700);
-    })
-  );
-
-  // ── Configuración del sitio ───────────────────────────────
-  document.getElementById('siteSettingsForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn = $('cfgSaveBtn') as HTMLButtonElement, errEl = $('cfgErr');
-    errEl.textContent = '';
-    const payload = {
-      whatsapp_url: inp('cfgWhatsapp').value.trim(), discord_url: inp('cfgDiscord').value.trim(),
-      instagram_url: inp('cfgInstagram').value.trim(),
-      site_status: (inp('cfgMaintenance') as any).checked ? 'mantenimiento' : 'operativo',
-      maintenance_message: ta('cfgMaintenanceMsg').value.trim(),
-    };
-    btn.disabled = true; btn.classList.add('loading');
-    try {
-      const res = await fetch('/api/site-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) { errEl.textContent = data.error ?? 'Error al guardar la configuración.'; btn.disabled = false; btn.classList.remove('loading'); return; }
-      btn.classList.remove('loading'); btn.classList.add('success');
-      toast('Configuración guardada');
-      const statusInfo = document.getElementById('siteStatusInfo');
-      if (statusInfo) {
-        const isMaint = payload.site_status === 'mantenimiento';
-        statusInfo.innerHTML = `<span class="dot ${isMaint ? 'accent' : 'olive'}"></span>${isMaint ? 'Mantenimiento' : 'Operativo'}`;
-      }
-      setTimeout(() => { btn.classList.remove('success'); btn.disabled = false; }, 2000);
-    } catch {
-      errEl.textContent = 'Error de conexión. Probá de nuevo.';
-      btn.disabled = false; btn.classList.remove('loading');
-    }
-  });
-
-  // ── ESC cierra modales ────────────────────────────────────
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-      ['msgOverlay', 'userOverlay', 'planOverlay', 'dlOverlay', 'srvOverlay', 'confirmOverlay'].forEach(closeModal);
-      closeSidebar();
-    }
-  });
-
-  // ── CONTENT BLOCKS ────────────────────────────────────────
-  const CB_DEFAULTS: Record<string, any> = {
-    hero: { eyebrow: 'Comunidad Argentina — CS 1.6', title: 'TriGGer.Arena', subtitle: 'Headshots, fragmentos y comunidad real.\nServidores 24/7 — Sin lag — Sin excusas.', btn_label: 'Conectate ahora', stat1_val: '24/7', stat1_key: 'Servidores', stat2_val: '« 0 »', stat2_key: 'Tolerancia a cheaters', stat3_val: 'ARG', stat3_key: 'Comunidad activa' },
-    howto: { section_title: 'Entrá en minutos', section_sub: 'Desde descargar el cliente hasta unirte al servidor.', step1: { title: 'Descargá lo necesario', body: 'Instalá Counter-Strike 1.6 y el anti-cheat recomendado.' }, step2: { title: 'Copiá la IP', body: 'Usá el botón "Copiar IP" y pegala en la consola de CS.' }, step3: { title: 'Unite a la comunidad', body: 'Sumate a WhatsApp o Discord para coordinar partidas.' } },
-    rules: { section_title: 'Reglas de la comunidad', section_sub: 'Leelas. Respétalas. Disfrutá sin drama.', rules: [{ id: '01', icon: 'ti-ban', severity: 'high', tag: 'Ban permanente', title: 'Prohibido usar cheats o hacks', body: 'El uso de wallhack, aimbot o cualquier hack está terminantemente prohibido.' }] },
-    effexo: { badge: 'Partner Oficial', title: 'EFFEXO', description: 'La plataforma que impulsa comunidades digitales modernas.', features: ['Automatización', 'Moderación', 'Comunidades'], btn_label: 'Visitar effexo.net', btn_url: 'https://effexo.net/servers' },
-    social: { section_title: 'Sumate a la comunidad', section_sub: 'Noticias, partidas y la mejor comunidad de CS 1.6.', discord: { handle: 'TriGGer.Arena', desc: 'Servidor oficial.' }, whatsapp: { handle: 'Grupo de la comunidad', desc: 'Avisos en tiempo real.' }, instagram: { handle: '@trigger.arena_cs', desc: 'Highlights y noticias.' } },
-    footer: { tagline: 'Comunidad Argentina de CS 1.6 — Headshots, fragmentos y comunidad real.' },
-  };
-
-  let cbData: Record<string, any> = JSON.parse(JSON.stringify(CB_DEFAULTS));
-
-  async function loadContentBlocks() {
-    try {
-      const res = await fetch('/api/content-blocks');
-      if (res.ok) {
-        const { data } = await res.json();
-        for (const row of data ?? []) {
-          try {
-            const parsed = typeof row.value === 'string' ? JSON.parse(row.value) : row.value;
-            cbData[row.key] = { ...(CB_DEFAULTS[row.key] ?? {}), ...parsed };
-          } catch { }
-        }
-      }
-    } catch { }
-    populateContentForms();
-  }
-
-  function populateContentForms() {
-    const h = cbData.hero || {};
-    inpV('heroEyebrow')  && (inpV('heroEyebrow')!.value  = h.eyebrow   ?? '');
-    inpV('heroTitle')    && (inpV('heroTitle')!.value    = h.title     ?? '');
-    taV('heroSubtitle')  && (taV('heroSubtitle')!.value  = h.subtitle  ?? '');
-    inpV('heroBtnLabel') && (inpV('heroBtnLabel')!.value = h.btn_label ?? '');
-    inpV('heroStat1Val') && (inpV('heroStat1Val')!.value = h.stat1_val ?? '');
-    inpV('heroStat1Key') && (inpV('heroStat1Key')!.value = h.stat1_key ?? '');
-    inpV('heroStat2Val') && (inpV('heroStat2Val')!.value = h.stat2_val ?? '');
-    inpV('heroStat2Key') && (inpV('heroStat2Key')!.value = h.stat2_key ?? '');
-    inpV('heroStat3Val') && (inpV('heroStat3Val')!.value = h.stat3_val ?? '');
-    inpV('heroStat3Key') && (inpV('heroStat3Key')!.value = h.stat3_key ?? '');
-
-    const ht = cbData.howto || {};
-    inpV('howtoTitle') && (inpV('howtoTitle')!.value = ht.section_title ?? '');
-    inpV('howtoSub')   && (inpV('howtoSub')!.value   = ht.section_sub   ?? '');
-    [1, 2, 3].forEach(n => {
-      const step = ht[`step${n}`] || {};
-      inpV(`howtoStep${n}Title`) && (inpV(`howtoStep${n}Title`)!.value = step.title ?? '');
-      taV(`howtoStep${n}Body`)   && (taV(`howtoStep${n}Body`)!.value   = step.body  ?? '');
-    });
-
-    const rs = cbData.rules || {};
-    inpV('rulesTitle') && (inpV('rulesTitle')!.value = rs.section_title ?? '');
-    inpV('rulesSub')   && (inpV('rulesSub')!.value   = rs.section_sub   ?? '');
-    renderRulesEditor(rs.rules ?? []);
-
-    const ef = cbData.effexo || {};
-    inpV('effexoBadge')    && (inpV('effexoBadge')!.value    = ef.badge        ?? '');
-    inpV('effexoTitle')    && (inpV('effexoTitle')!.value    = ef.title        ?? '');
-    taV('effexoDesc')      && (taV('effexoDesc')!.value      = ef.description  ?? '');
-    taV('effexoFeatures')  && (taV('effexoFeatures')!.value  = Array.isArray(ef.features) ? ef.features.join('\n') : '');
-    inpV('effexoBtnLabel') && (inpV('effexoBtnLabel')!.value = ef.btn_label    ?? '');
-    inpV('effexoBtnUrl')   && (inpV('effexoBtnUrl')!.value   = ef.btn_url      ?? '');
-
-    const sc = cbData.social || {};
-    inpV('socialTitle') && (inpV('socialTitle')!.value = sc.section_title ?? '');
-    inpV('socialSub')   && (inpV('socialSub')!.value   = sc.section_sub   ?? '');
-    inpV('socialDiscordHandle')   && (inpV('socialDiscordHandle')!.value   = sc.discord?.handle   ?? '');
-    inpV('socialDiscordDesc')     && (inpV('socialDiscordDesc')!.value     = sc.discord?.desc     ?? '');
-    inpV('socialWhatsappHandle')  && (inpV('socialWhatsappHandle')!.value  = sc.whatsapp?.handle  ?? '');
-    inpV('socialWhatsappDesc')    && (inpV('socialWhatsappDesc')!.value    = sc.whatsapp?.desc    ?? '');
-    inpV('socialInstagramHandle') && (inpV('socialInstagramHandle')!.value = sc.instagram?.handle ?? '');
-    inpV('socialInstagramDesc')   && (inpV('socialInstagramDesc')!.value   = sc.instagram?.desc   ?? '');
-
-    const ft = cbData.footer || {};
-    taV('footerTagline') && (taV('footerTagline')!.value = ft.tagline ?? '');
-  }
-
-  function renderRulesEditor(rules: any[]) {
-    const container = document.getElementById('rulesEditor');
-    if (!container) return;
-    container.innerHTML = '';
-    rules.forEach((r, i) => appendRuleRow(container, r, i));
-  }
-
-  function appendRuleRow(container: HTMLElement, r: any = {}, i: number) {
-    const div = document.createElement('div');
-    div.className = 'rule-row';
-    div.innerHTML = `
-      <div class="rule-row-head">
-        <span class="tag">${r.id ?? String(i + 1).padStart(2, '0')}</span>
-        <button type="button" class="icon-btn danger remove-rule-row" title="Eliminar"><i class="ti ti-trash"></i></button>
-      </div>
-      <div class="rule-grid">
-        <div class="field"><label>Título</label><input type="text" class="re-title" value="${(r.title ?? '').replace(/"/g, '&quot;')}" /></div>
-        <div class="field"><label>Tag</label><input type="text" class="re-tag" value="${(r.tag ?? '').replace(/"/g, '&quot;')}" /></div>
-        <div class="field"><label>Ícono (ti-*)</label><input type="text" class="re-icon" value="${r.icon ?? 'ti-ban'}" /></div>
-        <div class="field"><label>Severidad</label>
-          <select class="re-severity">
-            <option value="high" ${r.severity === 'high' ? 'selected' : ''}>Alta</option>
-            <option value="mid"  ${r.severity === 'mid'  ? 'selected' : ''}>Media</option>
-            <option value="low"  ${r.severity === 'low'  ? 'selected' : ''}>Baja</option>
-          </select>
-        </div>
-        <div class="field full"><label>Descripción</label><textarea class="re-body" rows="2">${r.body ?? ''}</textarea></div>
-      </div>`;
-    div.querySelector('.remove-rule-row')?.addEventListener('click', () => div.remove());
-    container.appendChild(div);
-  }
-
-  document.getElementById('addRuleBtn')?.addEventListener('click', () => {
-    const container = document.getElementById('rulesEditor');
-    if (container) appendRuleRow(container, {}, container.children.length);
-  });
-
-  function collectRules(): any[] {
-    return Array.from(document.querySelectorAll('.rule-row')).map((row, i) => ({
-      id: String(i + 1).padStart(2, '0'),
-      icon: (row.querySelector('.re-icon') as HTMLInputElement)?.value.trim() || 'ti-ban',
-      severity: (row.querySelector('.re-severity') as HTMLSelectElement)?.value || 'low',
-      tag: (row.querySelector('.re-tag') as HTMLInputElement)?.value.trim() || '',
-      title: (row.querySelector('.re-title') as HTMLInputElement)?.value.trim() || '',
-      body: (row.querySelector('.re-body') as HTMLTextAreaElement)?.value.trim() || '',
-    }));
-  }
-
-  (window as any).saveContentBlock = async function (key: string) {
-    const btn = document.getElementById(`${key}SaveBtn`) as HTMLButtonElement | null;
-    const errEl = document.getElementById(`${key}Err`);
-    if (errEl) errEl.textContent = '';
-    let value: any;
-    if (key === 'hero') {
-      value = { eyebrow: inpV('heroEyebrow')?.value.trim() ?? '', title: inpV('heroTitle')?.value.trim() ?? '', subtitle: taV('heroSubtitle')?.value.trim() ?? '', btn_label: inpV('heroBtnLabel')?.value.trim() ?? '', stat1_val: inpV('heroStat1Val')?.value.trim() ?? '', stat1_key: inpV('heroStat1Key')?.value.trim() ?? '', stat2_val: inpV('heroStat2Val')?.value.trim() ?? '', stat2_key: inpV('heroStat2Key')?.value.trim() ?? '', stat3_val: inpV('heroStat3Val')?.value.trim() ?? '', stat3_key: inpV('heroStat3Key')?.value.trim() ?? '' };
-    } else if (key === 'howto') {
-      value = { section_title: inpV('howtoTitle')?.value.trim() ?? '', section_sub: inpV('howtoSub')?.value.trim() ?? '', step1: { title: inpV('howtoStep1Title')?.value.trim() ?? '', body: taV('howtoStep1Body')?.value.trim() ?? '' }, step2: { title: inpV('howtoStep2Title')?.value.trim() ?? '', body: taV('howtoStep2Body')?.value.trim() ?? '' }, step3: { title: inpV('howtoStep3Title')?.value.trim() ?? '', body: taV('howtoStep3Body')?.value.trim() ?? '' } };
-    } else if (key === 'rules') {
-      value = { section_title: inpV('rulesTitle')?.value.trim() ?? '', section_sub: inpV('rulesSub')?.value.trim() ?? '', rules: collectRules() };
-    } else if (key === 'effexo') {
-      const featuresRaw = taV('effexoFeatures')?.value.trim() ?? '';
-      value = { badge: inpV('effexoBadge')?.value.trim() ?? '', title: inpV('effexoTitle')?.value.trim() ?? '', description: taV('effexoDesc')?.value.trim() ?? '', features: featuresRaw ? featuresRaw.split('\n').map((f: string) => f.trim()).filter(Boolean) : [], btn_label: inpV('effexoBtnLabel')?.value.trim() ?? '', btn_url: inpV('effexoBtnUrl')?.value.trim() ?? '' };
-    } else if (key === 'social') {
-      value = { section_title: inpV('socialTitle')?.value.trim() ?? '', section_sub: inpV('socialSub')?.value.trim() ?? '', discord: { handle: inpV('socialDiscordHandle')?.value.trim() ?? '', desc: inpV('socialDiscordDesc')?.value.trim() ?? '' }, whatsapp: { handle: inpV('socialWhatsappHandle')?.value.trim() ?? '', desc: inpV('socialWhatsappDesc')?.value.trim() ?? '' }, instagram: { handle: inpV('socialInstagramHandle')?.value.trim() ?? '', desc: inpV('socialInstagramDesc')?.value.trim() ?? '' } };
-    } else if (key === 'footer') {
-      value = { tagline: taV('footerTagline')?.value.trim() ?? '' };
-    } else return;
-
-    if (btn) { btn.disabled = true; btn.classList.add('loading'); }
-    try {
-      const res  = await fetch('/api/content-blocks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, value }) });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) { if (errEl) errEl.textContent = data.error ?? 'Error al guardar.'; if (btn) { btn.disabled = false; btn.classList.remove('loading'); } return; }
-      if (btn) { btn.classList.remove('loading'); btn.classList.add('success'); }
-      toast('Contenido guardado');
-      cbData[key] = value;
-      setTimeout(() => { if (btn) { btn.classList.remove('success'); btn.disabled = false; } }, 2000);
-    } catch {
-      if (errEl) errEl.textContent = 'Error de conexión.';
-      if (btn) { btn.disabled = false; btn.classList.remove('loading'); }
-    }
-  };
-
-  document.querySelectorAll<HTMLButtonElement>('.ctab').forEach(tab =>
-    tab.addEventListener('click', () => {
-      const key = tab.dataset.ctab!;
-      document.querySelectorAll('.ctab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.ctab-panel').forEach(p => p.classList.remove('active'));
-      tab.classList.add('active');
-      document.getElementById(`ctab-${key}`)?.classList.add('active');
-    })
-  );
-</script>

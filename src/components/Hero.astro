@@ -8,9 +8,9 @@ const subtitleLines = h.subtitle.split('\n');
 
   <div class="hero-bg" aria-hidden="true">
     <div class="hero-grid"></div>
-    <div class="hero-glow-top"></div>
-    <div class="hero-diag hero-diag--tl"></div>
-    <div class="hero-diag hero-diag--br"></div>
+    <div class="hero-orb hero-orb--main"></div>
+    <div class="hero-orb hero-orb--side"></div>
+    <div class="hero-scan"></div>
     <span class="hud-corner hud-tl"></span>
     <span class="hud-corner hud-tr"></span>
     <span class="hud-corner hud-bl"></span>
@@ -19,9 +19,22 @@ const subtitleLines = h.subtitle.split('\n');
 
   <div class="container hero-inner">
 
+    <div class="hero-eyebrow-wrap">
+      <div class="eyebrow">
+        <span class="eyebrow-dot" aria-hidden="true"></span>
+        {h.eyebrow}
+        <span class="eyebrow-live">
+          <span class="live-pulse" aria-hidden="true"></span>
+          Activos
+        </span>
+      </div>
+    </div>
+
+    <!-- Crosshair — más pequeño y refinado -->
     <div class="crosshair-wrap" aria-hidden="true">
       <div class="crosshair">
         <span class="ch-ring ring-outer"></span>
+        <span class="ch-ring ring-mid"></span>
         <span class="ch-ring ring-inner"></span>
         <span class="ch-seg ch-top"></span>
         <span class="ch-seg ch-bottom"></span>
@@ -36,12 +49,6 @@ const subtitleLines = h.subtitle.split('\n');
     </div>
 
     <div class="hero-content">
-
-      <div class="eyebrow">
-        <span class="eyebrow-dot" aria-hidden="true"></span>
-        {h.eyebrow}
-        <span class="eyebrow-live">Activos</span>
-      </div>
 
       <h1 class="hero-title">
         {h.title.includes('.') ? (
@@ -61,17 +68,17 @@ const subtitleLines = h.subtitle.split('\n');
       </p>
 
       <div class="hero-actions">
-        <a href="#servidores" class="hero-btn-main">
+        <a href="#servidores" class="hero-btn-main btn-ripple">
           {h.btn_label}
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M5 12h14M12 5l7 7-7 7"/>
           </svg>
         </a>
         <button class="hero-btn-rules" onclick="window.openModal?.('reglas-resumen')" aria-label="Ver reglas del servidor">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
           </svg>
-          Ver reglas
+          Reglamento
         </button>
       </div>
 
@@ -108,197 +115,285 @@ const subtitleLines = h.subtitle.split('\n');
 <style>
   .hero {
     --h-accent: rgba(56, 182, 255, 1);
-    --h-glow:   rgba(56, 182, 255, 0.09);
-    --h-line:   rgba(56, 182, 255, 0.045);
-    --h-seg:    rgba(56, 182, 255, 0.5);
+    --h-glow:   rgba(56, 182, 255, 0.1);
+    --h-line:   rgba(56, 182, 255, 0.04);
+    --h-seg:    rgba(56, 182, 255, 0.55);
     position: relative;
     min-height: 100svh;
     display: flex;
     align-items: center;
-    padding-top: 58px;
+    padding-top: 62px;
     overflow: hidden;
   }
 
-  /* ── Fondo simplificado ── */
+  /* ── Fondo ── */
   .hero-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+
   .hero-grid {
     position: absolute; inset: 0;
     background-image:
       linear-gradient(var(--h-line) 1px, transparent 1px),
       linear-gradient(90deg, var(--h-line) 1px, transparent 1px);
-    background-size: 56px 56px;
-    mask-image: radial-gradient(ellipse 90% 75% at 50% 38%, black 20%, transparent 100%);
+    background-size: 52px 52px;
+    mask-image: radial-gradient(ellipse 85% 70% at 50% 35%, black 15%, transparent 100%);
   }
-  .hero-glow-top {
-    position: absolute; top: -15%; left: 50%; transform: translateX(-50%);
-    width: 800px; height: 600px;
-    background: radial-gradient(ellipse at 50% 0%, rgba(56,182,255,0.1) 0%, transparent 70%);
+
+  /*
+    PERF: filter: blur() en divs grandes (700×500px, 400×300px) es
+    extremadamente costoso — fuerza un render pass de software cada frame.
+    Reemplazamos con radial-gradient directo: mismo efecto visual de "glow
+    ambiental", costo de GPU prácticamente cero.
+  */
+  .hero-orb {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    /* Sin filter: blur — el gradiente ya da el efecto difuso */
   }
-  .hero-diag {
-    position: absolute; width: 320px; height: 320px; opacity: 0.06;
-    background-image: repeating-linear-gradient(-45deg, rgba(56,182,255,0.6) 0px, rgba(56,182,255,0.6) 1px, transparent 1px, transparent 16px);
+  .hero-orb--main {
+    top: -25%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 900px; height: 600px;
+    /* Gradiente más amplio compensa la falta de blur */
+    background: radial-gradient(ellipse at 50% 35%,
+      rgba(56,182,255,0.10) 0%,
+      rgba(56,182,255,0.04) 35%,
+      transparent 68%);
   }
-  .hero-diag--tl { top: 0; left: 0; mask-image: radial-gradient(ellipse at 0% 0%, black 0%, transparent 70%); }
-  .hero-diag--br { bottom: 0; right: 0; mask-image: radial-gradient(ellipse at 100% 100%, black 0%, transparent 70%); }
-  .hud-corner { position: absolute; width: 28px; height: 28px; border: 0 solid rgba(56,182,255,0.18); }
-  .hud-tl { top: 18px; left: 18px; border-width: 1.5px 0 0 1.5px; }
-  .hud-tr { top: 18px; right: 18px; border-width: 1.5px 1.5px 0 0; }
-  .hud-bl { bottom: 18px; left: 18px; border-width: 0 0 1.5px 1.5px; }
-  .hud-br { bottom: 18px; right: 18px; border-width: 0 1.5px 1.5px 0; }
+  .hero-orb--side {
+    bottom: -5%; right: -15%;
+    width: 500px; height: 400px;
+    background: radial-gradient(ellipse at 50% 50%,
+      rgba(56,182,255,0.05) 0%,
+      rgba(56,182,255,0.015) 40%,
+      transparent 68%);
+  }
+
+  /* Scanline sutil */
+  .hero-scan {
+    position: absolute; inset: 0; opacity: 0.018;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent, transparent 3px,
+      rgba(56,182,255,0.3) 3px, rgba(56,182,255,0.3) 4px
+    );
+    pointer-events: none;
+  }
+
+  .hud-corner { position: absolute; width: 22px; height: 22px; border: 0 solid rgba(56,182,255,0.15); }
+  .hud-tl { top: 16px; left: 16px; border-width: 1.5px 0 0 1.5px; }
+  .hud-tr { top: 16px; right: 16px; border-width: 1.5px 1.5px 0 0; }
+  .hud-bl { bottom: 16px; left: 16px; border-width: 0 0 1.5px 1.5px; }
+  .hud-br { bottom: 16px; right: 16px; border-width: 0 1.5px 1.5px 0; }
 
   /* ── Layout ── */
   .hero-inner {
     position: relative; z-index: 1;
     display: flex; flex-direction: column; align-items: center; text-align: center;
-    padding-block: 60px 110px; width: 100%;
+    padding-block: 50px 100px; width: 100%;
+    gap: 0;
   }
-  .hero-content { display: flex; flex-direction: column; align-items: center; text-align: center; width: 100%; }
 
-  /* ── Crosshair — animaciones reducidas ── */
+  /* ── Eyebrow — más arriba, antes del crosshair ── */
+  .hero-eyebrow-wrap { margin-bottom: 28px; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-family: var(--font-mono); font-size: 0.62rem; font-weight: 600;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent);
+    padding: 5px 12px;
+    border: 1px solid rgba(56,182,255,0.18); border-radius: 999px;
+    background: rgba(56,182,255,0.05);
+  }
+  .eyebrow-dot {
+    width: 5px; height: 5px; background: var(--accent); border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 6px rgba(56,182,255,0.9);
+    animation: pulse 2.5s ease-in-out infinite;
+  }
+  .eyebrow-live {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 0.52rem; font-weight: 700; letter-spacing: 0.14em;
+    padding: 2px 7px; border-radius: 999px;
+    background: rgba(56,182,255,0.1); border: 1px solid rgba(56,182,255,0.25);
+    color: var(--accent);
+  }
+  .live-pulse {
+    width: 5px; height: 5px; background: #4ade80; border-radius: 50%;
+    animation: pulse 1.8s ease-in-out infinite;
+    box-shadow: 0 0 5px rgba(74,222,128,0.8);
+  }
+
+  /* ── Crosshair — estático pero elegante ── */
+  /*
+    PERF: Los 3 ch-ring girando continuamente crean 3 animation loops GPU.
+    Los hacemos estáticos — el crosshair se ve igual de premium pero
+    el compositor no tiene trabajo extra por frame.
+    Solo .ch-dot mantiene animación (es tiny: 4×4px, costo mínimo).
+  */
   .crosshair-wrap {
-    position: relative; width: 160px; height: 160px;
+    position: relative; width: 120px; height: 120px;
     display: flex; align-items: center; justify-content: center;
-    margin-bottom: 40px;
+    margin-bottom: 28px;
   }
   .crosshair { position: relative; width: 100%; height: 100%; }
   .ch-ring {
     position: absolute; border-radius: 50%;
-    border: 1px solid rgba(56,182,255,0.18);
     top: 50%; left: 50%; transform: translate(-50%, -50%);
+    /* Sin animation — solo border estático */
   }
-  .ring-outer { width: 130px; height: 130px; }
-  .ring-inner { width: 82px; height: 82px; border-color: rgba(56,182,255,0.28); }
-  .ch-arc { position: absolute; width: 18px; height: 18px; border: 1.5px solid rgba(56,182,255,0.5); }
-  .arc-tl { top: 18px; left: 18px; border-right: none; border-bottom: none; }
-  .arc-tr { top: 18px; right: 18px; border-left: none; border-bottom: none; }
-  .arc-bl { bottom: 18px; left: 18px; border-right: none; border-top: none; }
-  .arc-br { bottom: 18px; right: 18px; border-left: none; border-top: none; }
+  .ring-outer { width: 100px; height: 100px; border: 1px solid rgba(56,182,255,0.10); }
+  .ring-mid   { width: 72px;  height: 72px;  border: 1px solid rgba(56,182,255,0.18); }
+  .ring-inner { width: 46px;  height: 46px;  border: 1px solid rgba(56,182,255,0.28); }
+
+  .ch-arc { position: absolute; width: 14px; height: 14px; border: 1.5px solid rgba(56,182,255,0.45); }
+  .arc-tl { top: 12px; left: 12px; border-right: none; border-bottom: none; }
+  .arc-tr { top: 12px; right: 12px; border-left: none; border-bottom: none; }
+  .arc-bl { bottom: 12px; left: 12px; border-right: none; border-top: none; }
+  .arc-br { bottom: 12px; right: 12px; border-left: none; border-top: none; }
+
   .ch-dot {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
     width: 4px; height: 4px; background: var(--accent); border-radius: 50%;
-    box-shadow: 0 0 8px var(--accent);
-    animation: pulse 2.5s ease-in-out infinite;
+    box-shadow: 0 0 10px var(--accent), 0 0 20px rgba(56,182,255,0.4);
+    /* Solo este elemento mantiene animación — es tiny */
+    animation: pulse 2.4s ease-in-out infinite;
   }
   .ch-seg { position: absolute; background: var(--h-seg); }
-  .ch-top    { width: 1px; height: 26px; top: 12px;    left: 50%; transform: translateX(-50%); }
-  .ch-bottom { width: 1px; height: 26px; bottom: 12px; left: 50%; transform: translateX(-50%); }
-  .ch-left   { height: 1px; width: 26px; left: 12px;   top: 50%;  transform: translateY(-50%); }
-  .ch-right  { height: 1px; width: 26px; right: 12px;  top: 50%;  transform: translateY(-50%); }
+  .ch-top    { width: 1px; height: 20px; top: 8px;    left: 50%; transform: translateX(-50%); }
+  .ch-bottom { width: 1px; height: 20px; bottom: 8px; left: 50%; transform: translateX(-50%); }
+  .ch-left   { height: 1px; width: 20px; left: 8px;   top: 50%;  transform: translateY(-50%); }
+  .ch-right  { height: 1px; width: 20px; right: 8px;  top: 50%;  transform: translateY(-50%); }
 
-  /* ── Eyebrow ── */
-  .eyebrow {
-    display: inline-flex; align-items: center; gap: 8px;
-    font-family: var(--font-mono); font-size: 0.67rem; font-weight: 600;
-    letter-spacing: 0.15em; text-transform: uppercase; color: var(--accent);
-    margin-bottom: 20px; padding: 6px 14px;
-    border: 1px solid rgba(56,182,255,0.2); border-radius: 999px;
-    background: rgba(56,182,255,0.05);
-  }
-  .eyebrow-dot {
-    width: 6px; height: 6px; background: var(--accent); border-radius: 50%;
-    flex-shrink: 0; animation: pulse 2.5s infinite;
-    box-shadow: 0 0 6px rgba(56,182,255,0.8);
-  }
-  .eyebrow-live {
-    font-size: 0.54rem; font-weight: 700; letter-spacing: 0.16em;
-    padding: 2px 7px; border-radius: 999px;
-    background: rgba(56,182,255,0.12); border: 1px solid rgba(56,182,255,0.3);
-    color: var(--accent);
-  }
+  /* ── Hero content ── */
+  .hero-content { display: flex; flex-direction: column; align-items: center; text-align: center; width: 100%; }
 
-  /* ── Títulos ── */
   .hero-title {
-    font-family: var(--font-display); font-size: clamp(3.6rem, 11vw, 7rem);
-    font-weight: 700; letter-spacing: -0.02em; line-height: 1;
-    color: var(--text); margin-bottom: 28px;
+    font-family: var(--font-display);
+    font-size: clamp(3.2rem, 10vw, 6.5rem);
+    font-weight: 700; letter-spacing: -0.025em; line-height: 1;
+    color: var(--text); margin-bottom: 20px;
   }
-  .title-dot { color: var(--accent); text-shadow: 0 0 20px rgba(56,182,255,0.5); }
+  .title-dot {
+    color: var(--accent);
+    text-shadow: 0 0 24px rgba(56,182,255,0.6), 0 0 48px rgba(56,182,255,0.2);
+  }
+
   .hero-sub {
-    font-size: 0.97rem; color: var(--muted-2); line-height: 1.85;
-    max-width: 380px; margin: 0 auto 40px;
+    font-size: 0.95rem; color: var(--muted-2); line-height: 1.8;
+    max-width: 360px; margin: 0 auto 32px;
   }
 
   /* ── Botones ── */
-  .hero-actions { display: flex; gap: 12px; justify-content: center; align-items: center; flex-wrap: wrap; margin-bottom: 52px; }
+  .hero-actions { display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; margin-bottom: 40px; }
+
   .hero-btn-main {
-    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-    padding: 13px 32px; background: var(--accent); color: var(--bg);
-    font-family: var(--font-body); font-size: 0.82rem; font-weight: 700;
-    letter-spacing: 0.07em; text-transform: uppercase;
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    padding: 11px 28px; background: var(--accent); color: #06080d;
+    font-family: var(--font-body); font-size: 0.8rem; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase;
     border-radius: var(--radius); border: 1px solid var(--accent);
     text-decoration: none; cursor: pointer;
-    transition: background 0.2s, transform 0.18s, box-shadow 0.2s;
-    box-shadow: 0 0 20px rgba(56,182,255,0.2);
+    transition: background 0.18s, transform 0.15s, box-shadow 0.18s;
+    box-shadow: 0 0 20px rgba(56,182,255,0.18);
+    position: relative; overflow: hidden;
   }
-  .hero-btn-main:hover { background: rgba(56,182,255,0.9); transform: translateY(-2px); box-shadow: 0 6px 30px rgba(56,182,255,0.35); }
+  .hero-btn-main:hover {
+    background: rgba(56,182,255,0.88);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 28px rgba(56,182,255,0.38);
+  }
   .hero-btn-main:active { transform: translateY(0); }
   .hero-btn-main svg { transition: transform 0.18s; flex-shrink: 0; }
   .hero-btn-main:hover svg { transform: translateX(3px); }
+
   .hero-btn-rules {
-    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-    padding: 13px 24px; background: none; color: var(--muted-2);
-    font-family: var(--font-body); font-size: 0.82rem; font-weight: 600;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 11px 20px; background: none; color: var(--muted-2);
+    font-family: var(--font-body); font-size: 0.78rem; font-weight: 600;
     letter-spacing: 0.06em; text-transform: uppercase;
     border-radius: var(--radius); border: 1px solid var(--border); cursor: pointer;
-    transition: color 0.2s, border-color 0.2s, background 0.2s;
+    transition: color 0.18s, border-color 0.18s, background 0.18s;
   }
-  .hero-btn-rules:hover { color: var(--text); border-color: rgba(56,182,255,0.4); background: rgba(56,182,255,0.06); }
+  .hero-btn-rules:hover {
+    color: var(--text); border-color: rgba(56,182,255,0.35);
+    background: rgba(56,182,255,0.05);
+  }
 
-  /* ── Stats ── */
+  /* ── Stats — más compacto ── */
   .hero-stats {
-    display: flex; align-items: center; justify-content: center; gap: 40px;
-    padding: 24px 40px; position: relative;
-    width: 100%; max-width: 480px;
-    border-radius: var(--radius-lg); border: 1px solid rgba(56,182,255,0.18);
-    background: var(--surface);
+    display: flex; align-items: center; justify-content: center; gap: 32px;
+    padding: 18px 36px; position: relative;
+    max-width: 440px; width: 100%;
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(56,182,255,0.15);
+    /*
+      PERF: backdrop-filter: blur(8px) en hero-stats fuerza un stacking
+      context separado y repinta en cada scroll. Reemplazamos con background
+      sólido semitransparente — visualmente idéntico en un fondo oscuro.
+    */
+    background: rgba(10, 14, 26, 0.94);
   }
   .hero-stats::before {
-    content: ''; position: absolute; top: 0; left: 10%; right: 10%; height: 1px;
+    content: ''; position: absolute; top: 0; left: 12%; right: 12%; height: 1px;
     background: linear-gradient(90deg, transparent, rgba(56,182,255,0.5), transparent);
   }
-  .stats-corner { position: absolute; width: 10px; height: 10px; border: 0 solid rgba(56,182,255,0.4); }
-  .stats-tl { top: 6px; left: 6px; border-width: 1px 0 0 1px; }
-  .stats-tr { top: 6px; right: 6px; border-width: 1px 1px 0 0; }
-  .stats-bl { bottom: 6px; left: 6px; border-width: 0 0 1px 1px; }
-  .stats-br { bottom: 6px; right: 6px; border-width: 0 1px 1px 0; }
-  .stat { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .hero-stats::after {
+    content: ''; position: absolute; bottom: 0; left: 12%; right: 12%; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(56,182,255,0.1), transparent);
+  }
+
+  .stats-corner { position: absolute; width: 8px; height: 8px; border: 0 solid rgba(56,182,255,0.35); }
+  .stats-tl { top: 5px;    left: 5px;  border-width: 1px 0 0 1px; }
+  .stats-tr { top: 5px;    right: 5px; border-width: 1px 1px 0 0; }
+  .stats-bl { bottom: 5px; left: 5px;  border-width: 0 0 1px 1px; }
+  .stats-br { bottom: 5px; right: 5px; border-width: 0 1px 1px 0; }
+
+  .stat { display: flex; flex-direction: column; align-items: center; gap: 4px; }
   .stat-val {
-    display: block; font-family: var(--font-display); font-size: 1.35rem;
+    display: block; font-family: var(--font-display); font-size: 1.25rem;
     font-weight: 700; color: var(--accent); letter-spacing: 0.02em; line-height: 1;
   }
   .stat-key {
-    display: block; font-family: var(--font-mono); font-size: 0.58rem;
+    display: block; font-family: var(--font-mono); font-size: 0.56rem;
     font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
-    color: var(--muted); line-height: 1.4;
+    color: var(--muted); line-height: 1.3;
   }
-  .stat-sep { width: 1px; height: 28px; background: linear-gradient(to bottom, transparent, rgba(56,182,255,0.2), transparent); flex-shrink: 0; }
+  .stat-sep {
+    width: 1px; height: 24px;
+    background: linear-gradient(to bottom, transparent, rgba(56,182,255,0.2), transparent);
+    flex-shrink: 0;
+  }
 
   /* ── Scroll indicator ── */
-  .hero-scroll { position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%); z-index: 1; }
+  .hero-scroll { position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%); z-index: 1; }
   .scroll-line {
-    display: block; width: 1px; height: 44px;
+    display: block; width: 1px; height: 38px;
     background: linear-gradient(to bottom, var(--accent), transparent);
-    animation: scrollAnim 2.5s ease infinite;
+    animation: scrollAnim 2.2s ease infinite;
     transform-origin: top;
   }
 
-  /* ── Animaciones mínimas ── */
   @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
-  @keyframes scrollAnim { 0% { transform: scaleY(0); opacity: 1; } 70% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(1); opacity: 0; } }
+  @keyframes scrollAnim {
+    0%   { transform: scaleY(0); opacity: 1; }
+    70%  { transform: scaleY(1); opacity: 1; }
+    100% { transform: scaleY(1); opacity: 0; }
+  }
 
-  /* ── Reduced motion ── */
   @media (prefers-reduced-motion: reduce) {
-    .ch-dot, .eyebrow-dot, .scroll-line { animation: none; }
+    .ch-dot, .eyebrow-dot, .live-pulse, .scroll-line { animation: none; }
   }
 
   @media (max-width: 540px) {
-    .hero-stats { gap: 20px; padding: 18px 24px; }
-    .stat-val { font-size: 1.15rem; }
-    .crosshair-wrap { width: 130px; height: 130px; }
-    .ring-outer { width: 100px; height: 100px; }
-    .ring-inner { width: 64px; height: 64px; }
-    .hero-actions { margin-bottom: 40px; }
-    .hero-diag { width: 180px; height: 180px; }
+    .hero-stats { gap: 18px; padding: 14px 20px; max-width: 320px; }
+    .stat-val { font-size: 1.05rem; }
+    .crosshair-wrap { width: 96px; height: 96px; }
+    .ring-outer { width: 80px; height: 80px; }
+    .ring-mid   { width: 58px; height: 58px; }
+    .ring-inner { width: 38px; height: 38px; }
+    .hero-actions { margin-bottom: 32px; }
+    .hero-sub { font-size: 0.88rem; }
   }
 </style>
 
@@ -313,7 +408,7 @@ const subtitleLines = h.subtitle.split('\n');
     const raw = el.dataset.target ?? el.textContent ?? '';
     const { prefix, num, suffix } = parseTarget(raw);
     if (num === 0) return;
-    const duration = 1200;
+    const duration = 1000;
     const start = performance.now();
     function easeOut(t: number) { return 1 - Math.pow(1 - t, 3); }
     function step(now: number) {
@@ -328,8 +423,23 @@ const subtitleLines = h.subtitle.split('\n');
   const counters = Array.from(document.querySelectorAll<HTMLElement>('[data-count]'));
   if (counters.length) {
     const obs = new IntersectionObserver(entries => {
-      entries.forEach(e => { if (e.isIntersecting) { animateCount(e.target as HTMLElement); obs.unobserve(e.target); } });
+      entries.forEach(e => {
+        if (e.isIntersecting) { animateCount(e.target as HTMLElement); obs.unobserve(e.target); }
+      });
     }, { threshold: 0.5 });
     counters.forEach(c => obs.observe(c));
   }
+
+  // Ripple en botón principal
+  document.querySelectorAll<HTMLElement>('.btn-ripple').forEach(btn => {
+    btn.addEventListener('click', (e: MouseEvent) => {
+      const rect = btn.getBoundingClientRect();
+      const circle = document.createElement('span');
+      circle.className = 'ripple-circle';
+      const size = Math.max(rect.width, rect.height) * 2;
+      circle.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX - rect.left - size/2}px;top:${e.clientY - rect.top - size/2}px`;
+      btn.appendChild(circle);
+      circle.addEventListener('animationend', () => circle.remove());
+    });
+  });
 </script>
