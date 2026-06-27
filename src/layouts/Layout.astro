@@ -380,52 +380,67 @@ const jsonLd = {
     }
     document.addEventListener('astro:page-load', hideLoader);
 
-    /* ── Indicador lateral de secciones ──────────────── */
-    const dotsNav = document.getElementById('sectionDots');
-    const dots    = dotsNav ? Array.from(dotsNav.querySelectorAll<HTMLButtonElement>('.sdot')) : [];
+    /* ── Indicador lateral de secciones ──────────────────────────
+       Mismo problema que el loader: dotsNav/dots/sections se
+       capturaban una sola vez y quedaban obsoletos tras la primera
+       navegación SPA. Se reinicializa en cada astro:page-load. ── */
+    let dotsAbort: AbortController | null = null;
 
-    function activateDot(target: string) {
-      dots.forEach(d => d.classList.toggle('active', d.dataset.target === target));
+    function initSectionDots() {
+      dotsAbort?.abort();
+      dotsAbort = new AbortController();
+      const { signal } = dotsAbort;
+
+      const dotsNav = document.getElementById('sectionDots');
+      const dots    = dotsNav ? Array.from(dotsNav.querySelectorAll<HTMLButtonElement>('.sdot')) : [];
+
+      function activateDot(target: string) {
+        dots.forEach(d => d.classList.toggle('active', d.dataset.target === target));
+      }
+
+      dots.forEach(dot => {
+        dot.addEventListener('click', () => {
+          const id = dot.dataset.target;
+          if (!id) return;
+          const el = document.getElementById(id);
+          if (!el) return;
+          const offset = 58 + 16;
+          const top = el.getBoundingClientRect().top + window.scrollY - offset;
+          window.scrollTo({ top, behavior: 'smooth' });
+        }, { signal });
+      });
+
+      // Mostrar dots después de hacer scroll — throttled con rAF
+      let dotsVisible = false;
+      let dotsRaf: number | null = null;
+      window.addEventListener('scroll', () => {
+        if (dotsRaf) return;
+        dotsRaf = requestAnimationFrame(() => {
+          if (!dotsNav) { dotsRaf = null; return; }
+          if (!dotsVisible && window.scrollY > 200) {
+            dotsVisible = true;
+            dotsNav.classList.add('visible');
+          } else if (dotsVisible && window.scrollY <= 200) {
+            dotsVisible = false;
+            dotsNav.classList.remove('visible');
+          }
+          dotsRaf = null;
+        });
+      }, { passive: true, signal });
+
+      // Activar dot según sección visible
+      const sections = Array.from(document.querySelectorAll<HTMLElement>('section[id]'));
+      const sectionObserver = new IntersectionObserver(entries => {
+        entries.forEach(e => {
+          if (e.isIntersecting) activateDot(e.target.id);
+        });
+      }, { threshold: 0.35 });
+      sections.forEach(s => sectionObserver.observe(s));
+      signal.addEventListener('abort', () => sectionObserver.disconnect());
     }
 
-    dots.forEach(dot => {
-      dot.addEventListener('click', () => {
-        const id = dot.dataset.target;
-        if (!id) return;
-        const el = document.getElementById(id);
-        if (!el) return;
-        const offset = 58 + 16;
-        const top = el.getBoundingClientRect().top + window.scrollY - offset;
-        window.scrollTo({ top, behavior: 'smooth' });
-      });
-    });
-
-    // Mostrar dots después de hacer scroll — throttled con rAF
-    let dotsVisible = false;
-    let dotsRaf: number | null = null;
-    window.addEventListener('scroll', () => {
-      if (dotsRaf) return;
-      dotsRaf = requestAnimationFrame(() => {
-        if (!dotsNav) { dotsRaf = null; return; }
-        if (!dotsVisible && window.scrollY > 200) {
-          dotsVisible = true;
-          dotsNav.classList.add('visible');
-        } else if (dotsVisible && window.scrollY <= 200) {
-          dotsVisible = false;
-          dotsNav.classList.remove('visible');
-        }
-        dotsRaf = null;
-      });
-    }, { passive: true });
-
-    // Activar dot según sección visible
-    const sections = Array.from(document.querySelectorAll<HTMLElement>('section[id]'));
-    const sectionObserver = new IntersectionObserver(entries => {
-      entries.forEach(e => {
-        if (e.isIntersecting) activateDot(e.target.id);
-      });
-    }, { threshold: 0.35 });
-    sections.forEach(s => sectionObserver.observe(s));
+    initSectionDots();
+    document.addEventListener('astro:page-load', initSectionDots);
 
     /* ── Toast global ─────────────────────────────────── */
     type ToastType = 'success' | 'error' | 'info';

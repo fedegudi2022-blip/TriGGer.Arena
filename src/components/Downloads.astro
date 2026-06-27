@@ -502,25 +502,32 @@ const catLabels: Record<string, string> = {
 </style>
 
 <script>
-  const tabs  = document.querySelectorAll<HTMLButtonElement>('.dl-tab');
-  const cards = document.querySelectorAll<HTMLElement>('.dl-card[data-cat]');
+  // Mismo fix que el resto — ver comentario en SlidePanel.astro.
+  function initDownloadsTabs() {
+    const tabs  = document.querySelectorAll<HTMLButtonElement>('.dl-tab');
+    const cards = document.querySelectorAll<HTMLElement>('.dl-card[data-cat]');
+    if (tabs.length === 0) return; // Downloads no presente en esta página
 
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      const cat = tab.getAttribute('data-cat');
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const cat = tab.getAttribute('data-cat');
 
-      // Actualizar tabs activos
-      tabs.forEach(t => {
-        t.classList.toggle('dl-tab-active', t === tab);
-        t.setAttribute('aria-selected', t === tab ? 'true' : 'false');
-      });
+        // Actualizar tabs activos
+        tabs.forEach(t => {
+          t.classList.toggle('dl-tab-active', t === tab);
+          t.setAttribute('aria-selected', t === tab ? 'true' : 'false');
+        });
 
-      // Filtrar cards
-      cards.forEach(card => {
-        const cardCat = card.getAttribute('data-cat');
-        const show = cat === 'todos' || cardCat === cat;
-        card.classList.toggle('dl-hidden', !show);
+        // Filtrar cards
+        cards.forEach(card => {
+          const cardCat = card.getAttribute('data-cat');
+          const show = cat === 'todos' || cardCat === cat;
+          card.classList.toggle('dl-hidden', !show);
+        });
       });
     });
-  });
+  }
+
+  initDownloadsTabs();
+  document.addEventListener('astro:page-load', initDownloadsTabs);
 </script>

@@ -340,68 +340,74 @@ const subtitleLines = h.subtitle.split('\n');
 </style>
 
 <script>
-  function parseTarget(raw: string): { prefix: string; num: number; suffix: string } {
-    const match = raw.match(/^([^\d]*)(\d+(?:\.\d+)?)(.*)$/);
-    if (!match) return { prefix: '', num: 0, suffix: raw };
-    return { prefix: match[1], num: parseFloat(match[2]), suffix: match[3] };
-  }
-
-  function animateCount(el: HTMLElement) {
-    const raw = el.dataset.target ?? el.textContent ?? '';
-    const { prefix, num, suffix } = parseTarget(raw);
-    if (num === 0) return;
-    const duration = 900;
-    const start = performance.now();
-    function easeOut(t: number) { return 1 - Math.pow(1 - t, 3); }
-    function step(now: number) {
-      const progress = Math.min((now - start) / duration, 1);
-      el.textContent = `${prefix}${Math.round(easeOut(progress) * num)}${suffix}`;
-      if (progress < 1) requestAnimationFrame(step);
+  // Mismo fix que el resto — ver comentario en SlidePanel.astro.
+  function initHero() {
+    function parseTarget(raw: string): { prefix: string; num: number; suffix: string } {
+      const match = raw.match(/^([^\d]*)(\d+(?:\.\d+)?)(.*)$/);
+      if (!match) return { prefix: '', num: 0, suffix: raw };
+      return { prefix: match[1], num: parseFloat(match[2]), suffix: match[3] };
     }
-    el.textContent = `${prefix}0${suffix}`;
-    requestAnimationFrame(step);
-  }
 
-  const counters = Array.from(document.querySelectorAll<HTMLElement>('[data-count]'));
-  if (counters.length) {
+    function animateCount(el: HTMLElement) {
+      const raw = el.dataset.target ?? el.textContent ?? '';
+      const { prefix, num, suffix } = parseTarget(raw);
+      if (num === 0) return;
+      const duration = 900;
+      const start = performance.now();
+      function easeOut(t: number) { return 1 - Math.pow(1 - t, 3); }
+      function step(now: number) {
+        const progress = Math.min((now - start) / duration, 1);
+        el.textContent = `${prefix}${Math.round(easeOut(progress) * num)}${suffix}`;
+        if (progress < 1) requestAnimationFrame(step);
+      }
+      el.textContent = `${prefix}0${suffix}`;
+      requestAnimationFrame(step);
+    }
+
+    const counters = Array.from(document.querySelectorAll<HTMLElement>('[data-count]'));
+    if (counters.length === 0) return; // Hero no presente en esta página
+
     const obs = new IntersectionObserver(entries => {
       entries.forEach(e => {
         if (e.isIntersecting) { animateCount(e.target as HTMLElement); obs.unobserve(e.target); }
       });
     }, { threshold: 0.5 });
     counters.forEach(c => obs.observe(c));
+
+    // ── Live server stats ────────────────────────────────────────
+    (async () => {
+      try {
+        const res  = await fetch('/api/servers.json');
+        if (!res.ok) return;
+        const data: Array<{ online: boolean; players?: number; map?: string }> = await res.json();
+        const online = data.filter(s => s.online);
+        if (!online.length) return;
+
+        const totalPlayers = online.reduce((sum, s) => sum + (s.players ?? 0), 0);
+        const busiest      = online.reduce((best, s) => (s.players ?? 0) > (best.players ?? 0) ? s : best, online[0]);
+
+        if (totalPlayers > 0) {
+          const el = document.getElementById('hero-live-players');
+          if (el) {
+            el.textContent = String(totalPlayers);
+            el.removeAttribute('data-count');
+          }
+          const dot = document.getElementById('hero-live-dot');
+          if (dot) dot.style.removeProperty('display');
+        }
+
+        if (busiest?.map && busiest.map !== 'unknown') {
+          const badge = document.getElementById('hero-map-badge');
+          const text  = document.getElementById('hero-map-text');
+          if (badge && text) {
+            text.textContent = `${busiest.map} · ${busiest.players ?? 0} jugadores`;
+            badge.style.removeProperty('display');
+          }
+        }
+      } catch { /* silencioso */ }
+    })();
   }
 
-  // ── Live server stats ────────────────────────────────────────
-  (async () => {
-    try {
-      const res  = await fetch('/api/servers.json');
-      if (!res.ok) return;
-      const data: Array<{ online: boolean; players?: number; map?: string }> = await res.json();
-      const online = data.filter(s => s.online);
-      if (!online.length) return;
-
-      const totalPlayers = online.reduce((sum, s) => sum + (s.players ?? 0), 0);
-      const busiest      = online.reduce((best, s) => (s.players ?? 0) > (best.players ?? 0) ? s : best, online[0]);
-
-      if (totalPlayers > 0) {
-        const el = document.getElementById('hero-live-players');
-        if (el) {
-          el.textContent = String(totalPlayers);
-          el.removeAttribute('data-count');
-        }
-        const dot = document.getElementById('hero-live-dot');
-        if (dot) dot.style.removeProperty('display');
-      }
-
-      if (busiest?.map && busiest.map !== 'unknown') {
-        const badge = document.getElementById('hero-map-badge');
-        const text  = document.getElementById('hero-map-text');
-        if (badge && text) {
-          text.textContent = `${busiest.map} · ${busiest.players ?? 0} jugadores`;
-          badge.style.removeProperty('display');
-        }
-      }
-    } catch { /* silencioso */ }
-  })();
+  initHero();
+  document.addEventListener('astro:page-load', initHero);
 </script>

@@ -688,6 +688,11 @@ const servers = serverRows
 </style>
 
 <script>
+  // Mismo fix que el resto — ver comentario en SlidePanel.astro.
+  // Acá además hay setInterval de polling: si no los limpiamos al
+  // reinicializar, se acumula un polling extra de /api/servers.json
+  // por cada navegación de la sesión (golpeando la API cada vez más
+  // seguido sin que el usuario haga nada).
   const REFRESH_INTERVAL   = 30_000;
   const RELATIVE_TIME_TICK = 5_000;
   const FETCH_TIMEOUT_MS   = 10_000;
@@ -704,243 +709,257 @@ const servers = serverRows
     playerList?: string[];
   }
 
-  const lastUpdated = new Map<number, number>();
-  let fetchFailCount = 0;
+  let serversAbort: AbortController | null = null;
   let refreshTimer: ReturnType<typeof setInterval> | null = null;
   let relativeTimer: ReturnType<typeof setInterval> | null = null;
+  let lazyObserver: IntersectionObserver | null = null;
 
-  function createPlayerTag(name: string): HTMLElement {
-    const row = document.createElement('div');
-    row.className = 'player-row';
-    const dot = document.createElement('span');
-    dot.className = 'player-dot';
-    dot.setAttribute('aria-hidden', 'true');
-    const label = document.createElement('span');
-    label.className = 'player-name';
-    label.textContent = name;
-    row.appendChild(dot);
-    row.appendChild(label);
-    return row;
-  }
-
-  function formatRelativeTime(ms: number): string {
-    const diff    = Math.max(0, Date.now() - ms);
-    const seconds = Math.round(diff / 1000);
-    if (seconds < 5)  return 'Recién';
-    if (seconds < 60) return `${seconds}s`;
-    const minutes = Math.round(seconds / 60);
-    if (minutes < 60) return `${minutes} min`;
-    return `${Math.round(minutes / 60)} h`;
-  }
-
-  function renderRelativeTimes() {
-    lastUpdated.forEach((ts, id) => {
-      const el = document.querySelector<HTMLElement>(`[data-updated-text="${id}"]`);
-      if (el) {
-        el.textContent = formatRelativeTime(ts);
-        el.classList.remove('skeleton-text', 'updated-skeleton');
-      }
-    });
-  }
-
-  function setNetStatus(show: boolean, message?: string) {
-    const bar  = document.getElementById('netStatus');
-    const text = document.getElementById('netStatusText');
-    if (!bar) return;
-    if (show) {
-      if (message && text) text.textContent = message;
-      bar.removeAttribute('hidden');
-    } else {
-      bar.setAttribute('hidden', '');
-    }
-  }
-
-  function clearSkeleton(el: HTMLElement | null, className: string) {
-    if (!el) return;
-    el.classList.remove('skeleton-text', className);
-  }
-
-  function applyServerData(server: ServerStatus) {
-    const badge   = document.querySelector(`[data-status="${server.id}"]`);
-    const players = document.querySelector<HTMLElement>(`[data-players="${server.id}"]`);
-    const fill    = document.querySelector<HTMLElement>(`[data-fill="${server.id}"]`);
-    const map     = document.querySelector<HTMLElement>(`[data-map="${server.id}"]`);
-    const stale   = document.querySelector<HTMLElement>(`[data-stale="${server.id}"]`);
-    const section = document.querySelector<HTMLElement>(`[data-players-section="${server.id}"]`);
-    const inner   = document.querySelector<HTMLElement>(`[data-players-inner="${server.id}"]`);
-    if (!badge) return;
-
-    const badgeLabel = badge.querySelector('.badge-label');
-
-    // Limpiar skeletons
-    clearSkeleton(map,     'map-skeleton');
-    clearSkeleton(players, 'players-skeleton');
-
-    if (server.online) {
-      badge.className = 'badge-status badge-online';
-      if (badgeLabel) badgeLabel.textContent = 'En línea';
-
-      if (map) map.textContent = server.map ?? '–';
-
-      if (players) {
-        players.textContent = `${server.players ?? 0}/${server.maxPlayers ?? '?'}`;
-      }
-      if (fill && server.maxPlayers) {
-        const pct = Math.min(100, ((server.players ?? 0) / server.maxPlayers) * 100);
-        fill.style.width = `${pct}%`;
-        fill.classList.toggle('full', pct > 85);
-      }
-
-      if (section) section.style.display = 'block';
-
-      if (inner) {
-        inner.textContent = '';
-        const list = server.playerList ?? [];
-        if (list.length > 0) {
-          list.forEach(name => inner.appendChild(createPlayerTag(name)));
-        } else {
-          const empty = document.createElement('div');
-          empty.className = 'players-empty';
-          empty.textContent = 'Sin jugadores en este momento';
-          inner.appendChild(empty);
-        }
-      }
-
-    } else {
-      badge.className = 'badge-status badge-offline';
-      if (badgeLabel) badgeLabel.textContent = 'Fuera de línea';
-      if (map)    map.textContent    = '–';
-      if (players) players.textContent = '–';
-      if (fill)   fill.style.width   = '0%';
-      if (section) section.style.display = 'none';
-
-      const toggle = document.querySelector(`[data-toggle="${server.id}"]`);
-      const plist  = document.querySelector(`[data-players-list="${server.id}"]`);
-      if (toggle) toggle.setAttribute('aria-expanded', 'false');
-      if (plist)  plist.setAttribute('aria-hidden', 'true');
-    }
-
-    if (stale) stale.hidden = !server.stale;
-    if (server.stale) {
-      badge.className = 'badge-status badge-cached';
-      if (badgeLabel) badgeLabel.textContent = 'En caché';
-    }
-
-    if (typeof server.updatedAt === 'number') {
-      lastUpdated.set(server.id, server.updatedAt);
-    }
-    renderRelativeTimes();
-  }
-
-  function pausePolling() {
+  function initServers() {
+    // Limpiar todo lo que haya quedado de la página anterior
+    serversAbort?.abort();
     if (refreshTimer)  { clearInterval(refreshTimer);  refreshTimer  = null; }
     if (relativeTimer) { clearInterval(relativeTimer); relativeTimer = null; }
-  }
+    lazyObserver?.disconnect();
+    lazyObserver = null;
 
-  function resumePolling() {
-    if (refreshTimer || relativeTimer) return;
-    fetchServerStatus();
-    refreshTimer  = setInterval(fetchServerStatus,   REFRESH_INTERVAL);
-    relativeTimer = setInterval(renderRelativeTimes, RELATIVE_TIME_TICK);
-  }
+    const serversSection = document.getElementById('servidores');
+    if (!serversSection) return; // Servers no presente en esta página
 
-  document.addEventListener('visibilitychange', () => {
-    document.hidden ? pausePolling() : resumePolling();
-  });
+    serversAbort = new AbortController();
+    const { signal } = serversAbort;
 
-  document.querySelectorAll('.players-toggle').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id   = btn.getAttribute('data-toggle');
-      const list = document.querySelector(`[data-players-list="${id}"]`);
-      if (!list) return;
-      const isOpen = btn.getAttribute('aria-expanded') === 'true';
-      btn.setAttribute('aria-expanded', String(!isOpen));
-      list.setAttribute('aria-hidden', String(isOpen));
-      const label = btn.querySelector('.toggle-label');
-      if (label) label.textContent = isOpen ? 'Ver jugadores' : 'Ocultar jugadores';
-    });
-  });
+    const lastUpdated = new Map<number, number>();
+    let fetchFailCount = 0;
 
-  document.querySelectorAll<HTMLButtonElement>('.copy-btn').forEach(btn => {
-    let resetTimer: ReturnType<typeof setTimeout> | null = null;
-    btn.addEventListener('click', async () => {
-      const ip = btn.getAttribute('data-ip');
-      if (!ip) return;
-      if (resetTimer) { clearTimeout(resetTimer); resetTimer = null; }
-      try {
-        await navigator.clipboard.writeText(`connect ${ip}`);
-        const lbl = btn.querySelector('.copy-label');
-        btn.classList.add('copied');
-        btn.setAttribute('aria-label', 'IP copiada');
-        if (lbl) lbl.textContent = 'Copiado';
-        if (typeof window.showToast === 'function') {
-          window.showToast(`connect ${ip} — copiado al portapapeles`, 'success', 2800);
-        }
-        resetTimer = setTimeout(() => {
-          btn.classList.remove('copied');
-          btn.setAttribute('aria-label', `Copiar IP de ${ip}`);
-          if (lbl) lbl.textContent = 'Copiar';
-          resetTimer = null;
-        }, 2000);
-      } catch {
-        if (typeof window.showToast === 'function') {
-          window.showToast('No se pudo copiar. Copiá la IP manualmente.', 'error');
-        }
-      }
-    });
-  });
-
-  async function fetchServerStatus() {
-    if (document.hidden) return;
-    document.querySelectorAll<HTMLElement>('[data-refresh]').forEach(el => el.classList.add('active'));
-    const controller = new AbortController();
-    const timeoutId  = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-    try {
-      const res = await fetch('/api/servers.json', { cache: 'no-store', signal: controller.signal });
-      clearTimeout(timeoutId);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data: ServerStatus[] = await res.json();
-      data.forEach(applyServerData);
-      fetchFailCount = 0;
-      setNetStatus(false);
-    } catch (err: unknown) {
-      clearTimeout(timeoutId);
-      fetchFailCount++;
-      const isAbort = err instanceof DOMException && err.name === 'AbortError';
-      if (fetchFailCount >= MAX_RETRIES) {
-        setNetStatus(true, isAbort
-          ? 'El servidor tardó demasiado — reintentando más tarde'
-          : 'Sin conexión — los datos pueden estar desactualizados'
-        );
-      }
-    } finally {
-      document.querySelectorAll<HTMLElement>('[data-refresh]').forEach(el => el.classList.remove('active'));
+    function createPlayerTag(name: string): HTMLElement {
+      const row = document.createElement('div');
+      row.className = 'player-row';
+      const dot = document.createElement('span');
+      dot.className = 'player-dot';
+      dot.setAttribute('aria-hidden', 'true');
+      const label = document.createElement('span');
+      label.className = 'player-name';
+      label.textContent = name;
+      row.appendChild(dot);
+      row.appendChild(label);
+      return row;
     }
-  }
 
-  document.getElementById('netRetry')?.addEventListener('click', () => {
-    fetchFailCount = 0;
-    setNetStatus(false);
-    fetchServerStatus();
-  });
+    function formatRelativeTime(ms: number): string {
+      const diff    = Math.max(0, Date.now() - ms);
+      const seconds = Math.round(diff / 1000);
+      if (seconds < 5)  return 'Recién';
+      if (seconds < 60) return `${seconds}s`;
+      const minutes = Math.round(seconds / 60);
+      if (minutes < 60) return `${minutes} min`;
+      return `${Math.round(minutes / 60)} h`;
+    }
 
-  const serversSection = document.getElementById('servidores');
-  const lazyObserver = new IntersectionObserver(entries => {
-    if (entries[0].isIntersecting) {
-      lazyObserver.disconnect();
+    function renderRelativeTimes() {
+      lastUpdated.forEach((ts, id) => {
+        const el = document.querySelector<HTMLElement>(`[data-updated-text="${id}"]`);
+        if (el) {
+          el.textContent = formatRelativeTime(ts);
+          el.classList.remove('skeleton-text', 'updated-skeleton');
+        }
+      });
+    }
+
+    function setNetStatus(show: boolean, message?: string) {
+      const bar  = document.getElementById('netStatus');
+      const text = document.getElementById('netStatusText');
+      if (!bar) return;
+      if (show) {
+        if (message && text) text.textContent = message;
+        bar.removeAttribute('hidden');
+      } else {
+        bar.setAttribute('hidden', '');
+      }
+    }
+
+    function clearSkeleton(el: HTMLElement | null, className: string) {
+      if (!el) return;
+      el.classList.remove('skeleton-text', className);
+    }
+
+    function applyServerData(server: ServerStatus) {
+      const badge   = document.querySelector(`[data-status="${server.id}"]`);
+      const players = document.querySelector<HTMLElement>(`[data-players="${server.id}"]`);
+      const fill    = document.querySelector<HTMLElement>(`[data-fill="${server.id}"]`);
+      const map     = document.querySelector<HTMLElement>(`[data-map="${server.id}"]`);
+      const stale   = document.querySelector<HTMLElement>(`[data-stale="${server.id}"]`);
+      const section = document.querySelector<HTMLElement>(`[data-players-section="${server.id}"]`);
+      const inner   = document.querySelector<HTMLElement>(`[data-players-inner="${server.id}"]`);
+      if (!badge) return;
+
+      const badgeLabel = badge.querySelector('.badge-label');
+
+      // Limpiar skeletons
+      clearSkeleton(map,     'map-skeleton');
+      clearSkeleton(players, 'players-skeleton');
+
+      if (server.online) {
+        badge.className = 'badge-status badge-online';
+        if (badgeLabel) badgeLabel.textContent = 'En línea';
+
+        if (map) map.textContent = server.map ?? '–';
+
+        if (players) {
+          players.textContent = `${server.players ?? 0}/${server.maxPlayers ?? '?'}`;
+        }
+        if (fill && server.maxPlayers) {
+          const pct = Math.min(100, ((server.players ?? 0) / server.maxPlayers) * 100);
+          fill.style.width = `${pct}%`;
+          fill.classList.toggle('full', pct > 85);
+        }
+
+        if (section) section.style.display = 'block';
+
+        if (inner) {
+          inner.textContent = '';
+          const list = server.playerList ?? [];
+          if (list.length > 0) {
+            list.forEach(name => inner.appendChild(createPlayerTag(name)));
+          } else {
+            const empty = document.createElement('div');
+            empty.className = 'players-empty';
+            empty.textContent = 'Sin jugadores en este momento';
+            inner.appendChild(empty);
+          }
+        }
+
+      } else {
+        badge.className = 'badge-status badge-offline';
+        if (badgeLabel) badgeLabel.textContent = 'Fuera de línea';
+        if (map)    map.textContent    = '–';
+        if (players) players.textContent = '–';
+        if (fill)   fill.style.width   = '0%';
+        if (section) section.style.display = 'none';
+
+        const toggle = document.querySelector(`[data-toggle="${server.id}"]`);
+        const plist  = document.querySelector(`[data-players-list="${server.id}"]`);
+        if (toggle) toggle.setAttribute('aria-expanded', 'false');
+        if (plist)  plist.setAttribute('aria-hidden', 'true');
+      }
+
+      if (stale) stale.hidden = !server.stale;
+      if (server.stale) {
+        badge.className = 'badge-status badge-cached';
+        if (badgeLabel) badgeLabel.textContent = 'En caché';
+      }
+
+      if (typeof server.updatedAt === 'number') {
+        lastUpdated.set(server.id, server.updatedAt);
+      }
+      renderRelativeTimes();
+    }
+
+    function pausePolling() {
+      if (refreshTimer)  { clearInterval(refreshTimer);  refreshTimer  = null; }
+      if (relativeTimer) { clearInterval(relativeTimer); relativeTimer = null; }
+    }
+
+    function resumePolling() {
+      if (refreshTimer || relativeTimer) return;
       fetchServerStatus();
       refreshTimer  = setInterval(fetchServerStatus,   REFRESH_INTERVAL);
       relativeTimer = setInterval(renderRelativeTimes, RELATIVE_TIME_TICK);
     }
-  }, { threshold: 0.05 });
 
-  if (serversSection) {
+    document.addEventListener('visibilitychange', () => {
+      document.hidden ? pausePolling() : resumePolling();
+    }, { signal });
+
+    document.querySelectorAll('.players-toggle').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id   = btn.getAttribute('data-toggle');
+        const list = document.querySelector(`[data-players-list="${id}"]`);
+        if (!list) return;
+        const isOpen = btn.getAttribute('aria-expanded') === 'true';
+        btn.setAttribute('aria-expanded', String(!isOpen));
+        list.setAttribute('aria-hidden', String(isOpen));
+        const label = btn.querySelector('.toggle-label');
+        if (label) label.textContent = isOpen ? 'Ver jugadores' : 'Ocultar jugadores';
+      }, { signal });
+    });
+
+    document.querySelectorAll<HTMLButtonElement>('.copy-btn').forEach(btn => {
+      let resetTimer: ReturnType<typeof setTimeout> | null = null;
+      btn.addEventListener('click', async () => {
+        const ip = btn.getAttribute('data-ip');
+        if (!ip) return;
+        if (resetTimer) { clearTimeout(resetTimer); resetTimer = null; }
+        try {
+          await navigator.clipboard.writeText(`connect ${ip}`);
+          const lbl = btn.querySelector('.copy-label');
+          btn.classList.add('copied');
+          btn.setAttribute('aria-label', 'IP copiada');
+          if (lbl) lbl.textContent = 'Copiado';
+          if (typeof window.showToast === 'function') {
+            window.showToast(`connect ${ip} — copiado al portapapeles`, 'success', 2800);
+          }
+          resetTimer = setTimeout(() => {
+            btn.classList.remove('copied');
+            btn.setAttribute('aria-label', `Copiar IP de ${ip}`);
+            if (lbl) lbl.textContent = 'Copiar';
+            resetTimer = null;
+          }, 2000);
+        } catch {
+          if (typeof window.showToast === 'function') {
+            window.showToast('No se pudo copiar. Copiá la IP manualmente.', 'error');
+          }
+        }
+      }, { signal });
+    });
+
+    async function fetchServerStatus() {
+      if (document.hidden) return;
+      document.querySelectorAll<HTMLElement>('[data-refresh]').forEach(el => el.classList.add('active'));
+      const controller = new AbortController();
+      const timeoutId  = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+      try {
+        const res = await fetch('/api/servers.json', { cache: 'no-store', signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data: ServerStatus[] = await res.json();
+        data.forEach(applyServerData);
+        fetchFailCount = 0;
+        setNetStatus(false);
+      } catch (err: unknown) {
+        clearTimeout(timeoutId);
+        fetchFailCount++;
+        const isAbort = err instanceof DOMException && err.name === 'AbortError';
+        if (fetchFailCount >= MAX_RETRIES) {
+          setNetStatus(true, isAbort
+            ? 'El servidor tardó demasiado — reintentando más tarde'
+            : 'Sin conexión — los datos pueden estar desactualizados'
+          );
+        }
+      } finally {
+        document.querySelectorAll<HTMLElement>('[data-refresh]').forEach(el => el.classList.remove('active'));
+      }
+    }
+
+    document.getElementById('netRetry')?.addEventListener('click', () => {
+      fetchFailCount = 0;
+      setNetStatus(false);
+      fetchServerStatus();
+    }, { signal });
+
+    lazyObserver = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) {
+        lazyObserver?.disconnect();
+        fetchServerStatus();
+        refreshTimer  = setInterval(fetchServerStatus,   REFRESH_INTERVAL);
+        relativeTimer = setInterval(renderRelativeTimes, RELATIVE_TIME_TICK);
+      }
+    }, { threshold: 0.05 });
     lazyObserver.observe(serversSection);
-  } else {
-    fetchServerStatus();
-    refreshTimer  = setInterval(fetchServerStatus,   REFRESH_INTERVAL);
-    relativeTimer = setInterval(renderRelativeTimes, RELATIVE_TIME_TICK);
+    signal.addEventListener('abort', () => lazyObserver?.disconnect());
   }
+
+  initServers();
+  document.addEventListener('astro:page-load', initServers);
 </script>
 
 <style is:global>

@@ -789,73 +789,85 @@ const DISCORD_URL  = Astro.locals.siteSettings?.discord_url  ?? DEFAULT_DISCORD_
 </style>
 
 <script>
-  /* ── Contador de caracteres ──────────────────────────────────── */
-  const textarea = document.getElementById('mensaje') as HTMLTextAreaElement | null;
-  const counter  = document.getElementById('charCount');
-  if (textarea && counter) {
-    textarea.addEventListener('input', () => {
-      const len = textarea.value.length;
-      counter.textContent = `${len} / 500`;
-      counter.style.color = len > 450 ? 'var(--accent)' : 'var(--muted)';
-      if (len > 500) textarea.value = textarea.value.slice(0, 500);
+  // Mismo fix que el resto — ver comentario en SlidePanel.astro.
+  // Acá era especialmente grave: sin esto, el segundo intento de envío
+  // del formulario (tras navegar y volver) hacía un submit nativo del
+  // navegador en vez de pasar por fetch().
+  function initContactForm() {
+    /* ── Contador de caracteres ──────────────────────────────────── */
+    const textarea = document.getElementById('mensaje') as HTMLTextAreaElement | null;
+    const counter  = document.getElementById('charCount');
+
+    /* ── Envío del formulario → /api/contact ─────────────────────── */
+    const form      = document.getElementById('contactForm') as HTMLFormElement | null;
+    const submitBtn = document.getElementById('submitBtn') as HTMLButtonElement | null;
+    const errorMsg  = document.getElementById('formError');
+
+    if (!form) return; // Contact no presente en esta página
+
+    if (textarea && counter) {
+      textarea.addEventListener('input', () => {
+        const len = textarea.value.length;
+        counter.textContent = `${len} / 500`;
+        counter.style.color = len > 450 ? 'var(--accent)' : 'var(--muted)';
+        if (len > 500) textarea.value = textarea.value.slice(0, 500);
+      });
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      if (!submitBtn) return;
+
+      // Limpiar error previo
+      errorMsg?.classList.remove('visible');
+
+      // Estado: cargando
+      submitBtn.dataset.loading = '1';
+      const btnText = submitBtn.querySelector('.btn-text') as HTMLElement;
+      if (btnText) btnText.textContent = 'Enviando';
+
+      try {
+        const res = await fetch('/api/contact', {
+          method: 'POST',
+          body: new FormData(form),
+        });
+
+        if (res.ok) {
+          // Éxito: mostrar panel de confirmación + toast
+          form.classList.add('sent');
+          if (typeof window.showToast === 'function') {
+            window.showToast('¡Mensaje enviado! Te respondemos pronto.', 'success');
+          }
+        } else {
+          const payload = await res.json().catch(() => ({}));
+          throw new Error(payload?.error ?? 'Error al enviar');
+        }
+      } catch (err) {
+        // Mostrar mensaje de error inline + toast
+        const msg = err instanceof Error ? err.message : 'No se pudo enviar. Intentá de nuevo.';
+        if (errorMsg) {
+          errorMsg.querySelector('span')!.textContent = msg;
+          errorMsg.classList.add('visible');
+        }
+        if (typeof window.showToast === 'function') {
+          window.showToast(msg, 'error');
+        }
+      } finally {
+        // Restaurar botón siempre
+        delete submitBtn.dataset.loading;
+        if (btnText) btnText.textContent = 'Enviar mensaje';
+      }
+    });
+
+    /* ── Reset tras éxito ────────────────────────────────────────── */
+    document.getElementById('resetForm')?.addEventListener('click', () => {
+      form.reset();
+      form.classList.remove('sent');
+      if (counter) counter.textContent = '0 / 500';
     });
   }
 
-  /* ── Envío del formulario → /api/contact ─────────────────────── */
-  const form      = document.getElementById('contactForm') as HTMLFormElement | null;
-  const submitBtn = document.getElementById('submitBtn') as HTMLButtonElement | null;
-  const errorMsg  = document.getElementById('formError');
-
-  form?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    if (!form || !submitBtn) return;
-
-    // Limpiar error previo
-    errorMsg?.classList.remove('visible');
-
-    // Estado: cargando
-    submitBtn.dataset.loading = '1';
-    const btnText = submitBtn.querySelector('.btn-text') as HTMLElement;
-    if (btnText) btnText.textContent = 'Enviando';
-
-    try {
-      const res = await fetch('/api/contact', {
-        method: 'POST',
-        body: new FormData(form),
-      });
-
-      if (res.ok) {
-        // Éxito: mostrar panel de confirmación + toast
-        form.classList.add('sent');
-        if (typeof window.showToast === 'function') {
-          window.showToast('¡Mensaje enviado! Te respondemos pronto.', 'success');
-        }
-      } else {
-        const payload = await res.json().catch(() => ({}));
-        throw new Error(payload?.error ?? 'Error al enviar');
-      }
-    } catch (err) {
-      // Mostrar mensaje de error inline + toast
-      const msg = err instanceof Error ? err.message : 'No se pudo enviar. Intentá de nuevo.';
-      if (errorMsg) {
-        errorMsg.querySelector('span')!.textContent = msg;
-        errorMsg.classList.add('visible');
-      }
-      if (typeof window.showToast === 'function') {
-        window.showToast(msg, 'error');
-      }
-    } finally {
-      // Restaurar botón siempre
-      delete submitBtn.dataset.loading;
-      if (btnText) btnText.textContent = 'Enviar mensaje';
-    }
-  });
-
-  /* ── Reset tras éxito ────────────────────────────────────────── */
-  document.getElementById('resetForm')?.addEventListener('click', () => {
-    form?.reset();
-    form?.classList.remove('sent');
-    if (counter) counter.textContent = '0 / 500';
-  });
+  initContactForm();
+  document.addEventListener('astro:page-load', initContactForm);
 </script>

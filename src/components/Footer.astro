@@ -11,7 +11,7 @@ const isOperativo = (Astro.locals.siteSettings?.site_status ?? 'operativo') === 
   <div class="container footer-grid">
 
     <div class="footer-col footer-brand">
-      <button class="footer-logo" id="back-to-top" aria-label="Volver al inicio de la página">
+      <button class="footer-logo back-to-top" id="back-to-top" aria-label="Volver al inicio de la página">
         <img src="/trigger_fondo.webp" alt="TriGGer.Arena" width="28" height="28" loading="lazy" fetchpriority="low" />
         <span>TriGGer<span class="accent">.Arena</span></span>
       </button>
@@ -268,17 +268,23 @@ const isOperativo = (Astro.locals.siteSettings?.site_status ?? 'operativo') === 
 </style>
 
 <script>
-  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Mismo fix que el resto — ver comentario en SlidePanel.astro.
+  function initFooter() {
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  function scrollToTop() {
-    window.scrollTo({
-      top: 0,
-      behavior: prefersReducedMotion ? 'auto' : 'smooth',
+    function scrollToTop() {
+      window.scrollTo({
+        top: 0,
+        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+      });
+    }
+
+    // Un único selector para ambos botones en lugar de dos IDs separados
+    document.querySelectorAll<HTMLButtonElement>('.back-to-top').forEach(btn => {
+      btn.addEventListener('click', scrollToTop);
     });
   }
 
-  // Un único selector para ambos botones en lugar de dos IDs separados
-  document.querySelectorAll<HTMLButtonElement>('.back-to-top').forEach(btn => {
-    btn.addEventListener('click', scrollToTop);
-  });
+  initFooter();
+  document.addEventListener('astro:page-load', initFooter);
 </script>

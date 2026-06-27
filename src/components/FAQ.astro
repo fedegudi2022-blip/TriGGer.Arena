@@ -330,10 +330,18 @@ const faqJsonLd = {
 </style>
 
 <script>
-  (function () {
+  // Mismo fix que el resto — ver comentario en SlidePanel.astro.
+  let faqAbort: AbortController | null = null;
+
+  function initFaq() {
+    faqAbort?.abort();
+    faqAbort = new AbortController();
+    const { signal } = faqAbort;
+
     const triggers = Array.from(
       document.querySelectorAll<HTMLButtonElement>('.faq-trigger')
     );
+    if (triggers.length === 0) return; // FAQ no presente en esta página
 
     /* ── Helpers ── */
     function getBody(trigger: HTMLButtonElement): HTMLElement | null {
@@ -372,7 +380,7 @@ const faqJsonLd = {
 
     /* ── Event listeners ── */
     triggers.forEach((trigger, idx) => {
-      trigger.addEventListener('click', () => toggleItem(trigger));
+      trigger.addEventListener('click', () => toggleItem(trigger), { signal });
 
       // Navegación por teclado (ARIA Disclosure pattern)
       trigger.addEventListener('keydown', (e: KeyboardEvent) => {
@@ -382,7 +390,7 @@ const faqJsonLd = {
         else if (e.key === 'Home')      { e.preventDefault(); next = triggers[0]; }
         else if (e.key === 'End')       { e.preventDefault(); next = triggers[triggers.length - 1]; }
         next?.focus();
-      });
+      }, { signal });
     });
 
     /* ── Recalcular max-height en resize ──
@@ -401,7 +409,7 @@ const faqJsonLd = {
         });
         raf = null;
       });
-    }, { passive: true });
+    }, { passive: true, signal });
 
     /* ── Soporte de URL hash ──
        Permite links directos del tipo #faq-3
@@ -423,6 +431,9 @@ const faqJsonLd = {
     }
 
     openFromHash();
-    window.addEventListener('hashchange', openFromHash);
-  })();
+    window.addEventListener('hashchange', openFromHash, { signal });
+  }
+
+  initFaq();
+  document.addEventListener('astro:page-load', initFaq);
 </script>

@@ -360,10 +360,18 @@ const sevColor: Record<string, string> = {
 </style>
 
 <script>
-  (function () {
+  // Mismo fix que el resto — ver comentario en SlidePanel.astro.
+  let rulesAbort: AbortController | null = null;
+
+  function initRules() {
+    rulesAbort?.abort();
+    rulesAbort = new AbortController();
+    const { signal } = rulesAbort;
+
     const triggers = Array.from(
       document.querySelectorAll<HTMLButtonElement>('.rule-trigger')
     );
+    if (triggers.length === 0) return; // Rules no presente en esta página
 
     function getBody(trigger: HTMLButtonElement): HTMLElement | null {
       const id = trigger.getAttribute('aria-controls');
@@ -393,7 +401,7 @@ const sevColor: Record<string, string> = {
         triggers.forEach(t => closeItem(t));
         // Abrir este si estaba cerrado
         if (!isOpen) openItem(trigger);
-      });
+      }, { signal });
     });
 
     // Recalcular max-height en resize
@@ -409,6 +417,9 @@ const sevColor: Record<string, string> = {
         });
         raf = null;
       });
-    }, { passive: true });
-  })();
+    }, { passive: true, signal });
+  }
+
+  initRules();
+  document.addEventListener('astro:page-load', initRules);
 </script>

@@ -477,170 +477,197 @@
 </style>
 
 <script>
-  const backdrop   = document.getElementById('slide-panel')!;
-  const overlay    = document.getElementById('spOverlay')!;
-  const panel      = backdrop.querySelector('.sp-panel')!;
-  const titleEl    = document.getElementById('sp-panel-title')!;
-  const closeBtn   = document.getElementById('spCloseBtn')!;
-  const iframe     = document.getElementById('spIframe') as HTMLIFrameElement;
-  const loading    = document.getElementById('spLoading')!;
-  const errorEl    = document.getElementById('spError')!;
-  const errorMsg   = document.getElementById('spErrorMsg')!;
-  const progress   = document.getElementById('spProgress')!;
-  const loadingUrl = document.getElementById('spLoadingUrl')!;
-  const extLink    = document.getElementById('spOpenExternal') as HTMLAnchorElement;
-  const retryBtn   = document.getElementById('spRetryBtn')!;
-  const errExtLink = document.getElementById('spErrorExternal') as HTMLAnchorElement;
+  /*
+   * Mismo problema que Navbar.astro: este componente se renderiza por
+   * página (no usa transition:persist), así que en cada navegación con
+   * <ClientRouter/> el DOM se reemplaza por completo — pero Astro solo
+   * corre este script una vez en toda la sesión. Sin el fix, las
+   * referencias capturadas en openPanel()/closePanel() apuntan a nodos
+   * de la PRIMERA página cargada, que ya no existen: el panel "abre"
+   * sobre elementos invisibles y no se ve nada. Se reinicializa en cada
+   * `astro:page-load`, con un AbortController para tirar abajo los
+   * listeners globales (document/window) de la página anterior.
+   */
+  let spAbort: AbortController | null = null;
 
-  let currentUrl = '';
+  function initSlidePanel() {
+    spAbort?.abort();
+    spAbort = new AbortController();
+    const { signal } = spAbort;
 
-  function showLoading() {
-    loading.classList.remove('sp-hidden');
-    loading.style.cssText = '';
-    errorEl.style.display = 'none';
-    iframe.classList.remove('sp-ready');
-    iframe.style.opacity = '0';
-    iframe.style.visibility = 'hidden';
-    progress.classList.add('sp-indeterminate');
-    progress.style.width = '';
-  }
+    const backdrop   = document.getElementById('slide-panel');
+    const overlay    = document.getElementById('spOverlay');
+    const panel      = backdrop?.querySelector('.sp-panel');
+    const titleEl    = document.getElementById('sp-panel-title');
+    const closeBtn   = document.getElementById('spCloseBtn');
+    const iframe     = document.getElementById('spIframe') as HTMLIFrameElement | null;
+    const loading    = document.getElementById('spLoading');
+    const errorEl    = document.getElementById('spError');
+    const errorMsg   = document.getElementById('spErrorMsg');
+    const progress   = document.getElementById('spProgress');
+    const loadingUrl = document.getElementById('spLoadingUrl');
+    const extLink    = document.getElementById('spOpenExternal') as HTMLAnchorElement | null;
+    const retryBtn   = document.getElementById('spRetryBtn');
+    const errExtLink = document.getElementById('spErrorExternal') as HTMLAnchorElement | null;
 
-  function showReady() {
-    loading.classList.add('sp-hidden');
-    iframe.classList.add('sp-ready');
-    iframe.style.opacity = '1';
-    iframe.style.visibility = 'visible';
-    progress.classList.remove('sp-indeterminate');
-    progress.style.width = '100%';
-    setTimeout(() => { progress.style.width = '0%'; }, 800);
-  }
+    if (!backdrop || !overlay || !panel || !titleEl || !closeBtn || !iframe || !loading ||
+        !errorEl || !errorMsg || !progress || !loadingUrl || !extLink || !retryBtn || !errExtLink) {
+      return; // SlidePanel no presente en esta página
+    }
 
-  function showError(msg?: string) {
-    loading.classList.add('sp-hidden');
-    errorEl.style.display = 'flex';
-    if (msg) errorMsg.textContent = msg;
-    progress.classList.remove('sp-indeterminate');
-    progress.style.width = '0%';
-  }
+    let currentUrl = '';
 
-  function openPanel(url: string, title: string) {
-    currentUrl = url;
-    titleEl.textContent = title;
-    extLink.href = url;
-    errExtLink.href = url;
-    loadingUrl.textContent = url.replace(window.location.origin, '');
+    function showLoading() {
+      loading!.classList.remove('sp-hidden');
+      loading!.style.cssText = '';
+      errorEl!.style.display = 'none';
+      iframe!.classList.remove('sp-ready');
+      iframe!.style.opacity = '0';
+      iframe!.style.visibility = 'hidden';
+      progress!.classList.add('sp-indeterminate');
+      progress!.style.width = '';
+    }
 
-    // Mostrar overlay + panel
-    overlay.classList.add('sp-open');
-    backdrop.classList.add('sp-open');
-    backdrop.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
+    function showReady() {
+      loading!.classList.add('sp-hidden');
+      iframe!.classList.add('sp-ready');
+      iframe!.style.opacity = '1';
+      iframe!.style.visibility = 'visible';
+      progress!.classList.remove('sp-indeterminate');
+      progress!.style.width = '100%';
+      setTimeout(() => { progress!.style.width = '0%'; }, 800);
+    }
 
-    showLoading();
+    function showError(msg?: string) {
+      loading!.classList.add('sp-hidden');
+      errorEl!.style.display = 'flex';
+      if (msg) errorMsg!.textContent = msg;
+      progress!.classList.remove('sp-indeterminate');
+      progress!.style.width = '0%';
+    }
 
-    // Pequeño delay para que la animación de slide inicie antes del fetch
-    setTimeout(() => {
-      iframe.src = url;
-    }, 60);
+    function openPanel(url: string, title: string) {
+      currentUrl = url;
+      titleEl!.textContent = title;
+      extLink!.href = url;
+      errExtLink!.href = url;
+      loadingUrl!.textContent = url.replace(window.location.origin, '');
 
-    /*
-      BUGFIX: Fallback de seguridad — si el evento 'load' no dispara
-      o el check falla silenciosamente, mostramos el iframe después de
-      un timeout razonable. Evita que el panel quede negro para siempre.
-      3s es suficiente para cualquier carga en red normal.
-    */
-    const fallbackTimer = setTimeout(() => {
-      if (!iframe.classList.contains('sp-ready')) {
-        console.warn('[SlidePanel] fallback: forzando showReady después de 3s');
-        showReady();
-      }
-    }, 3000);
+      // Mostrar overlay + panel
+      overlay!.classList.add('sp-open');
+      backdrop!.classList.add('sp-open');
+      backdrop!.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
 
-    // Cancelar el fallback si el load fue exitoso
-    iframe.addEventListener('load', () => {
-      clearTimeout(fallbackTimer);
-    }, { once: true });
-  }
-
-  function closePanel() {
-    overlay.classList.remove('sp-open');
-    backdrop.classList.remove('sp-open');
-    backdrop.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
-
-    setTimeout(() => {
-      iframe.src = 'about:blank';
       showLoading();
+
+      // Pequeño delay para que la animación de slide inicie antes del fetch
+      setTimeout(() => {
+        iframe!.src = url;
+      }, 60);
+
+      /*
+        BUGFIX: Fallback de seguridad — si el evento 'load' no dispara
+        o el check falla silenciosamente, mostramos el iframe después de
+        un timeout razonable. Evita que el panel quede negro para siempre.
+        3s es suficiente para cualquier carga en red normal.
+      */
+      const fallbackTimer = setTimeout(() => {
+        if (!iframe!.classList.contains('sp-ready')) {
+          console.warn('[SlidePanel] fallback: forzando showReady después de 3s');
+          showReady();
+        }
+      }, 3000);
+
+      // Cancelar el fallback si el load fue exitoso
+      iframe!.addEventListener('load', () => {
+        clearTimeout(fallbackTimer);
+      }, { once: true });
+    }
+
+    function closePanel() {
+      overlay!.classList.remove('sp-open');
+      backdrop!.classList.remove('sp-open');
+      backdrop!.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+
+      setTimeout(() => {
+        iframe!.src = 'about:blank';
+        showLoading();
+        errorEl!.style.display = 'none';
+        progress!.style.width = '0%';
+      }, 420);
+    }
+
+    // Iframe cargó
+    iframe.addEventListener('load', () => {
+      if (iframe.src === 'about:blank' || iframe.src === '') return;
+      // Verificar si el contenido se cargó (puede haber sido bloqueado)
+      try {
+        const innerDoc = iframe.contentDocument || iframe.contentWindow?.document;
+        /*
+          BUGFIX: El admin es una SPA con mucho JS — el body puede tener
+          innerHTML breve en el primer tick (solo el shell del layout).
+          Revisamos existencia del body y que no sea un error de auth,
+          pero NO bloqueamos si el body tiene contenido mínimo.
+          Si hay redirect al login, el body tendrá la página de auth.
+        */
+        if (!innerDoc || !innerDoc.body) {
+          showError('El panel no pudo cargarse. Probá abrirlo en una nueva pestaña.');
+          return;
+        }
+        // Si redirigió a /auth, hay un problema de sesión
+        const currentSrc = iframe.contentWindow?.location?.href ?? '';
+        if (currentSrc.includes('/auth')) {
+          showError('Tu sesión expiró. Recargá la página e iniciá sesión nuevamente.');
+          return;
+        }
+        showReady();
+      } catch (_) {
+        // Cross-origin block — no debería pasar con SAMEORIGIN pero por las dudas
+        showError('Acceso bloqueado. Usá el botón para abrir en nueva pestaña.');
+      }
+    }, { signal });
+
+    iframe.addEventListener('error', () => {
+      showError('Error al cargar el panel. Verificá tu conexión.');
+    }, { signal });
+
+    // Retry
+    retryBtn.addEventListener('click', () => {
       errorEl.style.display = 'none';
-      progress.style.width = '0%';
-    }, 420);
+      showLoading();
+      iframe.src = 'about:blank';
+      setTimeout(() => { iframe.src = currentUrl; }, 100);
+    }, { signal });
+
+    // Cerrar
+    closeBtn.addEventListener('click', closePanel, { signal });
+    overlay.addEventListener('click', closePanel, { signal });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && backdrop.classList.contains('sp-open')) closePanel();
+    }, { signal });
+
+    // Exponer globalmente
+    (window as any).openSlidePanel  = openPanel;
+    (window as any).closeSlidePanel = closePanel;
+
+    // Escuchar mensajes del iframe (comunicación iframe → padre)
+    window.addEventListener('message', (e) => {
+      // Solo aceptar mensajes del mismo origen
+      if (e.origin !== window.location.origin) return;
+      const { type, payload } = e.data ?? {};
+      if (type === 'sp:close') {
+        closePanel();
+      } else if (type === 'sp:open') {
+        // El iframe quiere abrir otro panel (ej: desde /usuario abrir /admin)
+        openPanel(payload?.url ?? '', payload?.title ?? 'Panel');
+      } else if (type === 'sp:title') {
+        titleEl!.textContent = payload?.title ?? '';
+      }
+    }, { signal });
   }
 
-  // Iframe cargó
-  iframe.addEventListener('load', () => {
-    if (iframe.src === 'about:blank' || iframe.src === '') return;
-    // Verificar si el contenido se cargó (puede haber sido bloqueado)
-    try {
-      const innerDoc = iframe.contentDocument || iframe.contentWindow?.document;
-      /*
-        BUGFIX: El admin es una SPA con mucho JS — el body puede tener
-        innerHTML breve en el primer tick (solo el shell del layout).
-        Revisamos existencia del body y que no sea un error de auth,
-        pero NO bloqueamos si el body tiene contenido mínimo.
-        Si hay redirect al login, el body tendrá la página de auth.
-      */
-      if (!innerDoc || !innerDoc.body) {
-        showError('El panel no pudo cargarse. Probá abrirlo en una nueva pestaña.');
-        return;
-      }
-      // Si redirigió a /auth, hay un problema de sesión
-      const currentSrc = iframe.contentWindow?.location?.href ?? '';
-      if (currentSrc.includes('/auth')) {
-        showError('Tu sesión expiró. Recargá la página e iniciá sesión nuevamente.');
-        return;
-      }
-      showReady();
-    } catch (_) {
-      // Cross-origin block — no debería pasar con SAMEORIGIN pero por las dudas
-      showError('Acceso bloqueado. Usá el botón para abrir en nueva pestaña.');
-    }
-  });
-
-  iframe.addEventListener('error', () => {
-    showError('Error al cargar el panel. Verificá tu conexión.');
-  });
-
-  // Retry
-  retryBtn.addEventListener('click', () => {
-    errorEl.style.display = 'none';
-    showLoading();
-    iframe.src = 'about:blank';
-    setTimeout(() => { iframe.src = currentUrl; }, 100);
-  });
-
-  // Cerrar
-  closeBtn.addEventListener('click', closePanel);
-  overlay.addEventListener('click', closePanel);
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && backdrop.classList.contains('sp-open')) closePanel();
-  });
-
-  // Exponer globalmente
-  (window as any).openSlidePanel  = openPanel;
-  (window as any).closeSlidePanel = closePanel;
-
-  // Escuchar mensajes del iframe (comunicación iframe → padre)
-  window.addEventListener('message', (e) => {
-    // Solo aceptar mensajes del mismo origen
-    if (e.origin !== window.location.origin) return;
-    const { type, payload } = e.data ?? {};
-    if (type === 'sp:close') {
-      closePanel();
-    } else if (type === 'sp:open') {
-      // El iframe quiere abrir otro panel (ej: desde /usuario abrir /admin)
-      openPanel(payload?.url ?? '', payload?.title ?? 'Panel');
-    } else if (type === 'sp:title') {
-      titleEl.textContent = payload?.title ?? '';
-    }
-  });
+  initSlidePanel();
+  document.addEventListener('astro:page-load', initSlidePanel);
 </script>

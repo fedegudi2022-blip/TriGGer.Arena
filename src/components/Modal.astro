@@ -175,52 +175,66 @@
 </style>
 
 <script>
-  const backdrop = document.getElementById('global-modal')!;
-  const box      = backdrop.querySelector('.gm-box')!;
-  const titleEl  = document.getElementById('gm-modal-title')!;
-  const closeBtn = document.getElementById('gmClose')!;
-  const body     = document.getElementById('gmBody')!;
-  const templates = document.getElementById('gm-templates')!;
+  // Mismo fix que SlidePanel/Navbar — ver comentario en SlidePanel.astro.
+  let gmAbort: AbortController | null = null;
 
-  function openModal(id: string, title?: string) {
-    const tpl = templates.querySelector(`[data-modal-id="${id}"]`);
-    if (!tpl) return;
+  function initModal() {
+    gmAbort?.abort();
+    gmAbort = new AbortController();
+    const { signal } = gmAbort;
 
-    // Título: del argumento, o del atributo data-modal-title
-    const t = title ?? tpl.getAttribute('data-modal-title') ?? id;
-    titleEl.textContent = t;
+    const backdrop  = document.getElementById('global-modal');
+    const box       = backdrop?.querySelector('.gm-box');
+    const titleEl   = document.getElementById('gm-modal-title');
+    const closeBtn  = document.getElementById('gmClose');
+    const body      = document.getElementById('gmBody');
+    const templates = document.getElementById('gm-templates');
 
-    // Inyectar contenido (clonar para no quitarlo de templates)
-    body.innerHTML = '';
-    body.appendChild(tpl.cloneNode(true));
+    if (!backdrop || !box || !titleEl || !closeBtn || !body || !templates) return;
 
-    backdrop.classList.add('gm-open');
-    backdrop.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
+    function openModal(id: string, title?: string) {
+      const tpl = templates!.querySelector(`[data-modal-id="${id}"]`);
+      if (!tpl) return;
 
-    // Focus trap simple
-    const focusable = box.querySelectorAll<HTMLElement>('button, a, input, textarea, select, [tabindex]:not([tabindex="-1"])');
-    focusable[0]?.focus();
+      // Título: del argumento, o del atributo data-modal-title
+      const t = title ?? tpl.getAttribute('data-modal-title') ?? id;
+      titleEl!.textContent = t;
+
+      // Inyectar contenido (clonar para no quitarlo de templates)
+      body!.innerHTML = '';
+      body!.appendChild(tpl.cloneNode(true));
+
+      backdrop!.classList.add('gm-open');
+      backdrop!.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+
+      // Focus trap simple
+      const focusable = box!.querySelectorAll<HTMLElement>('button, a, input, textarea, select, [tabindex]:not([tabindex="-1"])');
+      focusable[0]?.focus();
+    }
+
+    function closeModal() {
+      backdrop!.classList.remove('gm-open');
+      backdrop!.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      setTimeout(() => { body!.innerHTML = ''; }, 250);
+    }
+
+    closeBtn.addEventListener('click', closeModal, { signal });
+
+    backdrop.addEventListener('click', (e) => {
+      if (!box!.contains(e.target as Node)) closeModal();
+    }, { signal });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && backdrop!.classList.contains('gm-open')) closeModal();
+    }, { signal });
+
+    // Exponer globalmente
+    (window as any).openModal  = openModal;
+    (window as any).closeModal = closeModal;
   }
 
-  function closeModal() {
-    backdrop.classList.remove('gm-open');
-    backdrop.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
-    setTimeout(() => { body.innerHTML = ''; }, 250);
-  }
-
-  closeBtn.addEventListener('click', closeModal);
-
-  backdrop.addEventListener('click', (e) => {
-    if (!box.contains(e.target as Node)) closeModal();
-  });
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && backdrop.classList.contains('gm-open')) closeModal();
-  });
-
-  // Exponer globalmente
-  (window as any).openModal  = openModal;
-  (window as any).closeModal = closeModal;
+  initModal();
+  document.addEventListener('astro:page-load', initModal);
 </script>
