@@ -1,8 +1,8 @@
 ---
 /**
- * SectionBg — Fondo decorativo OPTIMIZADO para secciones
- * Sin filtros SVG (feTurbulence eliminado — era el mayor cuello de botella)
- * Mismo efecto visual con CSS puro.
+ * SectionBg — Versión minimalista
+ * Mantiene la API pero reduce todo a casi invisible.
+ * Sólo un pattern de puntos muy sutil, sin glow, sin noise agresivo.
  */
 
 interface Props {
@@ -14,41 +14,14 @@ interface Props {
 
 const {
   variant   = 'dots',
-  glowPos   = 'top-left',
+  glowPos   = 'none',  // Default a none en la versión limpia
   glowColor,
-  noise     = true,
+  noise     = false,   // Noise desactivado por defecto
 } = Astro.props;
-
-const glowStyle = glowColor ? `--sec-glow: ${glowColor};` : '';
 ---
 
-<div
-  class={`sec-bg sec-bg--${variant} sec-bg--glow-${glowPos}`}
-  style={glowStyle}
-  aria-hidden="true"
->
-  <!-- Patrón principal -->
+<div class={`sec-bg sec-bg--${variant}`} aria-hidden="true">
   <div class="sec-pattern"></div>
-
-  <!-- Mancha de glow -->
-  {glowPos !== 'none' && <div class="sec-glow"></div>}
-
-  <!-- Viñeta oscura en los bordes -->
-  <div class="sec-vignette"></div>
-
-  <!-- Esquinas tácticas -->
-  {(variant === 'crosshair' || variant === 'circuit') && (
-    <>
-      <span class="sec-corner sec-corner--tl"></span>
-      <span class="sec-corner sec-corner--tr"></span>
-      <span class="sec-corner sec-corner--bl"></span>
-      <span class="sec-corner sec-corner--br"></span>
-    </>
-  )}
-
-  {variant === 'crosshair' && (
-    <span class="sec-crosshair-h"></span>
-  )}
 </div>
 
 <style>
@@ -57,126 +30,43 @@ const glowStyle = glowColor ? `--sec-glow: ${glowColor};` : '';
     inset: 0;
     pointer-events: none;
     z-index: 0;
-    --sec-glow: var(--accent, #38b6ff);
   }
 
-  .sec-vignette {
+  /* Patrón de puntos: mínimo, casi invisible */
+  .sec-bg--dots .sec-pattern,
+  .sec-bg--crosshair .sec-pattern {
     position: absolute;
     inset: 0;
-    background: radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(0,0,0,0.3) 100%);
+    background-image: radial-gradient(
+      circle,
+      rgba(255, 255, 255, 0.05) 1px,
+      transparent 1px
+    );
+    background-size: 32px 32px;
+    mask-image: radial-gradient(ellipse at 50% 0%, black 0%, transparent 65%);
+    -webkit-mask-image: radial-gradient(ellipse at 50% 0%, black 0%, transparent 65%);
   }
 
-  /* DOTS */
-  .sec-bg--dots .sec-pattern {
-    position: absolute;
-    inset: 0;
-    background-image: radial-gradient(circle, rgba(255,255,255,0.12) 1px, transparent 1px);
-    background-size: 28px 28px;
-    mask-image: radial-gradient(ellipse at 50% 0%, black 0%, transparent 75%);
-  }
-
-  /* GRID */
+  /* Grid: líneas muy tenues */
   .sec-bg--grid .sec-pattern {
     position: absolute;
     inset: 0;
     background-image:
-      linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
-    background-size: 40px 40px;
-    mask-image: radial-gradient(ellipse at 50% 0%, black 0%, transparent 70%);
+      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse at 50% 0%, black 0%, transparent 60%);
   }
 
-  /* CROSSHAIR */
-  .sec-bg--crosshair .sec-pattern {
-    position: absolute;
-    inset: 0;
-    background-image: radial-gradient(circle, rgba(255,255,255,0.09) 1px, transparent 1px);
-    background-size: 32px 32px;
-    mask-image: radial-gradient(ellipse at 50% 50%, black 0%, transparent 72%);
-  }
-
-  .sec-corner {
-    position: absolute;
-    width: 22px;
-    height: 22px;
-    opacity: 0.35;
-  }
-  .sec-corner--tl { top: 20px;    left: 20px;  border-top:    1.5px solid var(--sec-glow); border-left:   1.5px solid var(--sec-glow); }
-  .sec-corner--tr { top: 20px;    right: 20px; border-top:    1.5px solid var(--sec-glow); border-right:  1.5px solid var(--sec-glow); }
-  .sec-corner--bl { bottom: 20px; left: 20px;  border-bottom: 1.5px solid var(--sec-glow); border-left:   1.5px solid var(--sec-glow); }
-  .sec-corner--br { bottom: 20px; right: 20px; border-bottom: 1.5px solid var(--sec-glow); border-right:  1.5px solid var(--sec-glow); }
-
-  .sec-crosshair-h {
-    position: absolute;
-    top: 50%;
-    left: 8%;
-    right: 8%;
-    height: 1px;
-    background: linear-gradient(90deg, transparent 0%, rgba(56,182,255,0.15) 30%, rgba(56,182,255,0.15) 70%, transparent 100%);
-    transform: translateY(-50%);
-  }
-
-  /* DIAGONAL */
-  .sec-bg--diagonal .sec-pattern {
-    position: absolute;
-    inset: 0;
-    background-image: repeating-linear-gradient(
-      -45deg,
-      rgba(255,255,255,0.025) 0px,
-      rgba(255,255,255,0.025) 1px,
-      transparent 1px,
-      transparent 18px
-    );
-    mask-image: radial-gradient(ellipse at 50% 100%, black 0%, transparent 70%);
-  }
-
-  /* SCANLINES */
-  .sec-bg--scanlines .sec-pattern {
-    position: absolute;
-    inset: 0;
-    background-image: repeating-linear-gradient(
-      0deg,
-      rgba(255,255,255,0.03) 0px,
-      rgba(255,255,255,0.03) 1px,
-      transparent 1px,
-      transparent 4px
-    );
-    mask-image: radial-gradient(ellipse 85% 70% at 50% 50%, black 30%, transparent 100%);
-  }
-
-  /* CIRCUIT */
+  /* Diagonal, scanlines, circuit: vacíos */
+  .sec-bg--diagonal .sec-pattern,
+  .sec-bg--scanlines .sec-pattern,
   .sec-bg--circuit .sec-pattern {
     position: absolute;
     inset: 0;
-    background-image:
-      repeating-linear-gradient(90deg, transparent 0px, transparent 59px, rgba(255,255,255,0.04) 59px, rgba(255,255,255,0.04) 60px),
-      repeating-linear-gradient(0deg, transparent 0px, transparent 59px, rgba(255,255,255,0.04) 59px, rgba(255,255,255,0.04) 60px),
-      radial-gradient(circle, rgba(255,255,255,0.12) 1.5px, transparent 1.5px);
-    background-size: 60px 60px, 60px 60px, 60px 60px;
-    mask-image: radial-gradient(ellipse at 50% 50%, black 0%, transparent 78%);
   }
 
-  .sec-bg--circuit .sec-corner { width: 30px; height: 30px; opacity: 0.28; }
-
-  /* GLOW */
-  .sec-glow {
-    position: absolute;
-    border-radius: 50%;
-    width: 55%;
-    aspect-ratio: 1 / 1;
-    background: radial-gradient(circle,
-      color-mix(in srgb, var(--sec-glow) 12%, transparent) 0%,
-      color-mix(in srgb, var(--sec-glow) 4%, transparent) 40%,
-      transparent 70%
-    );
+  @media (forced-colors: active) {
+    .sec-bg { display: none; }
   }
-
-  .sec-bg--glow-top-left .sec-glow    { top: -20%; left: -15%; }
-  .sec-bg--glow-top-right .sec-glow   { top: -20%; right: -15%; left: auto; }
-  .sec-bg--glow-center .sec-glow      { top: 50%; left: 50%; transform: translate(-50%, -50%); }
-  .sec-bg--glow-bottom-left .sec-glow { bottom: -20%; top: auto; left: -15%; }
-  .sec-bg--glow-bottom-right .sec-glow{ bottom: -20%; top: auto; right: -15%; left: auto; }
-  .sec-bg--glow-none .sec-glow        { display: none; }
-
-  @media (forced-colors: active) { .sec-bg { display: none; } }
 </style>

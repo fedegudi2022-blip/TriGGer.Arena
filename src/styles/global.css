@@ -10,24 +10,23 @@
 
 /* ── Design tokens ──────────────────────────────────── */
 :root {
-  --bg:           #06080d;
-  --surface:      #0a0e1a;
-  --surface-2:    #0f1624;
-  --surface-3:    #141d2e;
-  --border:       #182038;
-  --border-accent: rgba(56, 182, 255, 0.22);
+  --bg:           #07090f;
+  --surface:      #0c1018;
+  --surface-2:    #111722;
+  --surface-3:    #161e2c;
+  --border:       #1d2435;
+  --border-accent: rgba(56, 182, 255, 0.14);
 
   --accent:       #38b6ff;
   --accent-2:     #0ea5ff;
-  --accent-glow:  rgba(56, 182, 255, 0.14);
-  --accent-dark:  rgba(56, 182, 255, 0.07);
+  --accent-dim:   rgba(56, 182, 255, 0.08);
 
-  --text:         #edf2ff;
+  --text:         #e8edf8;
   --muted:        #4a6680;
   --muted-2:      #7a96b0;
 
   --green:        #4ade80;
-  --green-dim:    rgba(74, 222, 128, 0.1);
+  --green-dim:    rgba(74, 222, 128, 0.08);
 
   --font-display: 'Rajdhani', sans-serif;
   --font-body:    'Inter', sans-serif;
@@ -35,10 +34,10 @@
 
   --container:    1120px;
   --radius:       5px;
-  --radius-lg:    10px;
-  --radius-xl:    16px;
+  --radius-lg:    8px;
+  --radius-xl:    14px;
 
-  --section-gap:  80px;
+  --section-gap:  96px;
 
   --sp-xs:   4px;
   --sp-sm:   8px;
@@ -75,43 +74,12 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/*
-  PERF: body::before y ::after se reemplazaron por un div estático
-  con clase .bg-deco en Layout.astro — evita que el navegador
-  recalcule el pseudo-elemento en cada scroll.
-  Si Layout no tiene .bg-deco, el fondo queda con el color sólido
-  de --bg que ya está en body, sin degradación visual notable.
-*/
+/* Fondo limpio — sin radial gradients ni grids */
 .bg-deco {
-  position: fixed;
-  inset: 0;
-  z-index: -2;
-  pointer-events: none;
-  /* Gradiente radial muy sutil — se pinta UNA vez como layer GPU */
-  background:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(56, 182, 255, 0.08) 0%, transparent 60%),
-    radial-gradient(ellipse 40% 30% at 85% 80%, rgba(56, 182, 255, 0.03) 0%, transparent 50%);
-  /* Promover a su propia capa para que el scroll no la toque */
-  will-change: initial;
-  contain: strict;
+  display: none;
 }
-
-/* Grid de fondo — como elemento separado para poder ocultarlo en móvil */
 .bg-grid {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgba(56, 182, 255, 0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(56, 182, 255, 0.02) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(ellipse 100% 100% at 50% 0%, black 20%, transparent 80%);
-  /* PERF: ocultar en móvil donde no aporta visualmente y consume GPU */
-}
-
-@media (max-width: 768px) {
-  .bg-grid { display: none; }
+  display: none;
 }
 
 p, li {
@@ -124,7 +92,7 @@ button { cursor: pointer; border: none; background: none; font-family: inherit; 
 ul    { list-style: none; }
 
 ::selection {
-  background: rgba(56, 182, 255, 0.22);
+  background: rgba(56, 182, 255, 0.18);
   color: #ffffff;
 }
 
@@ -144,32 +112,24 @@ textarea:focus-visible {
 }
 
 /* ── Scrollbar ──────────────────────────────────────── */
-::-webkit-scrollbar       { width: 5px; }
+::-webkit-scrollbar       { width: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(56,182,255,0.4); }
+::-webkit-scrollbar-thumb:hover { background: #2d3a50; }
 
 /* ── Utilities ──────────────────────────────────────── */
 .container {
   max-width: var(--container);
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 0 24px;
 }
 
 section {
   scroll-margin-top: 70px;
-  /*
-    PERF: content-visibility: auto ayuda MUCHO al tiempo de render inicial,
-    pero solo en secciones fuera de viewport. contain-intrinsic-size
-    da al browser una estimación del alto para que el scrollbar no salte.
-    Valor 600px es conservador — suficiente para la mayoría de secciones.
-  */
   content-visibility: auto;
   contain-intrinsic-size: 0 600px;
 }
 
-/* La primera sección (hero) nunca debe tener content-visibility: auto
-   porque siempre está visible. Se cancela con una clase o ID. */
 #inicio {
   content-visibility: visible;
   contain-intrinsic-size: none;
@@ -180,15 +140,16 @@ section {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .s-label-line {
   display: block;
-  width: 18px;
+  width: 16px;
   height: 1px;
   background: var(--accent);
   flex-shrink: 0;
+  opacity: 0.7;
 }
 
 .s-label-text {
@@ -198,82 +159,63 @@ section {
   letter-spacing: 0.14em;
   color: var(--accent);
   text-transform: uppercase;
-  opacity: 0.9;
+  opacity: 0.8;
 }
 
 .s-title {
   font-family: var(--font-display);
-  font-size: clamp(1.75rem, 4.5vw, 2.6rem);
+  font-size: clamp(1.75rem, 4.5vw, 2.5rem);
   font-weight: 700;
   color: var(--text);
   letter-spacing: -0.015em;
   line-height: 1.1;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .s-sub {
-  font-size: 0.86rem;
+  font-size: 0.875rem;
   color: var(--muted-2);
-  margin-bottom: 36px;
-  line-height: 1.65;
+  margin-bottom: 40px;
+  line-height: 1.7;
 }
 
-/* ── Pulse animation ────────────────────────────────── */
-/*
-  PERF: La animación pulse se simplifica a opacity únicamente.
-  opacity es la única propiedad que el compositor puede animar
-  sin tocar el layout ni el paint.
-*/
+/* ── Pulse animation — solo opacity ── */
 @keyframes pulse {
   0%, 100% { opacity: 1; }
-  50%       { opacity: 0.25; }
+  50%       { opacity: 0.3; }
 }
 
-/* ── Scroll fade-in ─────────────────────────────────── */
-/*
-  PERF: Solo animamos opacity + transform (ambas son compositor-only).
-  Duración reducida de 0.5s → 0.4s: percepción de velocidad +40%
-  sin sacrificar suavidad. Easing queda igual (spring feel).
-*/
+/* ── Scroll fade-in — sutil ── */
 .fade-in {
   opacity: 0;
-  transform: translateY(12px);
-  will-change: opacity, transform;
-  transition: opacity 0.4s cubic-bezier(0.16,1,0.3,1),
-              transform 0.4s cubic-bezier(0.16,1,0.3,1);
+  transform: translateY(10px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
 }
 .fade-in.visible {
   opacity: 1;
   transform: none;
-  will-change: auto;
 }
 
 .fade-in-left {
   opacity: 0;
-  transform: translateX(-16px);
-  will-change: opacity, transform;
-  transition: opacity 0.4s cubic-bezier(0.16,1,0.3,1),
-              transform 0.4s cubic-bezier(0.16,1,0.3,1);
+  transform: translateX(-12px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
 }
-.fade-in-left.visible { opacity: 1; transform: none; will-change: auto; }
+.fade-in-left.visible { opacity: 1; transform: none; }
 
 .fade-in-right {
   opacity: 0;
-  transform: translateX(16px);
-  will-change: opacity, transform;
-  transition: opacity 0.4s cubic-bezier(0.16,1,0.3,1),
-              transform 0.4s cubic-bezier(0.16,1,0.3,1);
+  transform: translateX(12px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
 }
-.fade-in-right.visible { opacity: 1; transform: none; will-change: auto; }
+.fade-in-right.visible { opacity: 1; transform: none; }
 
 .fade-in-scale {
   opacity: 0;
-  transform: translateY(10px) scale(0.985);
-  will-change: opacity, transform;
-  transition: opacity 0.38s cubic-bezier(0.16,1,0.3,1),
-              transform 0.38s cubic-bezier(0.16,1,0.3,1);
+  transform: translateY(8px);
+  transition: opacity 0.38s ease, transform 0.38s ease;
 }
-.fade-in-scale.visible { opacity: 1; transform: none; will-change: auto; }
+.fade-in-scale.visible { opacity: 1; transform: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .fade-in, .fade-in-left, .fade-in-right, .fade-in-scale {
@@ -294,20 +236,14 @@ section {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
-  padding: 10px 24px;
-  border-radius: var(--radius-lg);
+  min-height: 42px;
+  padding: 10px 22px;
+  border-radius: var(--radius);
   font-weight: 600;
-  font-size: 0.88rem;
+  font-size: 0.85rem;
   text-decoration: none;
   cursor: pointer;
-  /*
-    PERF: Eliminado transform del transition base — solo se activa en :hover.
-    Reducidas las props transitadas: background-color y box-shadow son
-    suficientes. border-color también, pero la transition de transform
-    en :hover se maneja por separado para evitar que afecte el resto.
-  */
-  transition: background-color 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
   user-select: none;
 }
 
@@ -317,10 +253,7 @@ section {
   border: 1px solid var(--accent);
 }
 .btn-primary:hover {
-  background: rgba(56, 182, 255, 0.88);
-  box-shadow: 0 4px 16px rgba(56, 182, 255, 0.25);
-  transform: translateY(-1px);
-  transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  opacity: 0.88;
 }
 
 .btn-ghost {
@@ -329,63 +262,8 @@ section {
   border: 1px solid var(--border-accent);
 }
 .btn-ghost:hover {
-  background: rgba(56, 182, 255, 0.07);
-  border-color: var(--accent);
-}
-
-/* ── Ripple ─────────────────────────────────────────── */
-.btn-ripple { position: relative; overflow: hidden; }
-.btn-ripple .ripple-circle {
-  position: absolute; border-radius: 50%;
-  background: rgba(255,255,255,0.18);
-  transform: scale(0);
-  animation: ripple-anim 0.45s linear forwards;
-  pointer-events: none;
-}
-@keyframes ripple-anim { to { transform: scale(3.5); opacity: 0; } }
-
-/* ── Section backgrounds ────────────────────────────── */
-/*
-  PERF: filter: grayscale + brightness + contrast en imágenes grandes
-  es muy costoso. Lo reemplazamos con un overlay semitransparente
-  y brightness reducido SOLO al cargar la imagen (via CSS directo).
-  El resultado visual es ~idéntico, la carga GPU es 60-70% menor.
-*/
-section[data-bg] {
-  position: relative;
-  isolation: isolate;
-}
-section[data-bg]::before {
-  content: '';
-  position: absolute; inset: 0; z-index: -2;
-  background-image: var(--section-bg);
-  background-size: cover;
-  background-position: center;
-  /* PERF: eliminado filter compuesto, reemplazado por opacity + overlay */
-  opacity: 0.18;
-  mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
-  -webkit-mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
-}
-section[data-bg]::after {
-  content: '';
-  position: absolute; inset: 0; z-index: -1;
-  background: linear-gradient(180deg, rgba(6,8,13,0.7), rgba(56,182,255,0.04) 50%, rgba(6,8,13,0.9));
-}
-
-/* ── Decoración: grid táctico ────────────────────────── */
-section[data-decor="grid"] { position: relative; isolation: isolate; }
-section[data-decor="grid"]::before {
-  content: '';
-  position: absolute; inset: 0; z-index: -3;
-  background-image:
-    linear-gradient(var(--border-accent) 1px, transparent 1px),
-    linear-gradient(90deg, var(--border-accent) 1px, transparent 1px),
-    linear-gradient(rgba(232, 238, 255, 0.015) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(232, 238, 255, 0.015) 1px, transparent 1px);
-  background-size: 80px 80px, 80px 80px, 16px 16px, 16px 16px;
-  background-position: center top;
-  mask-image: radial-gradient(ellipse 70% 65% at 50% 42%, transparent 30%, black 92%);
-  -webkit-mask-image: radial-gradient(ellipse 70% 65% at 50% 42%, transparent 30%, black 92%);
+  background: var(--accent-dim);
+  border-color: rgba(56, 182, 255, 0.3);
 }
 
 /* ── Toast ──────────────────────────────────────────── */
@@ -400,25 +278,48 @@ section[data-decor="grid"]::before {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   font-size: 0.82rem; font-weight: 500; color: var(--text);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
   pointer-events: auto;
-  animation: toastIn 0.28s cubic-bezier(0.16,1,0.3,1) both;
+  animation: toastIn 0.24s ease both;
   max-width: 320px;
 }
-.toast.toast-success { border-color: rgba(74,222,128,0.3); color: var(--green); }
-.toast.toast-error   { border-color: rgba(248,113,113,0.3); color: #f87171; }
+.toast.toast-success { border-color: rgba(74,222,128,0.25); color: var(--green); }
+.toast.toast-error   { border-color: rgba(248,113,113,0.25); color: #f87171; }
 @keyframes toastIn {
-  from { opacity: 0; transform: translateX(16px) scale(0.96); }
+  from { opacity: 0; transform: translateX(12px); }
   to   { opacity: 1; transform: none; }
 }
 
-/* ── GPU hint helper ─────────────────────────────────── */
-/*
-  Clase utilitaria para promover elementos animados a su propia
-  capa de composición. Usar con criterio — cada .gpu-layer consume
-  VRAM. Solo para elementos que animan continuamente (loaders, spinners).
-*/
-.gpu-layer {
-  will-change: transform;
-  transform: translateZ(0);
+/* ── Section backgrounds (heredado, sin cambios funcionales) ─────── */
+section[data-bg] {
+  position: relative;
+  isolation: isolate;
+}
+section[data-bg]::before {
+  content: '';
+  position: absolute; inset: 0; z-index: -2;
+  background-image: var(--section-bg);
+  background-size: cover;
+  background-position: center;
+  opacity: 0.12;
+  mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
+}
+section[data-bg]::after {
+  content: '';
+  position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(180deg, rgba(7,9,15,0.8), transparent 50%, rgba(7,9,15,0.9));
+}
+
+/* ── Decoración: grid táctico — versión mínima ── */
+section[data-decor="grid"] { position: relative; isolation: isolate; }
+section[data-decor="grid"]::before {
+  content: '';
+  position: absolute; inset: 0; z-index: -3;
+  background-image:
+    linear-gradient(rgba(56, 182, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 182, 255, 0.025) 1px, transparent 1px);
+  background-size: 80px 80px;
+  mask-image: radial-gradient(ellipse 60% 50% at 50% 50%, black 0%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 60% 50% at 50% 50%, black 0%, transparent 100%);
 }

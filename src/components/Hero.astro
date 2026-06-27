@@ -6,45 +6,17 @@ const subtitleLines = h.subtitle.split('\n');
 ---
 <section class="hero" id="inicio">
 
-  <div class="hero-bg" aria-hidden="true">
-    <div class="hero-grid"></div>
-    <div class="hero-orb hero-orb--main"></div>
-    <div class="hero-orb hero-orb--side"></div>
-    <div class="hero-scan"></div>
-    <span class="hud-corner hud-tl"></span>
-    <span class="hud-corner hud-tr"></span>
-    <span class="hud-corner hud-bl"></span>
-    <span class="hud-corner hud-br"></span>
-  </div>
-
   <div class="container hero-inner">
 
     <div class="hero-eyebrow-wrap">
       <div class="eyebrow">
         <span class="eyebrow-dot" aria-hidden="true"></span>
         {h.eyebrow}
+        <span class="eyebrow-sep" aria-hidden="true"></span>
         <span class="eyebrow-live">
-          <span class="live-pulse" aria-hidden="true"></span>
+          <span class="live-dot" aria-hidden="true"></span>
           Activos
         </span>
-      </div>
-    </div>
-
-    <!-- Crosshair — más pequeño y refinado -->
-    <div class="crosshair-wrap" aria-hidden="true">
-      <div class="crosshair">
-        <span class="ch-ring ring-outer"></span>
-        <span class="ch-ring ring-mid"></span>
-        <span class="ch-ring ring-inner"></span>
-        <span class="ch-seg ch-top"></span>
-        <span class="ch-seg ch-bottom"></span>
-        <span class="ch-seg ch-left"></span>
-        <span class="ch-seg ch-right"></span>
-        <span class="ch-dot"></span>
-        <span class="ch-arc arc-tl"></span>
-        <span class="ch-arc arc-tr"></span>
-        <span class="ch-arc arc-bl"></span>
-        <span class="ch-arc arc-br"></span>
       </div>
     </div>
 
@@ -68,7 +40,7 @@ const subtitleLines = h.subtitle.split('\n');
       </p>
 
       <div class="hero-actions">
-        <a href="#servidores" class="hero-btn-main btn-ripple">
+        <a href="#servidores" class="hero-btn-main">
           {h.btn_label}
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -83,15 +55,11 @@ const subtitleLines = h.subtitle.split('\n');
       </div>
 
       <div class="hero-stats">
-        <span class="stats-corner stats-tl" aria-hidden="true"></span>
-        <span class="stats-corner stats-tr" aria-hidden="true"></span>
-        <span class="stats-corner stats-bl" aria-hidden="true"></span>
-        <span class="stats-corner stats-br" aria-hidden="true"></span>
         <div class="stat">
           <span class="stat-val" id="hero-live-players" data-count data-target={h.stat1_val}>{h.stat1_val}</span>
           <span class="stat-key">
             {h.stat1_key}
-            <span id="hero-live-dot" style="display:none;margin-left:4px;width:5px;height:5px;background:#4ade80;border-radius:50%;display:inline-block;vertical-align:middle;animation:pulse 1.8s ease-in-out infinite;box-shadow:0 0 5px rgba(74,222,128,.8)"></span>
+            <span id="hero-live-dot" style="display:none;margin-left:4px;width:5px;height:5px;background:#4ade80;border-radius:50%;display:inline-block;vertical-align:middle;animation:pulse 1.8s ease-in-out infinite;"></span>
           </span>
         </div>
         <div class="stat-sep" aria-hidden="true"></div>
@@ -106,8 +74,7 @@ const subtitleLines = h.subtitle.split('\n');
         </div>
       </div>
 
-      <!-- Badge de mapa activo en tiempo real -->
-      <div id="hero-map-badge" style="display:none;margin-top:14px">
+      <div id="hero-map-badge" style="display:none;margin-top:12px">
         <span class="map-badge">
           <span class="map-badge-dot" aria-hidden="true"></span>
           <span id="hero-map-text"></span>
@@ -117,306 +84,257 @@ const subtitleLines = h.subtitle.split('\n');
     </div>
   </div>
 
-  <div class="hero-scroll" aria-hidden="true">
-    <span class="scroll-line"></span>
-  </div>
-
 </section>
 
 <style>
   .hero {
-    --h-accent: rgba(56, 182, 255, 1);
-    --h-glow:   rgba(56, 182, 255, 0.1);
-    --h-line:   rgba(56, 182, 255, 0.04);
-    --h-seg:    rgba(56, 182, 255, 0.55);
     position: relative;
     min-height: 100svh;
     display: flex;
     align-items: center;
     padding-top: 62px;
-    overflow: hidden;
+    /* Fondo limpio: un solo gradiente radial muy sutil arriba */
+    background:
+      radial-gradient(ellipse 70% 40% at 50% -5%, rgba(56, 182, 255, 0.055) 0%, transparent 65%);
   }
-
-  /* ── Fondo ── */
-  .hero-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
-
-  .hero-grid {
-    position: absolute; inset: 0;
-    background-image:
-      linear-gradient(var(--h-line) 1px, transparent 1px),
-      linear-gradient(90deg, var(--h-line) 1px, transparent 1px);
-    background-size: 52px 52px;
-    mask-image: radial-gradient(ellipse 85% 70% at 50% 35%, black 15%, transparent 100%);
-  }
-
-  /*
-    PERF: filter: blur() en divs grandes (700×500px, 400×300px) es
-    extremadamente costoso — fuerza un render pass de software cada frame.
-    Reemplazamos con radial-gradient directo: mismo efecto visual de "glow
-    ambiental", costo de GPU prácticamente cero.
-  */
-  .hero-orb {
-    position: absolute;
-    border-radius: 50%;
-    pointer-events: none;
-    /* Sin filter: blur — el gradiente ya da el efecto difuso */
-  }
-  .hero-orb--main {
-    top: -25%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 900px; height: 600px;
-    /* Gradiente más amplio compensa la falta de blur */
-    background: radial-gradient(ellipse at 50% 35%,
-      rgba(56,182,255,0.10) 0%,
-      rgba(56,182,255,0.04) 35%,
-      transparent 68%);
-  }
-  .hero-orb--side {
-    bottom: -5%; right: -15%;
-    width: 500px; height: 400px;
-    background: radial-gradient(ellipse at 50% 50%,
-      rgba(56,182,255,0.05) 0%,
-      rgba(56,182,255,0.015) 40%,
-      transparent 68%);
-  }
-
-  /* Scanline sutil */
-  .hero-scan {
-    position: absolute; inset: 0; opacity: 0.018;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent, transparent 3px,
-      rgba(56,182,255,0.3) 3px, rgba(56,182,255,0.3) 4px
-    );
-    pointer-events: none;
-  }
-
-  .hud-corner { position: absolute; width: 22px; height: 22px; border: 0 solid rgba(56,182,255,0.15); }
-  .hud-tl { top: 16px; left: 16px; border-width: 1.5px 0 0 1.5px; }
-  .hud-tr { top: 16px; right: 16px; border-width: 1.5px 1.5px 0 0; }
-  .hud-bl { bottom: 16px; left: 16px; border-width: 0 0 1.5px 1.5px; }
-  .hud-br { bottom: 16px; right: 16px; border-width: 0 1.5px 1.5px 0; }
 
   /* ── Layout ── */
   .hero-inner {
-    position: relative; z-index: 1;
-    display: flex; flex-direction: column; align-items: center; text-align: center;
-    padding-block: 50px 100px; width: 100%;
-    gap: 0;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding-block: 64px 120px;
+    width: 100%;
   }
 
-  /* ── Eyebrow — más arriba, antes del crosshair ── */
-  .hero-eyebrow-wrap { margin-bottom: 28px; }
+  /* ── Eyebrow ── */
+  .hero-eyebrow-wrap { margin-bottom: 32px; }
   .eyebrow {
-    display: inline-flex; align-items: center; gap: 7px;
-    font-family: var(--font-mono); font-size: 0.62rem; font-weight: 600;
-    letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent);
-    padding: 5px 12px;
-    border: 1px solid rgba(56,182,255,0.18); border-radius: 999px;
-    background: rgba(56,182,255,0.05);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted-2);
+    padding: 5px 14px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
   }
   .eyebrow-dot {
-    width: 5px; height: 5px; background: var(--accent); border-radius: 50%;
+    width: 5px;
+    height: 5px;
+    background: var(--accent);
+    border-radius: 50%;
     flex-shrink: 0;
-    box-shadow: 0 0 6px rgba(56,182,255,0.9);
     animation: pulse 2.5s ease-in-out infinite;
   }
+  .eyebrow-sep {
+    display: block;
+    width: 1px;
+    height: 10px;
+    background: var(--border);
+    flex-shrink: 0;
+  }
   .eyebrow-live {
-    display: inline-flex; align-items: center; gap: 5px;
-    font-size: 0.52rem; font-weight: 700; letter-spacing: 0.14em;
-    padding: 2px 7px; border-radius: 999px;
-    background: rgba(56,182,255,0.1); border: 1px solid rgba(56,182,255,0.25);
-    color: var(--accent);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.58rem;
+    font-weight: 600;
+    color: var(--green);
+    letter-spacing: 0.12em;
   }
-  .live-pulse {
-    width: 5px; height: 5px; background: #4ade80; border-radius: 50%;
+  .live-dot {
+    width: 5px;
+    height: 5px;
+    background: var(--green);
+    border-radius: 50%;
     animation: pulse 1.8s ease-in-out infinite;
-    box-shadow: 0 0 5px rgba(74,222,128,0.8);
   }
-
-  /* ── Crosshair — estático pero elegante ── */
-  /*
-    PERF: Los 3 ch-ring girando continuamente crean 3 animation loops GPU.
-    Los hacemos estáticos — el crosshair se ve igual de premium pero
-    el compositor no tiene trabajo extra por frame.
-    Solo .ch-dot mantiene animación (es tiny: 4×4px, costo mínimo).
-  */
-  .crosshair-wrap {
-    position: relative; width: 120px; height: 120px;
-    display: flex; align-items: center; justify-content: center;
-    margin-bottom: 28px;
-  }
-  .crosshair { position: relative; width: 100%; height: 100%; }
-  .ch-ring {
-    position: absolute; border-radius: 50%;
-    top: 50%; left: 50%; transform: translate(-50%, -50%);
-    /* Sin animation — solo border estático */
-  }
-  .ring-outer { width: 100px; height: 100px; border: 1px solid rgba(56,182,255,0.10); }
-  .ring-mid   { width: 72px;  height: 72px;  border: 1px solid rgba(56,182,255,0.18); }
-  .ring-inner { width: 46px;  height: 46px;  border: 1px solid rgba(56,182,255,0.28); }
-
-  .ch-arc { position: absolute; width: 14px; height: 14px; border: 1.5px solid rgba(56,182,255,0.45); }
-  .arc-tl { top: 12px; left: 12px; border-right: none; border-bottom: none; }
-  .arc-tr { top: 12px; right: 12px; border-left: none; border-bottom: none; }
-  .arc-bl { bottom: 12px; left: 12px; border-right: none; border-top: none; }
-  .arc-br { bottom: 12px; right: 12px; border-left: none; border-top: none; }
-
-  .ch-dot {
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    width: 4px; height: 4px; background: var(--accent); border-radius: 50%;
-    box-shadow: 0 0 10px var(--accent), 0 0 20px rgba(56,182,255,0.4);
-    /* Solo este elemento mantiene animación — es tiny */
-    animation: pulse 2.4s ease-in-out infinite;
-  }
-  .ch-seg { position: absolute; background: var(--h-seg); }
-  .ch-top    { width: 1px; height: 20px; top: 8px;    left: 50%; transform: translateX(-50%); }
-  .ch-bottom { width: 1px; height: 20px; bottom: 8px; left: 50%; transform: translateX(-50%); }
-  .ch-left   { height: 1px; width: 20px; left: 8px;   top: 50%;  transform: translateY(-50%); }
-  .ch-right  { height: 1px; width: 20px; right: 8px;  top: 50%;  transform: translateY(-50%); }
 
   /* ── Hero content ── */
-  .hero-content { display: flex; flex-direction: column; align-items: center; text-align: center; width: 100%; }
+  .hero-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    width: 100%;
+  }
 
   .hero-title {
     font-family: var(--font-display);
     font-size: clamp(3.2rem, 10vw, 6.5rem);
-    font-weight: 700; letter-spacing: -0.025em; line-height: 1;
-    color: var(--text); margin-bottom: 20px;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1;
+    color: var(--text);
+    margin-bottom: 20px;
   }
   .title-dot {
     color: var(--accent);
-    text-shadow: 0 0 24px rgba(56,182,255,0.6), 0 0 48px rgba(56,182,255,0.2);
   }
 
   .hero-sub {
-    font-size: 0.95rem; color: var(--muted-2); line-height: 1.8;
-    max-width: 360px; margin: 0 auto 32px;
+    font-size: 0.95rem;
+    color: var(--muted-2);
+    line-height: 1.8;
+    max-width: 380px;
+    margin: 0 auto 36px;
   }
 
   /* ── Botones ── */
-  .hero-actions { display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; margin-bottom: 40px; }
+  .hero-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 44px;
+  }
 
   .hero-btn-main {
-    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-    padding: 11px 28px; background: var(--accent); color: #06080d;
-    font-family: var(--font-body); font-size: 0.8rem; font-weight: 700;
-    letter-spacing: 0.08em; text-transform: uppercase;
-    border-radius: var(--radius); border: 1px solid var(--accent);
-    text-decoration: none; cursor: pointer;
-    transition: background 0.18s, transform 0.15s, box-shadow 0.18s;
-    box-shadow: 0 0 20px rgba(56,182,255,0.18);
-    position: relative; overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 11px 26px;
+    background: var(--accent);
+    color: #07090f;
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border-radius: var(--radius);
+    border: 1px solid var(--accent);
+    text-decoration: none;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
   }
   .hero-btn-main:hover {
-    background: rgba(56,182,255,0.88);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 28px rgba(56,182,255,0.38);
+    opacity: 0.88;
   }
-  .hero-btn-main:active { transform: translateY(0); }
-  .hero-btn-main svg { transition: transform 0.18s; flex-shrink: 0; }
-  .hero-btn-main:hover svg { transform: translateX(3px); }
+  .hero-btn-main svg {
+    flex-shrink: 0;
+    transition: transform 0.18s ease;
+  }
+  .hero-btn-main:hover svg {
+    transform: translateX(3px);
+  }
 
   .hero-btn-rules {
-    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-    padding: 11px 20px; background: none; color: var(--muted-2);
-    font-family: var(--font-body); font-size: 0.78rem; font-weight: 600;
-    letter-spacing: 0.06em; text-transform: uppercase;
-    border-radius: var(--radius); border: 1px solid var(--border); cursor: pointer;
-    transition: color 0.18s, border-color 0.18s, background 0.18s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 11px 20px;
+    background: none;
+    color: var(--muted-2);
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
   }
   .hero-btn-rules:hover {
-    color: var(--text); border-color: rgba(56,182,255,0.35);
-    background: rgba(56,182,255,0.05);
+    color: var(--text);
+    border-color: rgba(56, 182, 255, 0.3);
   }
 
-  /* ── Stats — más compacto ── */
+  /* ── Stats ── */
   .hero-stats {
-    display: flex; align-items: center; justify-content: center; gap: 32px;
-    padding: 18px 36px; position: relative;
-    max-width: 440px; width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 36px;
+    padding: 18px 40px;
+    max-width: 440px;
+    width: 100%;
     border-radius: var(--radius-lg);
-    border: 1px solid rgba(56,182,255,0.15);
-    /*
-      PERF: backdrop-filter: blur(8px) en hero-stats fuerza un stacking
-      context separado y repinta en cada scroll. Reemplazamos con background
-      sólido semitransparente — visualmente idéntico en un fondo oscuro.
-    */
-    background: rgba(10, 14, 26, 0.94);
-  }
-  .hero-stats::before {
-    content: ''; position: absolute; top: 0; left: 12%; right: 12%; height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(56,182,255,0.5), transparent);
-  }
-  .hero-stats::after {
-    content: ''; position: absolute; bottom: 0; left: 12%; right: 12%; height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(56,182,255,0.1), transparent);
+    border: 1px solid var(--border);
+    background: var(--surface);
   }
 
-  .stats-corner { position: absolute; width: 8px; height: 8px; border: 0 solid rgba(56,182,255,0.35); }
-  .stats-tl { top: 5px;    left: 5px;  border-width: 1px 0 0 1px; }
-  .stats-tr { top: 5px;    right: 5px; border-width: 1px 1px 0 0; }
-  .stats-bl { bottom: 5px; left: 5px;  border-width: 0 0 1px 1px; }
-  .stats-br { bottom: 5px; right: 5px; border-width: 0 1px 1px 0; }
-
-  .stat { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
   .stat-val {
-    display: block; font-family: var(--font-display); font-size: 1.25rem;
-    font-weight: 700; color: var(--accent); letter-spacing: 0.02em; line-height: 1;
+    display: block;
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.02em;
+    line-height: 1;
   }
   .stat-key {
-    display: block; font-family: var(--font-mono); font-size: 0.56rem;
-    font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
-    color: var(--muted); line-height: 1.3;
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.57rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    line-height: 1.3;
   }
   .stat-sep {
-    width: 1px; height: 24px;
-    background: linear-gradient(to bottom, transparent, rgba(56,182,255,0.2), transparent);
+    width: 1px;
+    height: 24px;
+    background: var(--border);
     flex-shrink: 0;
   }
 
-  /* ── Scroll indicator ── */
-  .hero-scroll { position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%); z-index: 1; }
-  .scroll-line {
-    display: block; width: 1px; height: 38px;
-    background: linear-gradient(to bottom, var(--accent), transparent);
-    animation: scrollAnim 2.2s ease infinite;
-    transform-origin: top;
-  }
-
-  @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
-  @keyframes scrollAnim {
-    0%   { transform: scaleY(0); opacity: 1; }
-    70%  { transform: scaleY(1); opacity: 1; }
-    100% { transform: scaleY(1); opacity: 0; }
-  }
-
+  /* ── Map badge ── */
   .map-badge {
-    display: inline-flex; align-items: center; gap: 6px;
-    font-family: var(--font-mono); font-size: 0.62rem; font-weight: 600;
-    letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
-    padding: 4px 12px; border-radius: 999px;
-    background: rgba(74,222,128,0.05); border: 1px solid rgba(74,222,128,0.15);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: var(--green-dim);
+    border: 1px solid rgba(74, 222, 128, 0.12);
   }
   .map-badge-dot {
-    width: 5px; height: 5px; background: #4ade80; border-radius: 50%;
-    flex-shrink: 0; animation: pulse 1.8s ease-in-out infinite;
-    box-shadow: 0 0 5px rgba(74,222,128,.8);
+    width: 5px;
+    height: 5px;
+    background: var(--green);
+    border-radius: 50%;
+    flex-shrink: 0;
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.5; }
+    50%       { opacity: 1; }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .ch-dot, .eyebrow-dot, .live-pulse, .scroll-line { animation: none; }
+    .eyebrow-dot, .live-dot, .map-badge-dot { animation: none; }
   }
 
   @media (max-width: 540px) {
-    .hero-stats { gap: 18px; padding: 14px 20px; max-width: 320px; }
-    .stat-val { font-size: 1.05rem; }
-    .crosshair-wrap { width: 96px; height: 96px; }
-    .ring-outer { width: 80px; height: 80px; }
-    .ring-mid   { width: 58px; height: 58px; }
-    .ring-inner { width: 38px; height: 38px; }
-    .hero-actions { margin-bottom: 32px; }
+    .hero-stats { gap: 20px; padding: 14px 22px; max-width: 320px; }
+    .stat-val { font-size: 1.1rem; }
+    .hero-actions { margin-bottom: 36px; }
     .hero-sub { font-size: 0.88rem; }
   }
 </style>
@@ -432,7 +350,7 @@ const subtitleLines = h.subtitle.split('\n');
     const raw = el.dataset.target ?? el.textContent ?? '';
     const { prefix, num, suffix } = parseTarget(raw);
     if (num === 0) return;
-    const duration = 1000;
+    const duration = 900;
     const start = performance.now();
     function easeOut(t: number) { return 1 - Math.pow(1 - t, 3); }
     function step(now: number) {
@@ -454,19 +372,6 @@ const subtitleLines = h.subtitle.split('\n');
     counters.forEach(c => obs.observe(c));
   }
 
-  // Ripple en botón principal
-  document.querySelectorAll<HTMLElement>('.btn-ripple').forEach(btn => {
-    btn.addEventListener('click', (e: MouseEvent) => {
-      const rect = btn.getBoundingClientRect();
-      const circle = document.createElement('span');
-      circle.className = 'ripple-circle';
-      const size = Math.max(rect.width, rect.height) * 2;
-      circle.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX - rect.left - size/2}px;top:${e.clientY - rect.top - size/2}px`;
-      btn.appendChild(circle);
-      circle.addEventListener('animationend', () => circle.remove());
-    });
-  });
-
   // ── Live server stats ────────────────────────────────────────
   (async () => {
     try {
@@ -479,18 +384,16 @@ const subtitleLines = h.subtitle.split('\n');
       const totalPlayers = online.reduce((sum, s) => sum + (s.players ?? 0), 0);
       const busiest      = online.reduce((best, s) => (s.players ?? 0) > (best.players ?? 0) ? s : best, online[0]);
 
-      // Actualizar stat de jugadores si hay activos
       if (totalPlayers > 0) {
         const el = document.getElementById('hero-live-players');
         if (el) {
           el.textContent = String(totalPlayers);
-          el.removeAttribute('data-count'); // no re-animar
+          el.removeAttribute('data-count');
         }
         const dot = document.getElementById('hero-live-dot');
         if (dot) dot.style.removeProperty('display');
       }
 
-      // Badge con mapa del server más activo
       if (busiest?.map && busiest.map !== 'unknown') {
         const badge = document.getElementById('hero-map-badge');
         const text  = document.getElementById('hero-map-text');
