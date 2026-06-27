@@ -285,7 +285,17 @@ const catLabels: Record<string, string> = {
         transparent 60%
       ),
       var(--surface);
-    transition: border-color 0.22s, background 0.22s, transform 0.18s, box-shadow 0.22s;
+    transition: border-color 0.22s, background 0.22s, transform 0.18s;
+  }
+  .dl-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: 0 0 28px color-mix(in srgb, var(--card-color) 10%, transparent);
+    opacity: 0;
+    transition: opacity 0.22s;
+    pointer-events: none;
   }
   .dl-card:hover {
     border-color: color-mix(in srgb, var(--card-color) 45%, transparent);
@@ -296,9 +306,9 @@ const catLabels: Record<string, string> = {
         transparent 60%
       ),
       var(--surface);
-    box-shadow: 0 0 28px color-mix(in srgb, var(--card-color) 10%, transparent);
     transform: translateY(-2px);
   }
+  .dl-card:hover::after { opacity: 1; }
   .dl-card.dl-featured {
     border-color: color-mix(in srgb, var(--card-color) 38%, transparent);
   }

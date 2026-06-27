@@ -186,14 +186,24 @@ try {
       ),
       var(--surface);
 
-    transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
+    transition: border-color 0.22s ease, transform 0.22s ease;
+  }
+  .plan-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    opacity: 0;
+    transition: opacity 0.22s ease;
+    pointer-events: none;
   }
 
   .plan-card:hover {
     border-color: var(--border-accent);
     transform: translateY(-3px);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
   }
+  .plan-card:hover::after { opacity: 1; }
 
   /* ── Featured card ───────────────────────────────────────────── */
   .plan-card.plan-featured {
@@ -219,12 +229,14 @@ try {
       0 8px 32px rgba(0,0,0,0.3);
   }
 
-  .plan-card.plan-featured:hover {
-    transform: translateY(-12px);
+  .plan-card.plan-featured::after {
     box-shadow:
       0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent),
       0 0 55px color-mix(in srgb, var(--accent) 16%, transparent),
       0 12px 40px rgba(0,0,0,0.35);
+  }
+  .plan-card.plan-featured:hover {
+    transform: translateY(-12px);
   }
 
   /* ── Ruido de la card ────────────────────────────────────────── */

@@ -206,6 +206,9 @@
     border-radius: 50%;
     background: #38b6ff;
     box-shadow: 0 0 10px rgba(56,182,255,0.8);
+    animation: none;
+  }
+  .sp-backdrop.sp-open .sp-logo-inner {
     animation: sp-pulse 2.5s ease-in-out infinite;
   }
   @keyframes sp-pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.5;transform:scale(0.75);} }
@@ -303,6 +306,9 @@
   /* Indeterminado mientras carga */
   .sp-progress-fill.sp-indeterminate {
     width: 40% !important;
+    animation: none;
+  }
+  .sp-backdrop.sp-open .sp-progress-fill.sp-indeterminate {
     animation: sp-slide 1.6s ease-in-out infinite;
   }
   @keyframes sp-slide {
@@ -348,17 +354,17 @@
   .sp-ring--a {
     width: 56px; height: 56px;
     border-top-color: #38b6ff;
-    animation: sp-spin 1.8s linear infinite;
+    animation: none;
   }
   .sp-ring--b {
     width: 40px; height: 40px;
     border-right-color: rgba(56,182,255,0.5);
-    animation: sp-spin 1.2s linear infinite reverse;
+    animation: none;
   }
   .sp-ring--c {
     width: 24px; height: 24px;
     border-bottom-color: rgba(56,182,255,0.25);
-    animation: sp-spin 2.2s linear infinite;
+    animation: none;
   }
   .sp-ring-dot {
     position: absolute;
@@ -368,8 +374,13 @@
     background: #38b6ff;
     border-radius: 50%;
     box-shadow: 0 0 10px rgba(56,182,255,0.9);
-    animation: sp-pulse 2s ease-in-out infinite;
+    animation: none;
   }
+  /* Solo animar cuando el panel está abierto */
+  .sp-backdrop.sp-open .sp-ring--a  { animation: sp-spin 1.8s linear infinite; }
+  .sp-backdrop.sp-open .sp-ring--b  { animation: sp-spin 1.2s linear infinite reverse; }
+  .sp-backdrop.sp-open .sp-ring--c  { animation: sp-spin 2.2s linear infinite; }
+  .sp-backdrop.sp-open .sp-ring-dot { animation: sp-pulse 2s ease-in-out infinite; }
   @keyframes sp-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
 
   .sp-loading-info { text-align: center; display: flex; flex-direction: column; gap: 4px; }

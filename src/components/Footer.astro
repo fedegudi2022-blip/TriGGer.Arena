@@ -11,8 +11,8 @@ const isOperativo = (Astro.locals.siteSettings?.site_status ?? 'operativo') === 
   <div class="container footer-grid">
 
     <div class="footer-col footer-brand">
-      <button class="footer-logo" id="back-to-top" aria-label="Volver al inicio">
-        <img src="/trigger_fondo.webp" alt="TriGGer.Arena" width="28" height="28" loading="lazy" />
+      <button class="footer-logo" id="back-to-top" aria-label="Volver al inicio de la página">
+        <img src="/trigger_fondo.webp" alt="TriGGer.Arena" width="28" height="28" loading="lazy" fetchpriority="low" />
         <span>TriGGer<span class="accent">.Arena</span></span>
       </button>
       <p class="footer-tagline">{f.tagline}</p>
@@ -27,12 +27,23 @@ const isOperativo = (Astro.locals.siteSettings?.site_status ?? 'operativo') === 
     </nav>
 
     <div class="footer-col footer-status">
-      <span class="footer-col-title">Estado de la Pagina</span>
+      {/* FIX: tildes correctas en "Página" y "Página Operativa" */}
+      <span class="footer-col-title">Estado de la Página</span>
       <span class={`status-pill ${isOperativo ? '' : 'status-pill--warn'}`}>
-        <span class={`status-dot ${isOperativo ? '' : 'status-dot--warn'}`}></span>
-        {isOperativo ? 'Pagina Operativa' : 'En mantenimiento'}
+        <span
+          class={`status-dot ${isOperativo ? '' : 'status-dot--warn'}`}
+          role="img"
+          aria-label={isOperativo ? 'En línea' : 'En mantenimiento'}
+        ></span>
+        {isOperativo ? 'Página Operativa' : 'En mantenimiento'}
       </span>
-      <button class="back-to-top-link" id="back-to-top-alt">
+      {/*
+        FIX: un solo handler de scroll-to-top compartido por ambos botones.
+        Antes había dos IDs distintos (back-to-top / back-to-top-alt) con
+        listeners separados. Ahora usamos la clase .back-to-top y un único
+        querySelectorAll en el script.
+      */}
+      <button class="back-to-top-link back-to-top" aria-label="Volver al inicio de la página">
         # Volver arriba
       </button>
     </div>
@@ -98,11 +109,19 @@ const isOperativo = (Astro.locals.siteSettings?.site_status ?? 'operativo') === 
     font-weight: 700;
     color: var(--text);
     padding: 0;
-    transition: opacity 0.18s;
     align-self: flex-start;
+    border-radius: 6px;
+    outline: none;
+    transition: opacity 0.18s;
   }
 
   .footer-logo:hover { opacity: 0.7; }
+
+  /* Focus visible para navegación por teclado */
+  .footer-logo:focus-visible {
+    opacity: 1;
+    box-shadow: 0 0 0 2px rgba(56,182,255,0.5);
+  }
 
   .footer-logo img {
     width: 28px;
@@ -128,10 +147,15 @@ const isOperativo = (Astro.locals.siteSettings?.site_status ?? 'operativo') === 
     padding: 2px 0;
     width: fit-content;
     transition: color 0.18s;
+    border-radius: 3px;
+    outline: none;
   }
 
-  .footer-links a:hover {
+  .footer-links a:hover       { color: var(--accent); }
+  .footer-links a:focus-visible {
     color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(56,182,255,0.4);
+    padding-inline: 4px;
   }
 
   /* ── Estado ── */
@@ -153,8 +177,13 @@ const isOperativo = (Astro.locals.siteSettings?.site_status ?? 'operativo') === 
     height: 6px;
     border-radius: 50%;
     background: var(--green);
-    animation: pulse 2.5s infinite;
     flex-shrink: 0;
+    /*
+      PERF + A11Y: la animación solo corre si el usuario no tiene
+      prefers-reduced-motion activo. El estado operativo/warn ya se
+      comunica por texto, así que el pulse es puramente decorativo.
+    */
+    animation: pulse 2.5s infinite;
   }
 
   .status-pill--warn {
@@ -163,7 +192,11 @@ const isOperativo = (Astro.locals.siteSettings?.site_status ?? 'operativo') === 
   }
   .status-dot--warn {
     background: #fbbf24;
+    animation: pulse-warn 2.5s infinite;
   }
+
+  @keyframes pulse      { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  @keyframes pulse-warn { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
   .back-to-top-link {
     background: none;
@@ -175,10 +208,16 @@ const isOperativo = (Astro.locals.siteSettings?.site_status ?? 'operativo') === 
     padding: 4px 0;
     width: fit-content;
     transition: color 0.18s;
+    border-radius: 3px;
+    outline: none;
+    text-align: left;
   }
 
-  .back-to-top-link:hover {
+  .back-to-top-link:hover        { color: var(--accent); }
+  .back-to-top-link:focus-visible {
     color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(56,182,255,0.4);
+    padding-inline: 4px;
   }
 
   /* ── Línea + copyright ── */
@@ -203,6 +242,22 @@ const isOperativo = (Astro.locals.siteSettings?.site_status ?? 'operativo') === 
     text-align: center;
   }
 
+  /* ── prefers-reduced-motion ── */
+  @media (prefers-reduced-motion: reduce) {
+    .status-dot,
+    .status-dot--warn { animation: none; }
+    .footer-logo,
+    .footer-links a,
+    .back-to-top-link { transition: none; }
+  }
+
+  /* ── forced-colors (modo alto contraste Windows) ── */
+  @media (forced-colors: active) {
+    .status-dot       { forced-color-adjust: none; background: green; }
+    .status-dot--warn { forced-color-adjust: none; background: yellow; }
+    .footer-accent-line { display: none; }
+  }
+
   @media (max-width: 760px) {
     .footer-grid {
       grid-template-columns: 1fr;
@@ -222,6 +277,8 @@ const isOperativo = (Astro.locals.siteSettings?.site_status ?? 'operativo') === 
     });
   }
 
-  document.getElementById('back-to-top')?.addEventListener('click', scrollToTop);
-  document.getElementById('back-to-top-alt')?.addEventListener('click', scrollToTop);
+  // Un único selector para ambos botones en lugar de dos IDs separados
+  document.querySelectorAll<HTMLButtonElement>('.back-to-top').forEach(btn => {
+    btn.addEventListener('click', scrollToTop);
+  });
 </script>

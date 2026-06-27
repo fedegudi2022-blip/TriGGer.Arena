@@ -238,37 +238,42 @@ section {
 .fade-in {
   opacity: 0;
   transform: translateY(12px);
+  will-change: opacity, transform;
   transition: opacity 0.4s cubic-bezier(0.16,1,0.3,1),
               transform 0.4s cubic-bezier(0.16,1,0.3,1);
 }
 .fade-in.visible {
   opacity: 1;
   transform: none;
+  will-change: auto;
 }
 
 .fade-in-left {
   opacity: 0;
   transform: translateX(-16px);
+  will-change: opacity, transform;
   transition: opacity 0.4s cubic-bezier(0.16,1,0.3,1),
               transform 0.4s cubic-bezier(0.16,1,0.3,1);
 }
-.fade-in-left.visible { opacity: 1; transform: none; }
+.fade-in-left.visible { opacity: 1; transform: none; will-change: auto; }
 
 .fade-in-right {
   opacity: 0;
   transform: translateX(16px);
+  will-change: opacity, transform;
   transition: opacity 0.4s cubic-bezier(0.16,1,0.3,1),
               transform 0.4s cubic-bezier(0.16,1,0.3,1);
 }
-.fade-in-right.visible { opacity: 1; transform: none; }
+.fade-in-right.visible { opacity: 1; transform: none; will-change: auto; }
 
 .fade-in-scale {
   opacity: 0;
   transform: translateY(10px) scale(0.985);
+  will-change: opacity, transform;
   transition: opacity 0.38s cubic-bezier(0.16,1,0.3,1),
               transform 0.38s cubic-bezier(0.16,1,0.3,1);
 }
-.fade-in-scale.visible { opacity: 1; transform: none; }
+.fade-in-scale.visible { opacity: 1; transform: none; will-change: auto; }
 
 @media (prefers-reduced-motion: reduce) {
   .fade-in, .fade-in-left, .fade-in-right, .fade-in-scale {

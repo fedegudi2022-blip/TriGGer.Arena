@@ -136,9 +136,12 @@ const servers = serverRows
               data-ip={s.ip}
               aria-label={`Copiar IP de ${s.label}`}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <svg class="icon-copy" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <rect x="9" y="9" width="13" height="13" rx="2"></rect>
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              <svg class="icon-check" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="20 6 9 17 4 12"></polyline>
               </svg>
               <span class="copy-label">Copiar</span>
             </button>
@@ -372,6 +375,14 @@ const servers = serverRows
   @keyframes shimmer {
     from { background-position: 200% 0; }
     to   { background-position: -200% 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton-text            { animation: none; background: var(--border); }
+    .refresh-indicator.spinning { animation: none; opacity: 0.5; }
+    .badge-loading .badge-dot,
+    .badge-online  .badge-dot { animation: none; }
+    .console-cursor           { animation: none; }
   }
 
   /* ── Panel de lectura ── */
@@ -616,7 +627,11 @@ const servers = serverRows
     background: none;
     flex-shrink: 0;
     transition: color 0.18s, border-color 0.18s, background 0.18s;
+    cursor: pointer;
   }
+
+  .copy-btn .icon-check { display: none; }
+  .copy-btn .icon-copy  { display: block; }
 
   .copy-btn:hover {
     color: var(--accent);
@@ -629,6 +644,9 @@ const servers = serverRows
     border-color: rgba(74, 222, 128, 0.28);
     background: rgba(74, 222, 128, 0.05);
   }
+
+  .copy-btn.copied .icon-copy  { display: none; }
+  .copy-btn.copied .icon-check { display: block; }
 
   @keyframes blink  { 50% { opacity: 0; } }
   @keyframes pulse  { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
@@ -643,6 +661,7 @@ const servers = serverRows
 <script>
   const REFRESH_INTERVAL   = 30_000;
   const RELATIVE_TIME_TICK = 5_000;
+  const FETCH_TIMEOUT_MS   = 10_000; // AbortController timeout
   const MAX_RETRIES        = 3;
 
   interface ServerStatus {
@@ -660,6 +679,15 @@ const servers = serverRows
   const lastUpdated = new Map<number, number>();
   let fetchFailCount = 0;
   let refreshTimer: ReturnType<typeof setInterval> | null = null;
+  let relativeTimer: ReturnType<typeof setInterval> | null = null;
+
+  // XSS-safe: crea un span con textContent en lugar de innerHTML
+  function createPlayerTag(name: string): HTMLSpanElement {
+    const span = document.createElement('span');
+    span.className = 'player-tag';
+    span.textContent = name;
+    return span;
+  }
 
   function formatRelativeTime(ms: number): string {
     const diff    = Math.max(0, Date.now() - ms);
@@ -680,11 +708,6 @@ const servers = serverRows
         el.classList.remove('skeleton-text');
       }
     });
-  }
-
-  function setSpinner(id: number, active: boolean) {
-    const el = document.querySelector<HTMLElement>(`[data-refresh="${id}"]`);
-    el?.classList.toggle('spinning', active);
   }
 
   function setNetStatus(show: boolean, message?: string) {
@@ -716,6 +739,29 @@ const servers = serverRows
     });
   }
 
+  // ── Pausa de polling por visibilidad del tab ───────────────────────────
+  // Si el usuario cambia de pestaña o minimiza, pausamos todos los intervalos
+  // para no consumir red ni CPU innecesariamente.
+  function pausePolling() {
+    if (refreshTimer)  { clearInterval(refreshTimer);  refreshTimer  = null; }
+    if (relativeTimer) { clearInterval(relativeTimer); relativeTimer = null; }
+  }
+
+  function resumePolling() {
+    if (refreshTimer || relativeTimer) return; // ya corriendo
+    fetchServerStatus(); // fetch inmediato al volver
+    refreshTimer  = setInterval(fetchServerStatus,    REFRESH_INTERVAL);
+    relativeTimer = setInterval(renderRelativeTimes,  RELATIVE_TIME_TICK);
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      pausePolling();
+    } else {
+      resumePolling();
+    }
+  });
+
   // ── Acordeón jugadores ─────────────────────────────────────────────────
   document.querySelectorAll('.players-toggle').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -734,25 +780,37 @@ const servers = serverRows
 
   // ── Copiar IP ──────────────────────────────────────────────────────────
   document.querySelectorAll<HTMLButtonElement>('.copy-btn').forEach(btn => {
+    let resetTimer: ReturnType<typeof setTimeout> | null = null;
+
     btn.addEventListener('click', async () => {
       const ip = btn.getAttribute('data-ip');
       if (!ip) return;
+
+      if (resetTimer) { clearTimeout(resetTimer); resetTimer = null; }
+
       try {
         await navigator.clipboard.writeText(`connect ${ip}`);
+
         const lbl = btn.querySelector('.copy-label');
         const row = btn.closest('.console-row');
+
         btn.classList.add('copied');
         row?.classList.add('copied');
-        if (lbl) lbl.textContent = '¡Copiado!';
-        // Toast global
+        btn.setAttribute('aria-label', 'IP copiada');
+        if (lbl) lbl.textContent = 'Copiado';
+
         if (typeof window.showToast === 'function') {
           window.showToast(`connect ${ip} — copiado al portapapeles`, 'success', 2800);
         }
-        setTimeout(() => {
+
+        resetTimer = setTimeout(() => {
           btn.classList.remove('copied');
           row?.classList.remove('copied');
+          btn.setAttribute('aria-label', `Copiar IP de ${ip}`);
           if (lbl) lbl.textContent = 'Copiar';
-        }, 2200);
+          resetTimer = null;
+        }, 2000);
+
       } catch {
         if (typeof window.showToast === 'function') {
           window.showToast('No se pudo copiar. Copiá la IP manualmente.', 'error');
@@ -772,7 +830,6 @@ const servers = serverRows
     const inner   = document.querySelector<HTMLElement>(`[data-players-inner="${server.id}"]`);
 
     if (!badge) return;
-    const dot   = badge.querySelector('.badge-dot');
     const label = badge.querySelector('.badge-label');
 
     markSkeleton(server.id, true);
@@ -795,11 +852,18 @@ const servers = serverRows
       if (map) map.textContent = server.map ?? '–';
       if (section) section.style.display = 'block';
 
+      // XSS-safe: usamos textContent vía createPlayerTag, nunca innerHTML con datos externos
       if (inner) {
+        inner.textContent = ''; // limpiar sin innerHTML
         const list = server.playerList ?? [];
-        inner.innerHTML = list.length > 0
-          ? list.map(name => `<span class="player-tag">${name}</span>`).join('')
-          : '<span class="players-empty">Sin jugadores en este momento</span>';
+        if (list.length > 0) {
+          list.forEach(name => inner.appendChild(createPlayerTag(name)));
+        } else {
+          const empty = document.createElement('span');
+          empty.className = 'players-empty';
+          empty.textContent = 'Sin jugadores en este momento';
+          inner.appendChild(empty);
+        }
       }
 
     } else {
@@ -828,13 +892,25 @@ const servers = serverRows
   }
 
   async function fetchServerStatus() {
-    // Mostrar spinners en todas las cards
+    // No hacer fetch si el tab está en segundo plano
+    if (document.hidden) return;
+
     document.querySelectorAll<HTMLElement>('[data-refresh]').forEach(el => {
       el.classList.add('spinning');
     });
 
+    // AbortController con timeout de 10s — evita que la UI quede colgada
+    // si el endpoint tarda o no responde
+    const controller = new AbortController();
+    const timeoutId  = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
     try {
-      const res = await fetch('/api/servers.json', { cache: 'no-store' });
+      const res = await fetch('/api/servers.json', {
+        cache:  'no-store',
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const data: ServerStatus[] = await res.json();
@@ -842,20 +918,27 @@ const servers = serverRows
 
       fetchFailCount = 0;
       setNetStatus(false);
-    } catch (err) {
+
+    } catch (err: unknown) {
+      clearTimeout(timeoutId);
       fetchFailCount++;
-      console.warn('[Servers] Fetch falló:', err);
+
+      const isAbort = err instanceof DOMException && err.name === 'AbortError';
+      console.warn('[Servers] Fetch falló:', isAbort ? 'timeout (10s)' : err);
 
       if (fetchFailCount >= MAX_RETRIES) {
-        setNetStatus(true, 'No se pudo conectar con el servidor — los datos pueden estar desactualizados');
-        // Marcar skeletons como terminados para no dejar la UI en blanco
+        const msg = isAbort
+          ? 'El servidor tardó demasiado en responder — reintentando más tarde'
+          : 'No se pudo conectar con el servidor — los datos pueden estar desactualizados';
+        setNetStatus(true, msg);
+        // Sacar skeletons para no dejar la UI en blanco
         document.querySelectorAll<HTMLElement>('[data-status]').forEach(badge => {
           const id = badge.getAttribute('data-status');
           if (id) markSkeleton(Number(id), true);
         });
       }
+
     } finally {
-      // Apagar spinners
       document.querySelectorAll<HTMLElement>('[data-refresh]').forEach(el => {
         el.classList.remove('spinning');
       });
@@ -871,13 +954,13 @@ const servers = serverRows
   });
 
   // ── Arranque lazy: fetch solo cuando la sección es visible ────────────
-  // Evita consumir red si el usuario nunca llega a scrollear hasta aquí.
   const serversSection = document.getElementById('servidores');
   const lazyObserver = new IntersectionObserver(entries => {
     if (entries[0].isIntersecting) {
       lazyObserver.disconnect();
       fetchServerStatus();
-      refreshTimer = setInterval(fetchServerStatus, REFRESH_INTERVAL);
+      refreshTimer  = setInterval(fetchServerStatus,   REFRESH_INTERVAL);
+      relativeTimer = setInterval(renderRelativeTimes, RELATIVE_TIME_TICK);
     }
   }, { threshold: 0.05 });
 
@@ -885,8 +968,7 @@ const servers = serverRows
     lazyObserver.observe(serversSection);
   } else {
     fetchServerStatus();
-    refreshTimer = setInterval(fetchServerStatus, REFRESH_INTERVAL);
+    refreshTimer  = setInterval(fetchServerStatus,   REFRESH_INTERVAL);
+    relativeTimer = setInterval(renderRelativeTimes, RELATIVE_TIME_TICK);
   }
-
-  setInterval(renderRelativeTimes, RELATIVE_TIME_TICK);
 </script>

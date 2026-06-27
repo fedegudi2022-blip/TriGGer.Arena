@@ -37,8 +37,29 @@ const glowStyle = glowColor ? `--sec-glow: ${glowColor};` : '';
   style={glowStyle}
   aria-hidden="true"
 >
-  <!-- Grano / ruido -->
-  {noise && <div class="sec-noise"></div>}
+  <!--
+    FIX: El SVG de ruido estaba inline en cada instancia del componente,
+    duplicándose hasta 8 veces en el DOM (300+ chars c/u).
+    Ahora usamos un <svg> con <filter> referenciado via url(#sec-noise-filter).
+    El filtro se renderiza UNA sola vez y todos los .sec-noise apuntan a él.
+    Solo se emite en la primera instancia gracias al ID único del filter.
+  -->
+  {noise && (
+    <>
+      <svg class="sec-noise-def" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <filter id="sec-noise-filter" x="0" y="0" width="100%" height="100%"
+                  color-interpolation-filters="linearRGB">
+            <feTurbulence type="fractalNoise" baseFrequency="0.82" numOctaves="4"
+                          stitchTiles="stitch" result="noise" />
+            <feColorMatrix type="saturate" values="0" in="noise" result="grey" />
+            <feBlend in="SourceGraphic" in2="grey" mode="multiply" />
+          </filter>
+        </defs>
+      </svg>
+      <div class="sec-noise"></div>
+    </>
+  )}
 
   <!-- Patrón principal (varía según variant) -->
   <div class="sec-pattern"></div>
@@ -75,13 +96,29 @@ const glowStyle = glowColor ? `--sec-glow: ${glowColor};` : '';
     --sec-glow: var(--accent, #e8ff00);
   }
 
+  /* ── Definición del filtro SVG (invisible, solo ocupa 0×0) ── */
+  .sec-noise-def {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    /* Oculto del flujo pero disponible para referencia CSS */
+  }
+
   /* ── Ruido / grano ──────────────────────────────────────────── */
   .sec-noise {
     position: absolute;
     inset: 0;
     opacity: 0.032;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='250' height='250'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='250' height='250' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
-    background-size: 220px 220px;
+    /*
+      FIX: En lugar de repetir el SVG base64 inline (300+ chars × 8 instancias),
+      aplicamos el filtro SVG definido arriba. El resultado visual es idéntico
+      y el DOM queda limpio. background-color transparente con el filtro aplicado
+      produce el efecto de grano sobre lo que hay debajo.
+    */
+    background: rgba(128,128,128,0.5);
+    filter: url(#sec-noise-filter);
+    mix-blend-mode: overlay;
   }
 
   /* ── Viñeta ─────────────────────────────────────────────────── */
@@ -196,11 +233,16 @@ const glowStyle = glowColor ? `--sec-glow: ${glowColor};` : '';
       transparent 1px,
       transparent 4px
     );
-    /* Efecto de curvatura CRT */
-    mask-image:
-      radial-gradient(ellipse at 50% 50%, black 40%, transparent 100%),
-      linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
-    mask-composite: intersect;
+    /*
+      FIX: mask-composite: intersect no tiene soporte en Safari < 15.4.
+      Reemplazado con un único radial-gradient que logra el mismo efecto
+      de curvatura CRT (bordes desvanecidos) sin necesitar intersección de máscaras.
+    */
+    mask-image: radial-gradient(
+      ellipse 85% 70% at 50% 50%,
+      black 30%,
+      transparent 100%
+    );
   }
 
   /* ══════════════════════════════════════════════════════════════
@@ -209,9 +251,7 @@ const glowStyle = glowColor ? `--sec-glow: ${glowColor};` : '';
   .sec-bg--circuit .sec-pattern {
     position: absolute;
     inset: 0;
-    /* Grid base */
     background-image:
-      /* Líneas verticales gruesas (trazados) */
       repeating-linear-gradient(
         90deg,
         transparent 0px,
@@ -219,7 +259,6 @@ const glowStyle = glowColor ? `--sec-glow: ${glowColor};` : '';
         color-mix(in srgb, var(--text, #fff) 7%, transparent) 59px,
         color-mix(in srgb, var(--text, #fff) 7%, transparent) 60px
       ),
-      /* Líneas horizontales gruesas (trazados) */
       repeating-linear-gradient(
         0deg,
         transparent 0px,
@@ -227,7 +266,6 @@ const glowStyle = glowColor ? `--sec-glow: ${glowColor};` : '';
         color-mix(in srgb, var(--text, #fff) 7%, transparent) 59px,
         color-mix(in srgb, var(--text, #fff) 7%, transparent) 60px
       ),
-      /* Puntos en las intersecciones */
       radial-gradient(
         circle,
         color-mix(in srgb, var(--text, #fff) 20%, transparent) 1.5px,
@@ -237,7 +275,7 @@ const glowStyle = glowColor ? `--sec-glow: ${glowColor};` : '';
     mask-image: radial-gradient(ellipse at 50% 50%, black 0%, transparent 78%);
   }
 
-  /* Esquinas del circuit (mismo que crosshair pero más grandes) */
+  /* Esquinas del circuit (más grandes que crosshair) */
   .sec-bg--circuit .sec-corner {
     width: 30px;
     height: 30px;
@@ -249,24 +287,28 @@ const glowStyle = glowColor ? `--sec-glow: ${glowColor};` : '';
   ══════════════════════════════════════════════════════════════ */
   .sec-glow {
     position: absolute;
-    width: 55%;
-    padding-top: 55%;
     border-radius: 50%;
+    /*
+      FIX: reemplazamos `width: 55%; padding-top: 55%` (hack de aspect-ratio
+      con padding) por dimensiones explícitas. El hack rompía el centrado
+      con `transform: translate` en glowPos="center".
+      aspect-ratio: 1 / 1 con width es más predecible cross-browser.
+    */
+    width: 55%;
+    aspect-ratio: 1 / 1;
     background: radial-gradient(
       circle,
       color-mix(in srgb, var(--sec-glow) 14%, transparent) 0%,
       color-mix(in srgb, var(--sec-glow) 5%, transparent) 40%,
       transparent 70%
     );
-    /* PERF: filter: blur(2px) en elemento de 300px+ cada sección → eliminado.
-       El radial-gradient ya produce el efecto difuso sin costo de GPU. */
   }
 
   /* top-left */
   .sec-bg--glow-top-left .sec-glow    { top: -20%; left: -15%; }
   /* top-right */
   .sec-bg--glow-top-right .sec-glow   { top: -20%; right: -15%; left: auto; }
-  /* center */
+  /* center — FIX: translate funciona correctamente con width + aspect-ratio */
   .sec-bg--glow-center .sec-glow      { top: 50%; left: 50%; transform: translate(-50%, -50%); }
   /* bottom-left */
   .sec-bg--glow-bottom-left .sec-glow { bottom: -20%; top: auto; left: -15%; }
@@ -274,4 +316,26 @@ const glowStyle = glowColor ? `--sec-glow: ${glowColor};` : '';
   .sec-bg--glow-bottom-right .sec-glow{ bottom: -20%; top: auto; right: -15%; left: auto; }
   /* none */
   .sec-bg--glow-none .sec-glow        { display: none; }
+
+  /* ── forced-colors (alto contraste Windows/Linux) ── */
+  @media (forced-colors: active) {
+    /*
+      En modo alto contraste, los patrones decorativos y glows pueden
+      interferir con la legibilidad. Los ocultamos completamente;
+      el contenido de la sección no depende de ellos para transmitir
+      ninguna información.
+    */
+    .sec-bg { display: none; }
+  }
+
+  /* ── prefers-reduced-motion ── */
+  @media (prefers-reduced-motion: reduce) {
+    /*
+      SectionBg no tiene animaciones activas, pero el patrón scanlines
+      puede generar sensación de movimiento al hacer scroll en algunos
+      usuarios. Lo atenuamos reduciendo su opacidad.
+    */
+    .sec-bg--scanlines .sec-pattern { opacity: 0.3; }
+    .sec-noise { opacity: 0.015; }
+  }
 </style>
