@@ -17,11 +17,15 @@ interface ContactRow { id: string; nombre: string; email: string; asunto: string
 interface PlanRow { id: string; tag: string; price: string; descripcion: string | null; featured: number; badge: string | null; cta: string | null; sort_order: number; features: unknown }
 interface DownloadRow { id: string; nombre: string; descripcion: string | null; url: string; categoria: string | null; size_label: string | null; sort_order: number }
 interface ProfileRow { id: string; email: string; username: string | null; avatar_url: string | null; role: string | null; created_at: string }
+interface AuditRow { id: string; adminId: string; adminUsername: string | null; action: string; targetType: string; targetId: string | null; createdAt: string }
+interface ReportRow { id: string; reporter_email: string; reported_nick: string; tipo: string; descripcion: string; fecha_aprox: string | null; status: string; created_at: string }
 
 let contacts: ContactRow[]  = [];
 let plans:    PlanRow[]     = [];
 let downloads: DownloadRow[] = [];
 let profiles: ProfileRow[]  = [];
+let auditLogs: AuditRow[]   = [];
+let reports: ReportRow[]    = [];
 let dbError: string | null  = null;
 
 try {
@@ -40,6 +44,19 @@ try {
   dbError = e?.message ?? 'Error desconocido al conectar con la base de datos';
   console.error('[Admin] DB error:', e);
 }
+
+// Audit logs y reportes — falla silenciosa si las tablas no existen aún
+try {
+  [auditLogs, reports] = await Promise.all([
+    query<AuditRow>('SELECT * FROM audit_logs ORDER BY createdAt DESC LIMIT 200'),
+    query<ReportRow>('SELECT * FROM reports ORDER BY created_at DESC LIMIT 200'),
+  ]);
+} catch {
+  // tablas opcionales — no romper el panel
+}
+
+const totalReportes = reports.length;
+const reportesPendientes = reports.filter(r => r.status === 'pendiente').length;
 
 const serverRows    = Astro.locals.servers ?? DEFAULT_SERVERS;
 const siteSettings  = Astro.locals.siteSettings ?? DEFAULT_SITE_SETTINGS;
@@ -168,6 +185,8 @@ const avatarUrl   = profile?.avatar_url ?? '';
       <button class="nav-item" data-section="descargas"><i class="ti ti-download"></i><span>Descargas</span></button>
       <button class="nav-item" data-section="contenido"><i class="ti ti-writing"></i><span>Contenido</span></button>
       <button class="nav-item" data-section="configuracion"><i class="ti ti-settings"></i><span>Config</span></button>
+      <button class="nav-item" data-section="reportes"><i class="ti ti-flag-3"></i><span>Reportes</span></button>
+      <button class="nav-item" data-section="logs"><i class="ti ti-history"></i><span>Audit Logs</span></button>
       <div class="nav-divider"></div>
       <button class="nav-item nav-item-portal" data-section="portal"><i class="ti ti-user-circle"></i><span>Mi Portal</span></button>
     </nav>
@@ -864,6 +883,127 @@ const avatarUrl   = profile?.avatar_url ?? '';
             <a href="/auth" target="_blank" class="link-row"><i class="ti ti-login"></i><span>Página de auth</span><i class="ti ti-external-link end"></i></a>
           </div>
         </div>
+      </section>
+
+      <!-- ─── REPORTES ─── -->
+      <section class="section" id="sec-reportes">
+        <div class="page-head">
+          <div>
+            <h1>Reportes de jugadores</h1>
+            <p>{reportesPendientes} pendiente{reportesPendientes !== 1 ? 's' : ''} de revisión</p>
+          </div>
+          <a href="/quejas" target="_blank" class="btn-ghost"><i class="ti ti-external-link"></i> Ver formulario público</a>
+        </div>
+
+        {reports.length === 0 ? (
+          <div class="empty-state">
+            <i class="ti ti-mood-happy"></i>
+            <p>Sin reportes todavía.</p>
+          </div>
+        ) : (
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Nick reportado</th>
+                  <th>Tipo</th>
+                  <th>Descripción</th>
+                  <th>Reportado por</th>
+                  <th>Fecha</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reports.map(r => (
+                  <tr>
+                    <td><code style="font-size:0.8rem">{r.reported_nick}</code></td>
+                    <td>
+                      <span class={`tag ${r.tipo === 'hack' || r.tipo === 'trampa' ? 'danger' : r.tipo === 'insultos' ? 'accent' : 'muted'}`}>
+                        {r.tipo.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td style="max-width:260px;font-size:0.78rem;color:var(--muted-2)">{r.descripcion.slice(0, 120)}{r.descripcion.length > 120 ? '…' : ''}</td>
+                    <td style="font-size:0.78rem;color:var(--muted)">{r.reporter_email}</td>
+                    <td style="font-size:0.75rem;color:var(--muted);white-space:nowrap">{formatDateShort(r.created_at)}</td>
+                    <td>
+                      <span class={`tag ${r.status === 'pendiente' ? 'danger' : r.status === 'revisando' ? 'accent' : r.status === 'resuelto' ? 'olive' : 'muted'}`}>
+                        {r.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <!-- ─── AUDIT LOGS ─── -->
+      <section class="section" id="sec-logs">
+        <div class="page-head">
+          <div>
+            <h1>Audit Logs</h1>
+            <p>Historial de acciones administrativas — {auditLogs.length} registros</p>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-head"><h2><i class="ti ti-filter"></i> Filtrar</h2></div>
+          <div class="form-row" style="padding:16px 20px;gap:12px">
+            <div class="field">
+              <label>Admin</label>
+              <div class="iw"><i class="ti ti-user ii"></i><input type="text" class="inp" id="logQ" placeholder="Buscar por username…" /></div>
+            </div>
+            <div class="field">
+              <label>Acción</label>
+              <select class="inp" id="logAction">
+                <option value="">Todas</option>
+                {[...new Set(auditLogs.map(l => l.action))].map(a => <option value={a}>{a}</option>)}
+              </select>
+            </div>
+            <div class="field">
+              <label>Tipo</label>
+              <select class="inp" id="logType">
+                <option value="">Todos</option>
+                {[...new Set(auditLogs.map(l => l.targetType))].map(t => <option value={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {auditLogs.length === 0 ? (
+          <div class="empty-state">
+            <i class="ti ti-history"></i>
+            <p>No hay registros de auditoría todavía.</p>
+          </div>
+        ) : (
+          <div class="table-wrap">
+            <table class="data-table" id="logsTable">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Admin</th>
+                  <th>Acción</th>
+                  <th>Tipo</th>
+                  <th>Target ID</th>
+                </tr>
+              </thead>
+              <tbody id="logsBody">
+                {auditLogs.map(log => (
+                  <tr data-admin={log.adminUsername ?? ''} data-action={log.action} data-type={log.targetType}>
+                    <td style="font-size:0.75rem;white-space:nowrap;color:var(--muted)">{formatDate(log.createdAt)}</td>
+                    <td>
+                      <span style="font-family:var(--font-mono);font-size:0.78rem">{log.adminUsername ?? log.adminId}</span>
+                    </td>
+                    <td><span class="tag accent">{log.action}</span></td>
+                    <td><span class="tag muted">{log.targetType}</span></td>
+                    <td style="font-family:var(--font-mono);font-size:0.72rem;color:var(--muted)">{log.targetId ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       <!-- ─── PORTAL (Mi cuenta embebido) ─── -->
@@ -1584,6 +1724,7 @@ const avatarUrl   = profile?.avatar_url ?? '';
     dashboard: 'Dashboard', mensajes: 'Mensajes', usuarios: 'Usuarios',
     planes: 'Planes', servidores: 'Servidores', descargas: 'Descargas',
     contenido: 'Contenido', configuracion: 'Configuración', portal: 'Mi Portal',
+    reportes: 'Reportes', logs: 'Audit Logs',
   };
 
   const navItems = document.querySelectorAll<HTMLButtonElement>('.nav-item');
@@ -2510,5 +2651,22 @@ const avatarUrl   = profile?.avatar_url ?? '';
       tab.classList.add('active');
       document.getElementById(`ctab-${key}`)?.classList.add('active');
     })
+  );
+
+  // ── Audit log filters ──────────────────────────────────────
+  function filterLogs() {
+    const q      = (document.getElementById('logQ') as HTMLInputElement)?.value.toLowerCase() ?? '';
+    const action = (document.getElementById('logAction') as HTMLSelectElement)?.value ?? '';
+    const type   = (document.getElementById('logType') as HTMLSelectElement)?.value ?? '';
+    document.querySelectorAll<HTMLTableRowElement>('#logsBody tr').forEach(row => {
+      const admin  = (row.dataset.admin  ?? '').toLowerCase();
+      const rowAct = row.dataset.action ?? '';
+      const rowTyp = row.dataset.type   ?? '';
+      const show   = (!q || admin.includes(q)) && (!action || rowAct === action) && (!type || rowTyp === type);
+      row.style.display = show ? '' : 'none';
+    });
+  }
+  ['logQ','logAction','logType'].forEach(id =>
+    document.getElementById(id)?.addEventListener('input', filterLogs)
   );
 </script>

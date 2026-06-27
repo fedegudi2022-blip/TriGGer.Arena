@@ -3,15 +3,355 @@ export const prerender = false;
 import Layout from '../../layouts/Layout.astro';
 import Navbar from '../../components/Navbar.astro';
 import Footer from '../../components/Footer.astro';
+import { query } from '../../lib/db';
+
+// Crear tabla si no existe
+try {
+  await query(`
+    CREATE TABLE IF NOT EXISTS reports (
+      id              VARCHAR(36)  NOT NULL PRIMARY KEY,
+      reporter_email  VARCHAR(160) NOT NULL,
+      reported_nick   VARCHAR(80)  NOT NULL,
+      tipo            ENUM('hack','insultos','bug_abuse','trampa','otro') NOT NULL DEFAULT 'otro',
+      descripcion     TEXT         NOT NULL,
+      fecha_aprox     VARCHAR(40)  NULL,
+      status          ENUM('pendiente','revisando','resuelto','descartado') NOT NULL DEFAULT 'pendiente',
+      created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_status (status),
+      INDEX idx_reported (reported_nick),
+      INDEX idx_reporter (reporter_email)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+} catch (e) {
+  console.error('[quejas] No se pudo crear tabla reports:', e);
+}
 ---
-<Layout title="Quejas — TriGGer.Arena" noindex>
+
+<Layout title="Reportar jugador — TriGGer.Arena" noindex>
   <Navbar />
-  <main style="min-height:60vh; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:16px; text-align:center; padding: 80px 24px;">
-    <i class="ti ti-message-report" style="font-size:48px; color: var(--accent);"></i>
-    <h1 style="font-family:var(--font-display); font-size:2rem; color:var(--text);">Quejas y reportes</h1>
-    <p style="color:var(--muted-2); max-width:480px;">
-      Esta sección está en construcción. Próximamente podrás reportar jugadores o situaciones.
-    </p>
+
+  <main class="quejas-main">
+
+    <div class="quejas-hero">
+      <div class="quejas-hero-bg" aria-hidden="true"></div>
+      <div class="container">
+        <div class="quejas-eyebrow">
+          <i class="ti ti-message-report" aria-hidden="true"></i>
+          Sistema de reportes
+        </div>
+        <h1 class="quejas-title">Reportar Jugador</h1>
+        <p class="quejas-sub">
+          Reportes revisados por el equipo de admins. Incluí toda la info posible para acelerar la revisión.
+        </p>
+      </div>
+    </div>
+
+    <div class="container quejas-body">
+      <div class="quejas-grid">
+
+        <!-- Formulario -->
+        <div class="quejas-form-wrap">
+          <div class="card">
+            <div class="card-head">
+              <h2><i class="ti ti-flag-3"></i> Nuevo reporte</h2>
+            </div>
+            <div class="form-pad">
+
+              <div class="field">
+                <label for="q-nick">Nick del jugador reportado <span class="req">*</span></label>
+                <div class="iw">
+                  <i class="ti ti-user-x ii" aria-hidden="true"></i>
+                  <input id="q-nick" type="text" class="inp" placeholder="NickDelJugador" maxlength="80" autocomplete="off" />
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="q-tipo">Tipo de infracción <span class="req">*</span></label>
+                <select id="q-tipo" class="inp">
+                  <option value="hack">Hack / Cheat</option>
+                  <option value="insultos">Insultos / Toxicidad</option>
+                  <option value="bug_abuse">Bug Abuse</option>
+                  <option value="trampa">Trampa / Fullbright</option>
+                  <option value="otro">Otro</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="q-desc">Descripción de lo sucedido <span class="req">*</span></label>
+                <textarea
+                  id="q-desc"
+                  class="inp"
+                  rows="5"
+                  placeholder="Describí qué pasó, en qué mapa, cómo lo identificaste…"
+                  maxlength="2000"
+                  style="resize:vertical;min-height:110px"
+                ></textarea>
+                <span class="hint"><span id="q-desc-count">0</span>/2000 caracteres</span>
+              </div>
+
+              <div class="field">
+                <label for="q-fecha">Fecha aproximada del incidente</label>
+                <div class="iw">
+                  <i class="ti ti-calendar ii" aria-hidden="true"></i>
+                  <input id="q-fecha" type="text" class="inp" placeholder="ej: hace 2 días, 15/06/2025…" maxlength="40" />
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="q-email">Tu email <span class="req">*</span></label>
+                <div class="iw">
+                  <i class="ti ti-mail ii" aria-hidden="true"></i>
+                  <input id="q-email" type="email" class="inp" placeholder="tu@email.com" maxlength="160" autocomplete="email" />
+                </div>
+                <span class="hint">Para que los admins te pidan más info si hace falta.</span>
+              </div>
+
+              <p class="error" id="q-err"></p>
+              <button class="btn-primary" id="sendReportBtn">
+                <i class="ti ti-send"></i> Enviar reporte
+              </button>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Info lateral -->
+        <div class="quejas-aside">
+
+          <div class="card aside-card">
+            <div class="card-head"><h2><i class="ti ti-info-circle"></i> Antes de reportar</h2></div>
+            <ul class="tips-list">
+              <li><i class="ti ti-check" aria-hidden="true"></i> Verificá que el jugador no esté en la <a href="/baneados">lista de baneados</a>.</li>
+              <li><i class="ti ti-check" aria-hidden="true"></i> Incluí el nick exacto — diferenciamos mayúsculas.</li>
+              <li><i class="ti ti-check" aria-hidden="true"></i> Cuanta más info, más rápido podemos actuar.</li>
+              <li><i class="ti ti-x danger" aria-hidden="true"></i> No hagas reportes falsos — puede resultar en sanción.</li>
+            </ul>
+          </div>
+
+          <div class="card aside-card">
+            <div class="card-head"><h2><i class="ti ti-clock-hour-4"></i> Tiempos de revisión</h2></div>
+            <div class="times-list">
+              <div class="time-row">
+                <div>
+                  <span class="time-label">Hack / Cheat</span>
+                  <span class="time-sub">Alta prioridad</span>
+                </div>
+                <span class="time-val time-fast">12–24 hs</span>
+              </div>
+              <div class="time-row">
+                <div>
+                  <span class="time-label">Insultos / Toxicidad</span>
+                  <span class="time-sub">Media prioridad</span>
+                </div>
+                <span class="time-val time-med">24–48 hs</span>
+              </div>
+              <div class="time-row">
+                <div>
+                  <span class="time-label">Otros</span>
+                  <span class="time-sub">Normal</span>
+                </div>
+                <span class="time-val">48–72 hs</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card aside-card">
+            <div class="card-head"><h2><i class="ti ti-brand-discord"></i> Urgente</h2></div>
+            <p class="aside-text">Para situaciones que necesitan acción inmediata, reportá en el Discord oficial.</p>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Success state -->
+    <div class="success-overlay" id="successOverlay" style="display:none">
+      <div class="success-card">
+        <div class="success-icon"><i class="ti ti-circle-check" aria-hidden="true"></i></div>
+        <h2>Reporte enviado</h2>
+        <p>Los admins lo van a revisar. Si necesitamos más info, te contactamos por email.</p>
+        <button class="btn-primary" id="successClose">
+          <i class="ti ti-arrow-left"></i> Hacer otro reporte
+        </button>
+      </div>
+    </div>
+
   </main>
+
   <Footer />
 </Layout>
+
+<style>
+  .quejas-main { min-height: 80vh; padding-bottom: 80px; position: relative; }
+
+  .quejas-hero {
+    position: relative; padding: 80px 0 48px; text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .quejas-hero-bg {
+    position: absolute; inset: 0; z-index: 0;
+    background: radial-gradient(ellipse 70% 60% at 50% 0%, rgba(56,182,255,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .container { max-width: 1000px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+  .quejas-eyebrow {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 0.68rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--accent); padding: 5px 14px; border-radius: 999px;
+    background: rgba(56,182,255,0.08); border: 1px solid rgba(56,182,255,0.2);
+    margin-bottom: 18px;
+  }
+  .quejas-title {
+    font-family: var(--font-display); font-size: clamp(2rem, 6vw, 3rem);
+    font-weight: 700; color: var(--text); margin-bottom: 12px; line-height: 1.1;
+  }
+  .quejas-sub { font-size: 0.9rem; color: var(--muted-2); }
+
+  .quejas-body { padding-top: 36px; }
+  .quejas-grid { display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start; }
+
+  /* Card */
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); overflow: hidden;
+  }
+  .card-head {
+    display: flex; align-items: center;
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    background: var(--surface-0);
+  }
+  .card-head h2 {
+    font-size: 0.82rem; font-weight: 700; letter-spacing: 0.05em;
+    text-transform: uppercase; color: var(--text);
+    display: flex; align-items: center; gap: 7px;
+  }
+  .card-head i { font-size: 16px; color: var(--accent); }
+  .form-pad { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  label { font-size: 0.75rem; font-weight: 600; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .req { color: #ef4444; }
+  .iw { position: relative; display: flex; align-items: center; }
+  .ii { position: absolute; left: 11px; font-size: 15px; color: var(--muted); pointer-events: none; }
+  .inp {
+    width: 100%; padding: 10px 12px; background: var(--surface-0);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--text); font-size: 0.85rem; font-family: var(--font-body);
+    transition: border-color 0.15s; outline: none;
+  }
+  .iw .inp { padding-left: 36px; }
+  .inp:focus { border-color: var(--accent); }
+  select.inp { cursor: pointer; }
+  textarea.inp { resize: vertical; }
+  .hint { font-size: 0.72rem; color: var(--muted); }
+  .error { font-size: 0.78rem; color: #ef4444; min-height: 1em; }
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 11px 22px; background: var(--accent); color: #06080d;
+    font-weight: 700; font-size: 0.8rem; border: none; border-radius: var(--radius);
+    cursor: pointer; letter-spacing: 0.07em; text-transform: uppercase;
+    transition: opacity 0.15s, transform 0.12s;
+  }
+  .btn-primary:hover:not(:disabled) { opacity: 0.85; transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* Aside */
+  .aside-card { margin-bottom: 14px; }
+  .aside-card:last-child { margin-bottom: 0; }
+  .tips-list { list-style: none; padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
+  .tips-list li { font-size: 0.82rem; color: var(--muted-2); display: flex; align-items: flex-start; gap: 8px; line-height: 1.5; }
+  .tips-list i { font-size: 14px; color: #4ade80; flex-shrink: 0; margin-top: 2px; }
+  .tips-list i.danger { color: #ef4444; }
+  .tips-list a { color: var(--accent); text-decoration: none; }
+  .tips-list a:hover { text-decoration: underline; }
+
+  .times-list { padding: 14px 20px; display: flex; flex-direction: column; gap: 12px; }
+  .time-row { display: flex; justify-content: space-between; align-items: center; }
+  .time-label { font-size: 0.82rem; color: var(--text); display: block; }
+  .time-sub { font-size: 0.7rem; color: var(--muted); }
+  .time-val { font-size: 0.75rem; font-weight: 700; color: var(--muted); white-space: nowrap; }
+  .time-fast { color: #ef4444; }
+  .time-med { color: #f59e0b; }
+  .aside-text { padding: 14px 20px; font-size: 0.82rem; color: var(--muted-2); line-height: 1.6; }
+
+  /* Success overlay */
+  .success-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(7, 9, 15, 0.85);
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  .success-card {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 16px; padding: 40px 32px; max-width: 400px; width: 100%;
+    text-align: center;
+  }
+  .success-icon { font-size: 52px; color: #4ade80; margin-bottom: 16px; }
+  .success-card h2 { font-size: 1.4rem; font-weight: 700; color: var(--text); margin-bottom: 10px; }
+  .success-card p { font-size: 0.9rem; color: var(--muted-2); margin-bottom: 24px; line-height: 1.6; }
+
+  @media (max-width: 720px) {
+    .quejas-grid { grid-template-columns: 1fr; }
+    .quejas-aside { display: contents; }
+    .aside-card { order: 10; }
+  }
+</style>
+
+<script>
+  const $ = (id: string) => document.getElementById(id)!;
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  // Contador textarea
+  const desc = $('q-desc') as HTMLTextAreaElement;
+  const count = $('q-desc-count');
+  desc.addEventListener('input', () => { count.textContent = String(desc.value.length); });
+
+  // Envío
+  $('sendReportBtn').addEventListener('click', async () => {
+    const btn   = $('sendReportBtn') as HTMLButtonElement;
+    const errEl = $('q-err');
+    errEl.textContent = '';
+
+    const nick   = ($('q-nick') as HTMLInputElement).value.trim();
+    const tipo   = ($('q-tipo') as HTMLSelectElement).value;
+    const descV  = desc.value.trim();
+    const fecha  = ($('q-fecha') as HTMLInputElement).value.trim();
+    const email  = ($('q-email') as HTMLInputElement).value.trim();
+
+    if (!nick)       { errEl.textContent = 'Ingresá el nick del jugador.'; return; }
+    if (!descV || descV.length < 20) { errEl.textContent = 'La descripción debe tener al menos 20 caracteres.'; return; }
+    if (!email || !EMAIL_RE.test(email)) { errEl.textContent = 'Ingresá un email válido.'; return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i> Enviando…';
+
+    try {
+      const res = await fetch('/api/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nick, tipo, descripcion: descV, fecha_aprox: fecha, email }),
+      });
+      const j = await res.json();
+      if (res.ok && j.ok) {
+        const overlay = $('successOverlay');
+        overlay.style.display = 'flex';
+        $('successClose').addEventListener('click', () => {
+          overlay.style.display = 'none';
+          ($('q-nick') as HTMLInputElement).value = '';
+          desc.value = '';
+          count.textContent = '0';
+          ($('q-fecha') as HTMLInputElement).value = '';
+          ($('q-email') as HTMLInputElement).value = '';
+        }, { once: true });
+      } else {
+        errEl.textContent = j.error || 'Error al enviar el reporte.';
+      }
+    } catch {
+      errEl.textContent = 'Error de red. Intentá de nuevo.';
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-send"></i> Enviar reporte';
+  });
+</script>

@@ -98,6 +98,16 @@ export async function sendVerificationEmail(email: string, token: string): Promi
   await sendEmail(email, 'Verificá tu email — TriGGer.Arena', html);
 }
 
+export async function sendContactConfirmation(email: string, nombre: string, asunto: string): Promise<void> {
+  const html = baseTemplate('Recibimos tu mensaje', `
+    <h1>Hola, ${nombre}!</h1>
+    <p>Recibimos tu mensaje sobre <strong>${asunto}</strong> correctamente. Nuestro equipo lo va a revisar y te respondemos dentro de las próximas 24–48 hs.</p>
+    <p>Si tenés una consulta urgente, podés contactarnos directo por WhatsApp o Discord.</p>
+    <p class="muted">Este es un email automático. No respondas a este correo.</p>
+  `);
+  await sendEmail(email, 'Recibimos tu consulta — TriGGer.Arena', html);
+}
+
 export async function sendPasswordResetEmail(email: string, token: string): Promise<void> {
   const url  = `${getSiteUrl()}/auth/callback?token=${token}&type=recovery`;
   const html = baseTemplate('Recuperar contraseña', `

@@ -88,8 +88,11 @@ const subtitleLines = h.subtitle.split('\n');
         <span class="stats-corner stats-bl" aria-hidden="true"></span>
         <span class="stats-corner stats-br" aria-hidden="true"></span>
         <div class="stat">
-          <span class="stat-val" data-count data-target={h.stat1_val}>{h.stat1_val}</span>
-          <span class="stat-key">{h.stat1_key}</span>
+          <span class="stat-val" id="hero-live-players" data-count data-target={h.stat1_val}>{h.stat1_val}</span>
+          <span class="stat-key">
+            {h.stat1_key}
+            <span id="hero-live-dot" style="display:none;margin-left:4px;width:5px;height:5px;background:#4ade80;border-radius:50%;display:inline-block;vertical-align:middle;animation:pulse 1.8s ease-in-out infinite;box-shadow:0 0 5px rgba(74,222,128,.8)"></span>
+          </span>
         </div>
         <div class="stat-sep" aria-hidden="true"></div>
         <div class="stat">
@@ -101,6 +104,14 @@ const subtitleLines = h.subtitle.split('\n');
           <span class="stat-val" data-count data-target={h.stat3_val}>{h.stat3_val}</span>
           <span class="stat-key">{h.stat3_key}</span>
         </div>
+      </div>
+
+      <!-- Badge de mapa activo en tiempo real -->
+      <div id="hero-map-badge" style="display:none;margin-top:14px">
+        <span class="map-badge">
+          <span class="map-badge-dot" aria-hidden="true"></span>
+          <span id="hero-map-text"></span>
+        </span>
       </div>
 
     </div>
@@ -381,6 +392,19 @@ const subtitleLines = h.subtitle.split('\n');
     100% { transform: scaleY(1); opacity: 0; }
   }
 
+  .map-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono); font-size: 0.62rem; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+    padding: 4px 12px; border-radius: 999px;
+    background: rgba(74,222,128,0.05); border: 1px solid rgba(74,222,128,0.15);
+  }
+  .map-badge-dot {
+    width: 5px; height: 5px; background: #4ade80; border-radius: 50%;
+    flex-shrink: 0; animation: pulse 1.8s ease-in-out infinite;
+    box-shadow: 0 0 5px rgba(74,222,128,.8);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .ch-dot, .eyebrow-dot, .live-pulse, .scroll-line { animation: none; }
   }
@@ -442,4 +466,39 @@ const subtitleLines = h.subtitle.split('\n');
       circle.addEventListener('animationend', () => circle.remove());
     });
   });
+
+  // ── Live server stats ────────────────────────────────────────
+  (async () => {
+    try {
+      const res  = await fetch('/api/servers.json');
+      if (!res.ok) return;
+      const data: Array<{ online: boolean; players?: number; map?: string }> = await res.json();
+      const online = data.filter(s => s.online);
+      if (!online.length) return;
+
+      const totalPlayers = online.reduce((sum, s) => sum + (s.players ?? 0), 0);
+      const busiest      = online.reduce((best, s) => (s.players ?? 0) > (best.players ?? 0) ? s : best, online[0]);
+
+      // Actualizar stat de jugadores si hay activos
+      if (totalPlayers > 0) {
+        const el = document.getElementById('hero-live-players');
+        if (el) {
+          el.textContent = String(totalPlayers);
+          el.removeAttribute('data-count'); // no re-animar
+        }
+        const dot = document.getElementById('hero-live-dot');
+        if (dot) dot.style.removeProperty('display');
+      }
+
+      // Badge con mapa del server más activo
+      if (busiest?.map && busiest.map !== 'unknown') {
+        const badge = document.getElementById('hero-map-badge');
+        const text  = document.getElementById('hero-map-text');
+        if (badge && text) {
+          text.textContent = `${busiest.map} · ${busiest.players ?? 0} jugadores`;
+          badge.style.removeProperty('display');
+        }
+      }
+    } catch { /* silencioso */ }
+  })();
 </script>

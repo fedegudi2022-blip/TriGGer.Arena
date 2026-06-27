@@ -3,15 +3,361 @@ export const prerender = false;
 import Layout from '../../layouts/Layout.astro';
 import Navbar from '../../components/Navbar.astro';
 import Footer from '../../components/Footer.astro';
+import { query } from '../../lib/db';
+
+interface TournamentRow {
+  id: string;
+  nombre: string;
+  fecha: string | null;
+  estado: 'proximo' | 'activo' | 'finalizado';
+  descripcion: string | null;
+  participantes: string; // JSON array de strings
+  resultados: string | null; // JSON: { [matchId]: { ganador, score } }
+  creado_at: string;
+}
+
+// Crear tabla si no existe
+try {
+  await query(`
+    CREATE TABLE IF NOT EXISTS tournaments (
+      id             VARCHAR(36)  NOT NULL PRIMARY KEY,
+      nombre         VARCHAR(120) NOT NULL,
+      fecha          DATE         NULL,
+      estado         ENUM('proximo','activo','finalizado') NOT NULL DEFAULT 'proximo',
+      descripcion    TEXT         NULL,
+      participantes  JSON         NOT NULL COMMENT 'Array de strings con los nicks/equipos',
+      resultados     JSON         NULL COMMENT 'Objeto con resultados por match',
+      creado_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_estado (estado)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+} catch (e) {
+  console.error('[torneo] No se pudo crear tabla tournaments:', e);
+}
+
+let tournaments: TournamentRow[] = [];
+let dbError: string | null = null;
+
+try {
+  tournaments = await query<TournamentRow>(
+    `SELECT * FROM tournaments ORDER BY FIELD(estado,'activo','proximo','finalizado'), fecha ASC, creado_at DESC`
+  );
+} catch (e: any) {
+  dbError = e?.message ?? 'Error de base de datos';
+}
+
+function parseParts(t: TournamentRow) {
+  try {
+    const parts: string[] = typeof t.participantes === 'string'
+      ? JSON.parse(t.participantes)
+      : t.participantes ?? [];
+    const results: Record<string, { ganador: string; score: string }> =
+      t.resultados
+        ? (typeof t.resultados === 'string' ? JSON.parse(t.resultados) : t.resultados)
+        : {};
+    return { parts, results };
+  } catch { return { parts: [], results: {} }; }
+}
+
+// Genera bracket de eliminación simple (potencia de 2)
+function buildBracket(participants: string[], results: Record<string, { ganador: string; score: string }>) {
+  const n = participants.length;
+  if (n < 2) return [];
+
+  // Rellenar hasta la próxima potencia de 2
+  const size = Math.pow(2, Math.ceil(Math.log2(n)));
+  const padded = [...participants];
+  while (padded.length < size) padded.push('BYE');
+
+  const rounds: { id: string; p1: string; p2: string; ganador?: string; score?: string }[][] = [];
+  let current = padded;
+
+  let roundIdx = 0;
+  while (current.length > 1) {
+    const round: typeof rounds[0] = [];
+    for (let i = 0; i < current.length; i += 2) {
+      const matchId = `r${roundIdx}-m${i / 2}`;
+      const p1 = current[i];
+      const p2 = current[i + 1] ?? 'BYE';
+      const res = results[matchId];
+      round.push({ id: matchId, p1, p2, ganador: res?.ganador, score: res?.score });
+      // Avanzar ganador o BYE automático
+      current[i / 2] = res?.ganador ?? (p2 === 'BYE' ? p1 : '?');
+    }
+    rounds.push(round);
+    current = current.slice(0, current.length / 2);
+    roundIdx++;
+  }
+
+  return rounds;
+}
+
+const estadoLabel: Record<string, string> = {
+  proximo:    'Próximo',
+  activo:     'En curso',
+  finalizado: 'Finalizado',
+};
+const estadoClass: Record<string, string> = {
+  proximo:    'badge-proximo',
+  activo:     'badge-activo',
+  finalizado: 'badge-fin',
+};
+
+function formatDate(d: string | null) {
+  if (!d) return null;
+  return new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' });
+}
+
+const roundNames = (total: number, idx: number) => {
+  if (idx === total - 1) return 'Final';
+  if (idx === total - 2) return 'Semifinal';
+  if (idx === total - 3) return 'Cuartos de final';
+  return `Ronda ${idx + 1}`;
+};
 ---
-<Layout title="Torneo — TriGGer.Arena" noindex>
+
+<Layout title="Torneos — TriGGer.Arena">
   <Navbar />
-  <main style="min-height:60vh; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:16px; text-align:center; padding: 80px 24px;">
-    <i class="ti ti-trophy" style="font-size:48px; color: var(--accent);"></i>
-    <h1 style="font-family:var(--font-display); font-size:2rem; color:var(--text);">Torneos</h1>
-    <p style="color:var(--muted-2); max-width:480px;">
-      Esta sección está en construcción. Próximamente encontrarás los torneos y brackets del servidor.
-    </p>
+
+  <main class="t-main">
+
+    <div class="t-hero">
+      <div class="t-hero-bg" aria-hidden="true"></div>
+      <div class="container">
+        <div class="t-eyebrow">
+          <i class="ti ti-trophy" aria-hidden="true"></i>
+          Competencia
+        </div>
+        <h1 class="t-title">Torneos</h1>
+        <p class="t-sub">Brackets, resultados y próximos enfrentamientos de la comunidad.</p>
+      </div>
+    </div>
+
+    <div class="container t-body">
+
+      {dbError && (
+        <div class="t-alert">
+          <i class="ti ti-alert-triangle"></i> Error al cargar los torneos.
+        </div>
+      )}
+
+      {tournaments.length === 0 && !dbError && (
+        <div class="t-empty">
+          <i class="ti ti-trophy-off" aria-hidden="true"></i>
+          <h2>Sin torneos por ahora</h2>
+          <p>Próximamente el staff va a anunciar nuevas fechas. Seguinos en Instagram y Discord para no perderte nada.</p>
+        </div>
+      )}
+
+      {tournaments.map(t => {
+        const { parts, results } = parseParts(t);
+        const bracket = buildBracket(parts, results);
+        const winner = t.estado === 'finalizado' && bracket.length > 0
+          ? bracket[bracket.length - 1][0]?.ganador
+          : null;
+        return (
+          <div class="t-card" id={`torneo-${t.id}`}>
+            <div class="t-card-head">
+              <div class="t-card-title-row">
+                <h2 class="t-card-name">{t.nombre}</h2>
+                <span class={`t-badge ${estadoClass[t.estado]}`}>
+                  {t.estado === 'activo' && <span class="live-dot" aria-hidden="true"></span>}
+                  {estadoLabel[t.estado]}
+                </span>
+              </div>
+              <div class="t-card-meta">
+                {t.fecha && <span><i class="ti ti-calendar" aria-hidden="true"></i> {formatDate(t.fecha)}</span>}
+                <span><i class="ti ti-users" aria-hidden="true"></i> {parts.length} participantes</span>
+                {winner && (
+                  <span class="t-winner">
+                    <i class="ti ti-trophy" aria-hidden="true"></i> Campeón: <strong>{winner}</strong>
+                  </span>
+                )}
+              </div>
+              {t.descripcion && <p class="t-desc">{t.descripcion}</p>}
+            </div>
+
+            {parts.length >= 2 ? (
+              <div class="bracket-scroll">
+                <div class="bracket" style={`--rounds:${bracket.length}`}>
+                  {bracket.map((round, rIdx) => (
+                    <div class="bracket-round">
+                      <div class="round-label">{roundNames(bracket.length, rIdx)}</div>
+                      <div class="round-matches">
+                        {round.map(match => (
+                          <div class={`match ${match.ganador ? 'match--done' : ''}`} data-id={match.id}>
+                            <div class={`match-p ${match.ganador === match.p1 ? 'winner' : ''} ${match.p1 === 'BYE' ? 'bye' : ''}`}>
+                              {match.p1 === 'BYE' ? <em>BYE</em> : match.p1}
+                              {match.ganador === match.p1 && match.score && (
+                                <span class="score">{match.score.split('-')[0]}</span>
+                              )}
+                            </div>
+                            <div class={`match-p ${match.ganador === match.p2 ? 'winner' : ''} ${match.p2 === 'BYE' ? 'bye' : ''}`}>
+                              {match.p2 === 'BYE' ? <em>BYE</em> : match.p2}
+                              {match.ganador === match.p2 && match.score && (
+                                <span class="score">{match.score.split('-')[1]}</span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : parts.length > 0 ? (
+              <div class="t-parts-list">
+                <div class="parts-label">Participantes inscriptos</div>
+                <div class="parts-grid">
+                  {parts.map((p, i) => (
+                    <div class="part-chip">
+                      <span class="part-num">{i + 1}</span>
+                      {p}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div class="t-no-parts">
+                <i class="ti ti-user-question" aria-hidden="true"></i>
+                Participantes por confirmar
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+    </div>
   </main>
+
   <Footer />
 </Layout>
+
+<style>
+  .t-main { min-height: 80vh; padding-bottom: 80px; }
+
+  .t-hero {
+    position: relative; padding: 80px 0 48px; text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .t-hero-bg {
+    position: absolute; inset: 0; z-index: 0;
+    background: radial-gradient(ellipse 70% 60% at 50% 0%, rgba(250,204,21,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .container { max-width: 1000px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+  .t-eyebrow {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 0.68rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+    color: #facc15; padding: 5px 14px; border-radius: 999px;
+    background: rgba(250,204,21,0.08); border: 1px solid rgba(250,204,21,0.2);
+    margin-bottom: 18px;
+  }
+  .t-title {
+    font-family: var(--font-display); font-size: clamp(2rem, 6vw, 3rem);
+    font-weight: 700; color: var(--text); margin-bottom: 12px; line-height: 1.1;
+  }
+  .t-sub { font-size: 0.9rem; color: var(--muted-2); }
+
+  .t-body { padding-top: 36px; display: flex; flex-direction: column; gap: 28px; }
+  .t-alert {
+    background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2);
+    border-radius: var(--radius); padding: 12px 16px; color: #ef4444;
+    font-size: 0.85rem; display: flex; align-items: center; gap: 8px;
+  }
+
+  .t-empty {
+    text-align: center; padding: 80px 24px; color: var(--muted);
+  }
+  .t-empty i { font-size: 48px; display: block; margin-bottom: 16px; }
+  .t-empty h2 { font-size: 1.2rem; font-weight: 700; color: var(--text); margin-bottom: 10px; }
+  .t-empty p { font-size: 0.88rem; color: var(--muted-2); max-width: 480px; margin: 0 auto; line-height: 1.7; }
+
+  /* Tournament card */
+  .t-card {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 16px; overflow: hidden;
+  }
+  .t-card-head { padding: 20px 24px; border-bottom: 1px solid var(--border); }
+  .t-card-title-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+  .t-card-name { font-size: 1.1rem; font-weight: 700; color: var(--text); }
+
+  .t-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 3px 10px; border-radius: 999px; border: 1px solid transparent;
+  }
+  .badge-proximo { background: rgba(56,182,255,0.1); color: #38b6ff; border-color: rgba(56,182,255,0.2); }
+  .badge-activo  { background: rgba(74,222,128,0.1); color: #4ade80; border-color: rgba(74,222,128,0.2); }
+  .badge-fin     { background: var(--surface-0); color: var(--muted); border-color: var(--border); }
+
+  .live-dot {
+    width: 6px; height: 6px; background: #4ade80; border-radius: 50%;
+    animation: lpulse 1.5s ease-in-out infinite;
+  }
+  @keyframes lpulse { 0%,100% { opacity:.5; } 50% { opacity:1; } }
+
+  .t-card-meta {
+    display: flex; flex-wrap: wrap; gap: 14px;
+    font-size: 0.78rem; color: var(--muted);
+  }
+  .t-card-meta span { display: flex; align-items: center; gap: 5px; }
+  .t-winner { color: #facc15 !important; }
+  .t-winner strong { color: #facc15; }
+  .t-desc { font-size: 0.83rem; color: var(--muted-2); margin-top: 10px; line-height: 1.6; }
+
+  /* Bracket */
+  .bracket-scroll { overflow-x: auto; padding: 24px; }
+  .bracket {
+    display: flex; gap: 32px; min-width: max-content;
+    align-items: stretch;
+  }
+  .bracket-round { display: flex; flex-direction: column; gap: 0; min-width: 160px; }
+  .round-label {
+    font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); padding-bottom: 10px; border-bottom: 1px solid var(--border);
+    margin-bottom: 12px; text-align: center;
+  }
+  .round-matches { display: flex; flex-direction: column; justify-content: space-around; flex: 1; gap: 12px; }
+
+  .match {
+    background: var(--surface-0); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .match--done { border-color: rgba(56,182,255,0.2); }
+  .match-p {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 12px; font-size: 0.8rem; color: var(--muted-2);
+    font-family: var(--font-mono); border-bottom: 1px solid var(--border);
+    transition: background 0.12s;
+  }
+  .match-p:last-child { border-bottom: none; }
+  .match-p.winner {
+    color: var(--text); font-weight: 700;
+    background: rgba(74,222,128,0.06);
+  }
+  .match-p.bye { opacity: 0.35; font-style: italic; }
+  .match-p .score {
+    font-size: 0.7rem; font-weight: 700; color: #4ade80;
+    background: rgba(74,222,128,0.1); padding: 1px 6px; border-radius: 4px;
+    margin-left: 6px; flex-shrink: 0;
+  }
+
+  /* Parts list (< 2 participantes o pendiente) */
+  .t-parts-list, .t-no-parts { padding: 20px 24px; }
+  .parts-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+  .parts-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .part-chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 5px 12px; background: var(--surface-0);
+    border: 1px solid var(--border); border-radius: 999px;
+    font-size: 0.78rem; color: var(--text); font-family: var(--font-mono);
+  }
+  .part-num { font-size: 0.65rem; color: var(--muted); }
+  .t-no-parts {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.82rem; color: var(--muted);
+  }
+</style>
