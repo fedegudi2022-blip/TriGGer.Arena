@@ -6,41 +6,49 @@ const faqs = [
     q: '¿Cómo me conecto a los servidores?',
     a: 'Abrí Counter-Strike 1.6, entrá a la consola con la tecla `~` y escribí el comando connect seguido de la IP del servidor. También podés copiarlo directo desde la sección Servidores acá en la web. Asegurate de tener el juego instalado y el anti-cheat activo.',
     icon: 'ti-plug-connected',
+    tag: 'CONEXIÓN',
   },
   {
     q: '¿Qué beneficios tiene ser VIP?',
     a: 'Los VIPs tienen acceso a comandos exclusivos, skins, prioridad de slot cuando el servidor está lleno, y otras ventajas según el plan elegido. Podés ver todos los detalles en la sección de Planes.',
     icon: 'ti-diamond',
+    tag: 'VIP',
   },
   {
     q: '¿Tienen anti-cheat? ¿Cómo funciona?',
     a: 'Sí, usamos sistemas de detección automática de cheats junto con admins activos en el servidor. Cualquier jugador puede reportar cheaters a través del grupo de WhatsApp o en el formulario de contacto.',
     icon: 'ti-shield-check',
+    tag: 'SEGURIDAD',
   },
   {
     q: '¿Puedo apelar un ban?',
     a: 'Sí. Si creés que tu ban fue injusto, podés ingresar a la sección de Quejas y completar el formulario de apelación. Un administrador revisará tu caso en un plazo de 48 a 72 horas hábiles.',
     icon: 'ti-gavel',
+    tag: 'BANS',
   },
   {
     q: '¿Cómo pago el VIP?',
     a: 'Actualmente aceptamos pagos exclusivamente por MercadoPago. Una vez elegido el plan, contactanos por WhatsApp y te guiamos en el proceso de pago. Una vez confirmado, el VIP se activa en menos de 24 horas.',
     icon: 'ti-credit-card',
+    tag: 'PAGOS',
   },
   {
     q: '¿Qué hago si tengo lag o no puedo conectarme?',
     a: 'Primero verificá tu conexión a internet y asegurate de que el servidor esté en línea (lo podés ver en tiempo real en la sección Servidores). Si el problema persiste, contactanos en el grupo de WhatsApp con tu IP y el mensaje de error que muestra el juego.',
     icon: 'ti-wifi-off',
+    tag: 'SOPORTE',
   },
   {
     q: '¿Los servidores son 24/7?',
     a: 'Sí, los servidores funcionan las 24 horas, los 7 días de la semana. Ocasionalmente pueden tener breves cortes por mantenimiento o actualizaciones, que anunciamos con anticipación en nuestro Discord y WhatsApp.',
     icon: 'ti-clock-24',
+    tag: 'SERVIDORES',
   },
   {
     q: '¿Cómo me uno a la comunidad?',
     a: 'Podés seguirnos en nuestras redes sociales, unirte al grupo de WhatsApp y, por supuesto, conectarte a los servidores. La comunidad se construye jugando, así que ¡no dudes en entrar y presentarte!',
     icon: 'ti-users-group',
+    tag: 'COMUNIDAD',
   },
 ];
 
@@ -68,48 +76,79 @@ const faqJsonLd = {
     <h2 class="s-title fade-in">Preguntas frecuentes</h2>
     <p class="s-sub fade-in">Todo lo que necesitás saber antes de conectarte.</p>
 
-    <div class="faq-grid fade-in" role="list">
-      {faqs.map((f, i) => (
-        <div class="faq-item" role="listitem">
+    <!-- Panel principal de dos columnas -->
+    <div class="faq-panel fade-in" role="region" aria-label="Preguntas frecuentes">
+
+      <!-- Columna izquierda: lista de preguntas -->
+      <div class="faq-list" role="list">
+        {faqs.map((f, i) => (
           <button
-            class="faq-trigger"
-            aria-expanded="false"
-            aria-controls={`faq-body-${i}`}
-            id={`faq-trigger-${i}`}
+            class={`faq-row${i === 0 ? ' faq-row--active' : ''}`}
+            data-index={i}
+            role="listitem"
+            aria-selected={i === 0 ? 'true' : 'false'}
+            id={`faq-row-${i}`}
+            aria-controls="faqAnswer"
           >
-            <span class="faq-icon-wrap" aria-hidden="true">
+            <span class="faq-row-indicator" aria-hidden="true"></span>
+            <span class="faq-row-icon" aria-hidden="true">
               <i class={`ti ${f.icon}`}></i>
             </span>
-            <span class="faq-q">{f.q}</span>
-            <span class="faq-chevron" aria-hidden="true">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+            <span class="faq-row-content">
+              <span class="faq-row-tag">{f.tag}</span>
+              <span class="faq-row-q">{f.q}</span>
+            </span>
+            <span class="faq-row-arrow" aria-hidden="true">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2.5"
                 stroke-linecap="round" stroke-linejoin="round">
-                <path d="M6 9l6 6 6-6"/>
+                <path d="M9 18l6-6-6-6"/>
               </svg>
             </span>
           </button>
+        ))}
+      </div>
 
-          <!--
-            El div.faq-body maneja la animación de altura.
-            El borde superior sólo aparece cuando el item está abierto,
-            evitando que sea visible durante el frame inicial (max-height:0).
-          -->
-          <div
-            class="faq-body"
-            id={`faq-body-${i}`}
-            role="region"
-            aria-labelledby={`faq-trigger-${i}`}
-            aria-hidden="true"
-          >
-            <div class="faq-body-inner">
-              <p>{f.a}</p>
-            </div>
+      <!-- Columna derecha: respuesta activa -->
+      <div class="faq-answer-panel" id="faqAnswer" role="region" aria-live="polite">
+        <!-- Header del panel -->
+        <div class="faq-answer-header">
+          <div class="faq-answer-dots" aria-hidden="true">
+            <span></span><span></span><span></span>
           </div>
+          <span class="faq-answer-title" id="faqAnswerTitle">
+            {faqs[0].tag}
+          </span>
+          <div class="faq-answer-corner" aria-hidden="true"></div>
         </div>
-      ))}
+
+        <!-- Cuerpo con contenido dinámico -->
+        <div class="faq-answer-body" id="faqAnswerBody">
+          {faqs.map((f, i) => (
+            <div
+              class={`faq-answer-item${i === 0 ? ' faq-answer-item--active' : ''}`}
+              data-index={i}
+              aria-hidden={i === 0 ? 'false' : 'true'}
+            >
+              <div class="faq-answer-icon-wrap" aria-hidden="true">
+                <i class={`ti ${f.icon}`}></i>
+              </div>
+              <h3 class="faq-answer-q">{f.q}</h3>
+              <p class="faq-answer-text">{f.a}</p>
+              <div class="faq-answer-footer" aria-hidden="true">
+                <span class="faq-answer-index">
+                  {String(i + 1).padStart(2, '0')} / {String(faqs.length).padStart(2, '0')}
+                </span>
+                <span class="faq-answer-tag-badge">{f.tag}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
     </div>
 
+    <!-- CTA -->
     <div class="faq-cta fade-in">
       <span class="faq-cta-text">¿No encontraste lo que buscabas?</span>
       <a href="#contacto" class="faq-cta-btn">
@@ -134,141 +173,285 @@ const faqJsonLd = {
     z-index: 1;
   }
 
-  /* ── Grid dos columnas en desktop ── */
-  .faq-grid {
+  /* ════════════════════════════════════════
+     PANEL PRINCIPAL
+  ════════════════════════════════════════ */
+  .faq-panel {
     display: grid;
-    gap: 6px;
-    margin-bottom: 36px;
-  }
-  @media (min-width: 768px) {
-    .faq-grid {
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-  }
-
-  /* ── Item ── */
-  .faq-item {
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    /* overflow:hidden oculta el faq-body cuando max-height es 0
-       y también recorta el border-radius correctamente */
+    border-radius: var(--radius-xl);
     overflow: hidden;
     background: var(--surface);
-    transition: border-color 0.2s ease;
-  }
-  .faq-item:has(.faq-trigger[aria-expanded="true"]) {
-    border-color: var(--border-accent);
+    margin-bottom: 36px;
+    /* Sutil línea accent en el tope */
+    box-shadow:
+      0 0 0 1px rgba(56, 189, 248, 0.04),
+      0 24px 48px rgba(0, 0, 0, 0.35);
   }
 
-  /* ── Trigger ── */
-  .faq-trigger {
+  /* ════════════════════════════════════════
+     LISTA (columna izq)
+  ════════════════════════════════════════ */
+  .faq-list {
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    /* Scroll si hay muchos items */
+    max-height: 480px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .faq-list::-webkit-scrollbar { width: 4px; }
+  .faq-list::-webkit-scrollbar-track { background: transparent; }
+  .faq-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ── Fila ── */
+  .faq-row {
     display: flex;
     align-items: center;
     gap: 12px;
-    width: 100%;
     padding: 14px 16px;
     background: none;
     border: none;
+    border-bottom: 1px solid var(--border);
     cursor: pointer;
     text-align: left;
-    outline: none;
+    font-family: inherit;
+    position: relative;
     transition: background 0.15s ease;
+    outline: none;
   }
-  .faq-trigger:hover {
-    background: var(--surface-2);
-  }
-  .faq-trigger[aria-expanded="true"] {
-    background: var(--surface-2);
-  }
-  .faq-trigger:focus-visible {
-    box-shadow: inset 0 0 0 2px rgba(56, 182, 255, 0.5);
-    background: var(--surface-2);
+  .faq-row:last-child { border-bottom: none; }
+  .faq-row:hover { background: var(--surface-2); }
+  .faq-row:focus-visible {
+    box-shadow: inset 0 0 0 2px rgba(56, 189, 248, 0.4);
   }
 
-  /* ── Ícono ── */
-  .faq-icon-wrap {
+  /* Indicador lateral izquierdo (línea accent) */
+  .faq-row-indicator {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 2px;
+    background: var(--accent);
+    border-radius: 0 2px 2px 0;
+    opacity: 0;
+    transform: scaleY(0);
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    transform-origin: center;
+  }
+  .faq-row--active .faq-row-indicator,
+  .faq-row:hover .faq-row-indicator {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  .faq-row--active { background: var(--surface-2); }
+
+  /* Ícono */
+  .faq-row-icon {
     flex-shrink: 0;
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
+    width: 30px; height: 30px;
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--accent-dark);
-    border: 1px solid var(--border-accent);
-    color: var(--accent);
-    font-size: 0.95rem;
-    transition: background 0.2s ease, box-shadow 0.2s ease;
-  }
-  .faq-trigger[aria-expanded="true"] .faq-icon-wrap {
-    background: rgba(56, 182, 255, 0.12);
-    box-shadow: 0 0 12px rgba(56, 182, 255, 0.15);
-  }
-
-  /* ── Pregunta ── */
-  .faq-q {
-    flex: 1;
-    font-size: 0.84rem;
-    font-weight: 600;
-    color: var(--text);
-    line-height: 1.4;
-  }
-
-  /* ── Chevron ── */
-  .faq-chevron {
-    flex-shrink: 0;
+    background: rgba(56, 189, 248, 0.06);
+    border: 1px solid var(--border);
     color: var(--muted);
+    font-size: 0.85rem;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .faq-row--active .faq-row-icon {
+    background: rgba(56, 189, 248, 0.1);
+    border-color: var(--border-accent);
+    color: var(--accent);
+  }
+
+  /* Contenido texto */
+  .faq-row-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .faq-row-tag {
+    font-family: var(--font-mono);
+    font-size: 0.55rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    opacity: 0.6;
+    transition: opacity 0.15s;
+  }
+  .faq-row--active .faq-row-tag { opacity: 1; }
+
+  .faq-row-q {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--muted);
+    line-height: 1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.15s;
+  }
+  .faq-row--active .faq-row-q,
+  .faq-row:hover .faq-row-q { color: var(--text); }
+
+  /* Flecha */
+  .faq-row-arrow {
+    flex-shrink: 0;
+    color: var(--border);
     display: flex;
     align-items: center;
-    /*
-      Sólo animamos transform y color — propiedades de composición.
-      NO animamos height, max-height, padding ni border aquí
-      para evitar reflows que causaban el bug de "se bugea".
-    */
-    transition: transform 0.25s ease, color 0.2s ease;
+    transition: color 0.15s, transform 0.15s;
   }
-  .faq-trigger[aria-expanded="true"] .faq-chevron {
-    transform: rotate(180deg);
+  .faq-row--active .faq-row-arrow {
     color: var(--accent);
+    transform: translateX(2px);
   }
 
-  /* ── Cuerpo del acordeón ──
-     CORRECCIÓN CLAVE:
-     - max-height parte en 0 (cerrado).
-     - El borde superior se controla con un selector :has
-       para que SÓLO aparezca cuando el item está abierto.
-       Así no hay borde visible en el frame inicial.
-     - Usamos will-change:max-height para que el browser
-       no haga reflow en cada frame de la animación.
-     - transition sólo en max-height para que el borde
-       no tenga su propia animación que cause flash.
-  ── */
-  .faq-body {
-    max-height: 0;
+  /* ════════════════════════════════════════
+     PANEL DE RESPUESTA (columna der)
+  ════════════════════════════════════════ */
+  .faq-answer-panel {
+    display: flex;
+    flex-direction: column;
+    background: var(--surface-2);
+    min-height: 480px;
+  }
+
+  /* Header estilo "terminal/ventana" */
+  .faq-answer-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-3);
+    flex-shrink: 0;
+  }
+  .faq-answer-dots {
+    display: flex;
+    gap: 5px;
+  }
+  .faq-answer-dots span {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+  .faq-answer-dots span:first-child  { background: #ef4444; opacity: 0.5; }
+  .faq-answer-dots span:nth-child(2) { background: #f59e0b; opacity: 0.5; }
+  .faq-answer-dots span:last-child   { background: #4ade80; opacity: 0.5; }
+
+  .faq-answer-title {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    flex: 1;
+  }
+  /* Esquina decorativa tipo crosshair */
+  .faq-answer-corner {
+    width: 12px; height: 12px;
+    border-top: 1.5px solid var(--accent);
+    border-right: 1.5px solid var(--accent);
+    opacity: 0.4;
+    border-radius: 0 2px 0 0;
+  }
+
+  /* Body */
+  .faq-answer-body {
+    flex: 1;
+    position: relative;
     overflow: hidden;
-    transition: max-height 0.32s cubic-bezier(0.4, 0, 0.2, 1);
-    will-change: max-height;
-    /* El borde empieza transparente */
-    border-top: 1px solid transparent;
-  }
-  /* Borde visible sólo cuando está expandido */
-  .faq-item:has([aria-expanded="true"]) .faq-body {
-    border-top-color: var(--border);
   }
 
-  .faq-body-inner {
-    padding: 0 16px 16px 60px;
-    background: rgba(56, 182, 255, 0.02);
+  /* Item de respuesta (posicionado absoluto para cross-fade) */
+  .faq-answer-item {
+    position: absolute;
+    inset: 0;
+    padding: 28px 28px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(8px);
+    transition: opacity 0.22s ease, transform 0.22s ease;
   }
-  .faq-body-inner p {
-    font-size: 0.84rem;
+  .faq-answer-item--active {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  /* Ícono grande en el panel de respuesta */
+  .faq-answer-icon-wrap {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(56, 189, 248, 0.08);
+    border: 1px solid var(--border-accent);
+    color: var(--accent);
+    font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+
+  .faq-answer-q {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+
+  .faq-answer-text {
+    font-size: 0.86rem;
     color: var(--muted-2);
-    line-height: 1.75;
-    margin: 12px 0 0;
+    line-height: 1.8;
+    margin: 0;
+    flex: 1;
   }
 
-  /* ── CTA final ── */
+  /* Footer con número de ítem y tag */
+  .faq-answer-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    margin-top: auto;
+  }
+  .faq-answer-index {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+  .faq-answer-tag-badge {
+    font-family: var(--font-mono);
+    font-size: 0.55rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    background: rgba(56, 189, 248, 0.08);
+    border: 1px solid var(--border-accent);
+    border-radius: 3px;
+    padding: 2px 7px;
+  }
+
+  /* ════════════════════════════════════════
+     CTA
+  ════════════════════════════════════════ */
   .faq-cta {
     display: flex;
     align-items: center;
@@ -276,9 +459,9 @@ const faqJsonLd = {
     flex-wrap: wrap;
     gap: 14px;
     padding: 20px;
-    border: 1px dashed rgba(56, 182, 255, 0.2);
+    border: 1px dashed rgba(56, 189, 248, 0.2);
     border-radius: var(--radius-lg);
-    background: rgba(56, 182, 255, 0.02);
+    background: rgba(56, 189, 248, 0.02);
   }
   .faq-cta-text {
     font-size: 0.86rem;
@@ -297,40 +480,62 @@ const faqJsonLd = {
     color: var(--accent);
     border: 1px solid var(--border-accent);
     border-radius: var(--radius);
-    background: var(--accent-dark);
+    background: rgba(56, 189, 248, 0.07);
     text-decoration: none;
     transition: background 0.15s ease, border-color 0.15s ease;
   }
   .faq-cta-btn:hover {
-    background: rgba(56, 182, 255, 0.12);
+    background: rgba(56, 189, 248, 0.12);
     border-color: var(--accent);
   }
   .faq-arrow {
     font-size: 13px;
     transition: transform 0.18s ease;
   }
-  .faq-cta-btn:hover .faq-arrow {
-    transform: translateX(3px);
+  .faq-cta-btn:hover .faq-arrow { transform: translateX(3px); }
+
+  /* ════════════════════════════════════════
+     RESPONSIVE
+  ════════════════════════════════════════ */
+  @media (max-width: 768px) {
+    .faq-panel {
+      grid-template-columns: 1fr;
+    }
+    .faq-list {
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      max-height: 260px;
+    }
+    .faq-answer-panel {
+      min-height: 300px;
+    }
+    .faq-answer-item {
+      padding: 20px 18px 16px;
+    }
+    .faq-row-q {
+      white-space: normal;
+      font-size: 0.75rem;
+    }
   }
 
-  /* ── Responsive ── */
-  @media (max-width: 540px) {
-    .faq-body-inner { padding-left: 16px; }
-    .faq-trigger    { padding: 12px 14px; }
+  @media (max-width: 480px) {
+    .faq-answer-q { font-size: 0.95rem; }
+    .faq-answer-text { font-size: 0.82rem; }
   }
 
-  /* ── Reduced motion ── */
+  /* ════════════════════════════════════════
+     REDUCED MOTION
+  ════════════════════════════════════════ */
   @media (prefers-reduced-motion: reduce) {
-    .faq-body    { transition: none; }
-    .faq-chevron { transition: none; }
-    .faq-item    { transition: none; }
-    .faq-cta-btn { transition: none; }
-    .faq-arrow   { transition: none; }
+    .faq-answer-item { transition: none; }
+    .faq-row         { transition: none; }
+    .faq-row-indicator { transition: none; }
+    .faq-cta-btn     { transition: none; }
+    .faq-arrow       { transition: none; }
   }
 </style>
 
 <script>
-  // Mismo fix que el resto — ver comentario en SlidePanel.astro.
   let faqAbort: AbortController | null = null;
 
   function initFaq() {
@@ -338,98 +543,52 @@ const faqJsonLd = {
     faqAbort = new AbortController();
     const { signal } = faqAbort;
 
-    const triggers = Array.from(
-      document.querySelectorAll<HTMLButtonElement>('.faq-trigger')
-    );
-    if (triggers.length === 0) return; // FAQ no presente en esta página
+    const rows    = Array.from(document.querySelectorAll<HTMLButtonElement>('.faq-row'));
+    const items   = Array.from(document.querySelectorAll<HTMLElement>('.faq-answer-item'));
+    const titleEl = document.getElementById('faqAnswerTitle');
 
-    /* ── Helpers ── */
-    function getBody(trigger: HTMLButtonElement): HTMLElement | null {
-      const id = trigger.getAttribute('aria-controls');
-      return id ? document.getElementById(id) : null;
+    if (rows.length === 0) return;
+
+    // Tags para el header del panel
+    const tags = rows.map(r => {
+      const tagEl = r.querySelector('.faq-row-tag');
+      return tagEl?.textContent?.trim() ?? '';
+    });
+
+    function activate(idx: number) {
+      rows.forEach((r, i) => {
+        const active = i === idx;
+        r.classList.toggle('faq-row--active', active);
+        r.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      items.forEach((item, i) => {
+        const active = i === idx;
+        item.classList.toggle('faq-answer-item--active', active);
+        item.setAttribute('aria-hidden', active ? 'false' : 'true');
+      });
+      if (titleEl) titleEl.textContent = tags[idx];
     }
 
-    function openItem(trigger: HTMLButtonElement) {
-      const body = getBody(trigger);
-      if (!body) return;
-      trigger.setAttribute('aria-expanded', 'true');
-      body.setAttribute('aria-hidden', 'false');
-      /*
-        scrollHeight se lee DESPUÉS de que el contenido es visible
-        (aria-hidden ya no oculta para AT, pero el elemento sigue
-        en el DOM y tiene altura real). Sumamos 2px para absorber
-        sub-pixel rounding sin over-clip.
-      */
-      body.style.maxHeight = body.scrollHeight + 2 + 'px';
-    }
+    rows.forEach((row, idx) => {
+      row.addEventListener('click', () => activate(idx), { signal });
 
-    function closeItem(trigger: HTMLButtonElement) {
-      const body = getBody(trigger);
-      if (!body) return;
-      trigger.setAttribute('aria-expanded', 'false');
-      body.setAttribute('aria-hidden', 'true');
-      body.style.maxHeight = '0';
-    }
-
-    function toggleItem(trigger: HTMLButtonElement) {
-      const isOpen = trigger.getAttribute('aria-expanded') === 'true';
-      // Cerrar todos los demás primero
-      triggers.forEach(t => { if (t !== trigger) closeItem(t); });
-      isOpen ? closeItem(trigger) : openItem(trigger);
-    }
-
-    /* ── Event listeners ── */
-    triggers.forEach((trigger, idx) => {
-      trigger.addEventListener('click', () => toggleItem(trigger), { signal });
-
-      // Navegación por teclado (ARIA Disclosure pattern)
-      trigger.addEventListener('keydown', (e: KeyboardEvent) => {
+      row.addEventListener('keydown', (e: KeyboardEvent) => {
         let next: HTMLButtonElement | undefined;
-        if      (e.key === 'ArrowDown') { e.preventDefault(); next = triggers[idx + 1] ?? triggers[0]; }
-        else if (e.key === 'ArrowUp')   { e.preventDefault(); next = triggers[idx - 1] ?? triggers[triggers.length - 1]; }
-        else if (e.key === 'Home')      { e.preventDefault(); next = triggers[0]; }
-        else if (e.key === 'End')       { e.preventDefault(); next = triggers[triggers.length - 1]; }
-        next?.focus();
+        if      (e.key === 'ArrowDown') { e.preventDefault(); next = rows[idx + 1] ?? rows[0]; }
+        else if (e.key === 'ArrowUp')   { e.preventDefault(); next = rows[idx - 1] ?? rows[rows.length - 1]; }
+        else if (e.key === 'Home')      { e.preventDefault(); next = rows[0]; }
+        else if (e.key === 'End')       { e.preventDefault(); next = rows[rows.length - 1]; }
+        if (next) { next.focus(); activate(rows.indexOf(next)); }
       }, { signal });
     });
 
-    /* ── Recalcular max-height en resize ──
-       Evita que el contenido quede cortado si el usuario
-       redimensiona la ventana con un item abierto.
-    ── */
-    let raf: number | null = null;
-    window.addEventListener('resize', () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        triggers.forEach(trigger => {
-          if (trigger.getAttribute('aria-expanded') === 'true') {
-            const body = getBody(trigger);
-            if (body) body.style.maxHeight = body.scrollHeight + 2 + 'px';
-          }
-        });
-        raf = null;
-      });
-    }, { passive: true, signal });
-
-    /* ── Soporte de URL hash ──
-       Permite links directos del tipo #faq-3
-       que abren el item correspondiente con scroll suave.
-    ── */
+    // URL hash: #faq-N abre el item N
     function openFromHash() {
       const hash = window.location.hash;
       if (!hash.startsWith('#faq-')) return;
       const idx = parseInt(hash.replace('#faq-', ''), 10);
-      const trigger = triggers[idx];
-      if (!trigger) return;
-      openItem(trigger);
-      setTimeout(() => {
-        const item = trigger.closest('.faq-item') as HTMLElement | null;
-        if (!item) return;
-        const top = item.getBoundingClientRect().top + window.scrollY - 80;
-        window.scrollTo({ top, behavior: 'smooth' });
-      }, 50);
+      if (rows[idx]) activate(idx);
     }
-
     openFromHash();
     window.addEventListener('hashchange', openFromHash, { signal });
   }
