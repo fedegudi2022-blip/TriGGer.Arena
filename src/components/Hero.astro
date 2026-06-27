@@ -40,12 +40,12 @@ const subtitleLines = h.subtitle.split('\n');
       </p>
 
       <div class="hero-actions">
-        <a href="#servidores" class="hero-btn-main">
+        <button class="hero-btn-main" id="heroBtnMain">
           {h.btn_label}
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M5 12h14M12 5l7 7-7 7"/>
           </svg>
-        </a>
+        </button>
         <button class="hero-btn-rules" onclick="window.openModal?.('reglas-resumen')" aria-label="Ver reglas del servidor">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -368,6 +368,14 @@ const subtitleLines = h.subtitle.split('\n');
 
     const counters = Array.from(document.querySelectorAll<HTMLElement>('[data-count]'));
     if (counters.length === 0) return; // Hero no presente en esta página
+
+    // ── Botón principal: scroll suave con offset del navbar ──────
+    document.getElementById('heroBtnMain')?.addEventListener('click', () => {
+      const target = document.getElementById('servidores');
+      if (!target) return;
+      const top = target.getBoundingClientRect().top + window.scrollY - 58;
+      window.scrollTo({ top, behavior: 'smooth' });
+    });
 
     const obs = new IntersectionObserver(entries => {
       entries.forEach(e => {
