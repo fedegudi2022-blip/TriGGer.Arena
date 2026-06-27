@@ -6,13 +6,9 @@ const isMaintenance = siteSettings?.site_status === 'mantenimiento';
 const accountName = user
   ? (profile?.username ?? user.email?.split('@')[0] ?? 'Cuenta')
   : null;
-const avatarUrl = profile?.avatar_url ?? '';
-const accountHref  = isAdmin ? '/admin' : '/usuario';
+const avatarUrl  = profile?.avatar_url ?? '';
+const accountHref = isAdmin ? '/admin' : '/usuario';
 
-// Mapa: id de sección pública → ruta (hash) dentro del panel admin.
-// Le da al admin un acceso directo de "Editar" sobre cada sección mientras
-// navega el sitio público, sin tener que buscar la pestaña correspondiente
-// a mano dentro de /admin.
 const SECTION_ADMIN_MAP: Record<string, string> = {
   inicio:     'contenido:hero',
   servidores: 'servidores',
@@ -22,40 +18,54 @@ const SECTION_ADMIN_MAP: Record<string, string> = {
   ventas:     'planes',
   effexo:     'contenido:effexo',
 };
+
+const NAV_ITEMS = [
+  { id: 'inicio',     label: 'Inicio'     },
+  { id: 'servidores', label: 'Servidores' },
+  { id: 'descargas',  label: 'Descargas'  },
+  { id: 'redes',      label: 'Redes'      },
+  { id: 'reglas',     label: 'Reglamento' },
+  { id: 'ventas',     label: 'Planes'     },
+  { id: 'effexo',     label: 'Effexo'     },
+];
 ---
 
-<header class="nb" id="nb" data-admin={isAdmin ? '1' : '0'} data-admin-edit-map={isAdmin ? JSON.stringify(SECTION_ADMIN_MAP) : undefined}>
+<header
+  class="nb"
+  id="nb"
+  data-admin={isAdmin ? '1' : '0'}
+  data-admin-edit-map={isAdmin ? JSON.stringify(SECTION_ADMIN_MAP) : undefined}
+>
+  <!-- Barra de progreso de scroll -->
   <div class="nb-progress" id="nbProgress" aria-hidden="true"></div>
 
-  <div class="container nb-inner">
+  <div class="nb-inner container">
 
-    <!-- Logo -->
-    <button class="nb-logo" id="nbLogo" aria-label="Inicio">
-      <div class="nb-logo-img">
-        <img src="/trigger_fondo.webp" alt="TriGGer.Arena" width="30" height="30" loading="eager" />
-        <span class="nb-logo-ring" aria-hidden="true"></span>
+    <!-- ── Logo ── -->
+    <button class="nb-logo" id="nbLogo" aria-label="Volver al inicio">
+      <div class="nb-logo-mark">
+        <img src="/trigger_fondo.webp" alt="" width="26" height="26" loading="eager" />
       </div>
-      <span class="nb-logo-text">TriGGer<span class="nb-logo-dot">.Arena</span></span>
+      <span class="nb-logo-text">
+        TriGGer<span class="nb-logo-accent">.Arena</span>
+      </span>
     </button>
 
-    <!-- Desktop nav -->
-    <nav class="nb-links" id="nbLinks" aria-label="Navegación principal">
-      {[
-        { id: 'inicio',     label: 'Inicio' },
-        { id: 'servidores', label: 'Servidores' },
-        { id: 'descargas',  label: 'Descargas' },
-        { id: 'redes',      label: 'Redes' },
-        { id: 'reglas',     label: 'Reglamento' },
-        { id: 'ventas',     label: 'Planes' },
-        { id: 'effexo',     label: 'Effexo' },
-      ].map(item => (
-        <span class="nb-link-wrap">
-          <a href={`#${item.id}`} class="nb-link" data-section={item.id}><span>{item.label}</span></a>
+    <!-- ── Nav desktop ── -->
+    <nav class="nb-nav" id="nbLinks" aria-label="Navegación principal">
+      {NAV_ITEMS.map(item => (
+        <span class="nb-item">
+          <a
+            href={`#${item.id}`}
+            class="nb-link"
+            data-section={item.id}
+          >{item.label}</a>
+
           {isAdmin && (
             <button
-              class="nb-edit-pencil"
-              title={`Editar "${item.label}" en el panel admin`}
-              aria-label={`Editar ${item.label}`}
+              class="nb-edit"
+              title={`Editar "${item.label}"`}
+              aria-label={`Editar sección ${item.label}`}
               data-panel-url={`/admin#${SECTION_ADMIN_MAP[item.id]}`}
               data-panel-title={`Editar · ${item.label}`}
             >
@@ -66,85 +76,127 @@ const SECTION_ADMIN_MAP: Record<string, string> = {
       ))}
     </nav>
 
-    <!-- Right side -->
+    <!-- ── Lado derecho ── -->
     <div class="nb-right">
+
       {user ? (
+        /* ── Usuario autenticado ── */
         <div class="nb-user" id="nbUser">
-          <!-- Botón dedicado para abrir el panel directamente -->
+
+          <!-- Botón principal: abre slide panel -->
           <button
             class="nb-panel-btn"
             id="nbPanelBtn"
-            aria-label={isAdmin ? 'Abrir panel admin' : 'Abrir mi cuenta'}
-            title={isAdmin ? 'Panel Admin' : 'Mi Cuenta'}
+            aria-label={isAdmin ? 'Abrir panel admin' : 'Mi cuenta'}
             data-panel-url={isAdmin ? '/admin' : '/usuario'}
             data-panel-title={isAdmin ? 'Panel Admin' : 'Mi Cuenta'}
           >
-            {avatarUrl
-              ? <img src={avatarUrl} alt="" width="22" height="22" class="nb-panel-btn-avatar" />
-              : <i class={isAdmin ? 'ti ti-layout-dashboard' : 'ti ti-user-circle'} aria-hidden="true"></i>
-            }
-            {isAdmin && <span class="nb-admin-dot nb-admin-dot--btn" title="Admin" aria-label="Admin"></span>}
-            <span class="nb-panel-btn-label">{isAdmin ? 'Admin' : accountName?.split(' ')[0]}</span>
-            <i class="ti ti-chevron-right nb-panel-btn-chevron" aria-hidden="true"></i>
+            <span class="nb-panel-avatar">
+              {avatarUrl
+                ? <img src={avatarUrl} alt="" width="20" height="20" />
+                : <i class={isAdmin ? 'ti ti-layout-dashboard' : 'ti ti-user'} aria-hidden="true"></i>
+              }
+              {isAdmin && <span class="nb-admin-pip" aria-label="Admin"></span>}
+            </span>
+            <span class="nb-panel-name">
+              {isAdmin ? 'Admin' : accountName?.split(' ')[0]}
+            </span>
+            <i class="ti ti-chevron-right nb-panel-chevron" aria-hidden="true"></i>
           </button>
 
-          <button class="nb-user-btn nb-user-btn--opts" id="nbUserBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="nbUserMenu" title="Opciones" aria-label="Más opciones">
+          <!-- Botón de opciones: abre dropdown -->
+          <button
+            class="nb-opts-btn"
+            id="nbUserBtn"
+            aria-haspopup="menu"
+            aria-expanded="false"
+            aria-controls="nbUserMenu"
+            aria-label="Opciones de cuenta"
+          >
             <i class="ti ti-dots-vertical" aria-hidden="true"></i>
           </button>
 
+          <!-- Dropdown -->
           <div class="nb-dropdown" id="nbUserMenu" role="menu" aria-hidden="true">
-            <div class="nb-dropdown-header">
-              <span class="nb-dropdown-email">{user.email}</span>
-              {isAdmin && <span class="nb-dropdown-badge">Admin</span>}
+
+            <!-- Header del dropdown -->
+            <div class="nb-dd-head">
+              <span class="nb-dd-email">{user.email}</span>
+              {isAdmin && <span class="nb-dd-badge">Admin</span>}
             </div>
+
             {isAdmin && isMaintenance && (
-              <a href="/admin#configuracion" class="nb-dropdown-maintenance" role="menuitem"
-                 data-panel-url="/admin#configuracion"
-                 data-panel-title="Configuración"
+              <a
+                href="/admin#configuracion"
+                class="nb-dd-maintenance"
+                role="menuitem"
+                data-panel-url="/admin#configuracion"
+                data-panel-title="Configuración"
               >
                 <i class="ti ti-tool" aria-hidden="true"></i>
-                <span>Sitio en mantenimiento — gestionar</span>
+                Sitio en mantenimiento — gestionar
               </a>
             )}
-            <div class="nb-dropdown-sep"></div>
-            <a href={accountHref} class="nb-dropdown-item" role="menuitem"
-               data-panel-url={accountHref}
-               data-panel-title={isAdmin ? 'Panel Admin' : 'Mi Cuenta'}
+
+            <div class="nb-dd-sep"></div>
+
+            <a
+              href={accountHref}
+              class="nb-dd-item"
+              role="menuitem"
+              data-panel-url={accountHref}
+              data-panel-title={isAdmin ? 'Panel Admin' : 'Mi Cuenta'}
             >
               <i class={isAdmin ? 'ti ti-layout-dashboard' : 'ti ti-user'} aria-hidden="true"></i>
               <span>{isAdmin ? 'Panel admin' : 'Mi cuenta'}</span>
-              <i class="ti ti-arrow-bar-right nb-panel-arrow" aria-hidden="true"></i>
+              <i class="ti ti-arrow-right nb-dd-arrow" aria-hidden="true"></i>
             </a>
+
             {isAdmin && (
               <>
-                <a href="/usuario" class="nb-dropdown-item" role="menuitem"
-                   data-panel-url="/usuario"
-                   data-panel-title="Mi Perfil"
+                <a
+                  href="/usuario"
+                  class="nb-dd-item"
+                  role="menuitem"
+                  data-panel-url="/usuario"
+                  data-panel-title="Mi Perfil"
                 >
                   <i class="ti ti-user-circle" aria-hidden="true"></i>
                   <span>Mi perfil</span>
-                  <i class="ti ti-arrow-bar-right nb-panel-arrow" aria-hidden="true"></i>
+                  <i class="ti ti-arrow-right nb-dd-arrow" aria-hidden="true"></i>
                 </a>
-                <a href="/admin#contenido" class="nb-dropdown-item" role="menuitem"
-                   data-panel-url="/admin#contenido"
-                   data-panel-title="Editar Contenido"
+                <a
+                  href="/admin#contenido"
+                  class="nb-dd-item"
+                  role="menuitem"
+                  data-panel-url="/admin#contenido"
+                  data-panel-title="Editar Contenido"
                 >
                   <i class="ti ti-edit" aria-hidden="true"></i>
-                  <span>Editar contenido del sitio</span>
-                  <i class="ti ti-arrow-bar-right nb-panel-arrow" aria-hidden="true"></i>
+                  <span>Editar contenido</span>
+                  <i class="ti ti-arrow-right nb-dd-arrow" aria-hidden="true"></i>
                 </a>
               </>
             )}
-            <div class="nb-dropdown-sep"></div>
-            <button class="nb-dropdown-item nb-dropdown-item--danger" id="nbLogout" role="menuitem">
+
+            <div class="nb-dd-sep"></div>
+
+            <button
+              class="nb-dd-item nb-dd-item--danger"
+              id="nbLogout"
+              role="menuitem"
+            >
               <i class="ti ti-logout" aria-hidden="true"></i>
               <span>Cerrar sesión</span>
             </button>
+
           </div>
         </div>
+
       ) : (
+        /* ── Invitado ── */
         <div class="nb-guest">
-          <span class="nb-guest-label">
+          <span class="nb-guest-pill">
             <i class="ti ti-shield-check" aria-hidden="true"></i>
             Invitado
           </span>
@@ -155,328 +207,625 @@ const SECTION_ADMIN_MAP: Record<string, string> = {
         </div>
       )}
 
-      <!-- Hamburger -->
-      <button class="nb-toggle" id="nbToggle" aria-label="Menú" aria-expanded="false" aria-controls="nbMenu">
-        <span></span><span></span><span></span>
+      <!-- Hamburger mobile -->
+      <button
+        class="nb-burger"
+        id="nbToggle"
+        aria-label="Abrir menú"
+        aria-expanded="false"
+        aria-controls="nbMenu"
+      >
+        <span></span>
+        <span></span>
+        <span></span>
       </button>
+
     </div>
   </div>
 
-  <!-- Mobile menu -->
+  <!-- ── Mobile menu ── -->
   <div class="nb-mobile" id="nbMenu" aria-hidden="true">
-    <nav class="nb-mobile-links">
-      <a href="#inicio"     class="nb-mobile-link"><i class="ti ti-home-2"></i><span>Inicio</span></a>
-      <a href="#servidores" class="nb-mobile-link"><i class="ti ti-server"></i><span>Servidores</span></a>
-      <a href="#descargas"  class="nb-mobile-link"><i class="ti ti-download"></i><span>Descargas</span></a>
-      <a href="#redes"      class="nb-mobile-link"><i class="ti ti-share"></i><span>Redes</span></a>
-      <a href="#reglas"     class="nb-mobile-link"><i class="ti ti-shield"></i><span>Reglamento</span></a>
-      <a href="#ventas"     class="nb-mobile-link"><i class="ti ti-diamond"></i><span>Planes</span></a>
-      <a href="#effexo"     class="nb-mobile-link"><i class="ti ti-bolt"></i><span>Effexo</span></a>
+
+    <nav class="nb-mobile-nav">
+      {NAV_ITEMS.map(item => (
+        <a href={`#${item.id}`} class="nb-mobile-link">
+          <i class={`ti ${
+            item.id === 'inicio'     ? 'ti-home-2'   :
+            item.id === 'servidores' ? 'ti-server'   :
+            item.id === 'descargas'  ? 'ti-download' :
+            item.id === 'redes'      ? 'ti-share'    :
+            item.id === 'reglas'     ? 'ti-shield'   :
+            item.id === 'ventas'     ? 'ti-diamond'  :
+                                       'ti-bolt'
+          }`} aria-hidden="true"></i>
+          <span>{item.label}</span>
+        </a>
+      ))}
     </nav>
+
     <div class="nb-mobile-foot">
       {user ? (
         <>
           {isAdmin && isMaintenance && (
-            <a href="/admin#configuracion" class="nb-mobile-maintenance"
-               data-panel-url="/admin#configuracion"
-               data-panel-title="Configuración"
+            <a
+              href="/admin#configuracion"
+              class="nb-mobile-warn"
+              data-panel-url="/admin#configuracion"
+              data-panel-title="Configuración"
             >
-              <i class="ti ti-tool"></i>
+              <i class="ti ti-tool" aria-hidden="true"></i>
               Sitio en mantenimiento — gestionar
             </a>
           )}
+
           <button
             class="nb-mobile-account"
             id="nbMobilePanelBtn"
             data-panel-url={isAdmin ? '/admin' : '/usuario'}
             data-panel-title={isAdmin ? 'Panel Admin' : 'Mi Cuenta'}
           >
-            <div class="nb-mobile-avatar">
-              {avatarUrl ? <img src={avatarUrl} alt="" width="36" height="36" /> : <i class="ti ti-user"></i>}
+            <div class="nb-mobile-ava">
+              {avatarUrl
+                ? <img src={avatarUrl} alt="" width="36" height="36" />
+                : <i class="ti ti-user" aria-hidden="true"></i>
+              }
             </div>
-            <div>
+            <div class="nb-mobile-info">
               <span class="nb-mobile-name">{accountName}</span>
-              <span class="nb-mobile-role">{isAdmin ? '⚡ Administrador' : 'Jugador'}</span>
+              <span class="nb-mobile-role">
+                {isAdmin ? '⚡ Administrador' : 'Jugador'}
+              </span>
             </div>
-            <i class="ti ti-arrow-right" style="margin-left:auto;opacity:.4"></i>
+            <i class="ti ti-chevron-right" aria-hidden="true" style="margin-left:auto;opacity:.35;font-size:14px"></i>
           </button>
+
           {isAdmin && (
-            <a href="/admin#contenido" class="nb-mobile-edit"
-               data-panel-url="/admin#contenido"
-               data-panel-title="Editar Contenido"
+            <a
+              href="/admin#contenido"
+              class="nb-mobile-edit"
+              data-panel-url="/admin#contenido"
+              data-panel-title="Editar Contenido"
             >
-              <i class="ti ti-edit"></i>
+              <i class="ti ti-edit" aria-hidden="true"></i>
               Editar contenido del sitio
             </a>
           )}
+
           <button class="nb-mobile-logout" id="nbLogoutMobile">
-            <i class="ti ti-logout"></i>
+            <i class="ti ti-logout" aria-hidden="true"></i>
             Cerrar sesión
           </button>
         </>
       ) : (
         <a href="/auth" class="nb-mobile-login">
-          <i class="ti ti-login-2"></i>
+          <i class="ti ti-login-2" aria-hidden="true"></i>
           Ingresar a tu cuenta
         </a>
       )}
     </div>
+
   </div>
 </header>
 
+<!-- Overlay mobile -->
 <div class="nb-overlay" id="nbOverlay" aria-hidden="true"></div>
 
 <style>
+  /* ════════════════════════════════════════
+     BASE
+  ════════════════════════════════════════ */
   .nb {
     position: fixed;
     inset-block-start: 0;
     inset-inline: 0;
     z-index: 200;
-    height: 60px;
-    background: rgba(7,9,15,0.85);
+    height: 58px;
+    /* Fondo: cristal oscuro. En estado inicial sin scroll es casi invisible,
+       lo que hace que el hero respire. Al hacer scroll se opacifica. */
+    background: rgba(6, 8, 14, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid transparent;
-    transition: border-color 0.25s, background 0.25s;
+    transition: background 0.3s ease, border-color 0.3s ease;
     contain: layout style;
   }
   .nb.scrolled {
-    background: rgba(7,9,15,0.97);
-    border-bottom-color: var(--border);
+    background: rgba(6, 8, 14, 0.92);
+    border-bottom-color: rgba(255, 255, 255, 0.06);
   }
 
-  /* Progress bar — sin glow */
+  /* ── Barra de progreso ── */
   .nb-progress {
-    position: absolute; top: 0; left: 0; height: 1.5px; width: 0%;
-    background: var(--accent);
+    position: absolute;
+    top: 0; left: 0;
+    height: 1.5px;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent) 0%, rgba(56,182,255,0.4) 100%);
     transition: width 0.08s linear;
     z-index: 2;
     border-radius: 0 1px 1px 0;
-    opacity: 0.7;
   }
 
+  /* ── Inner layout ── */
   .nb-inner {
-    display: flex; align-items: center;
+    display: flex;
+    align-items: center;
     justify-content: space-between;
-    height: 60px; position: relative; z-index: 1;
-    gap: 12px;
+    height: 58px;
+    gap: 8px;
+    position: relative;
+    z-index: 1;
   }
 
-  /* Logo */
+  /* ════════════════════════════════════════
+     LOGO
+  ════════════════════════════════════════ */
   .nb-logo {
-    background: none; border: none; cursor: pointer; padding: 0;
-    display: flex; align-items: center; gap: 9px; flex-shrink: 0;
-    transition: opacity 0.15s ease;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 4px 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    flex-shrink: 0;
+    outline: none;
   }
-  .nb-logo:hover { opacity: 0.8; }
-  .nb-logo-img { position: relative; width: 28px; height: 28px; flex-shrink: 0; }
-  .nb-logo-img img { width: 100%; height: 100%; object-fit: contain; border-radius: 50%; }
-  .nb-logo-ring { display: none; }
-  .nb-logo-text { font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; color: var(--text); }
-  .nb-logo-dot { color: var(--accent); }
+  .nb-logo:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+    border-radius: 4px;
+  }
 
-  /* Links */
-  .nb-links { display: flex; align-items: center; gap: 0; }
-  .nb-link-wrap { position: relative; display: flex; align-items: center; }
-  .nb-link {
-    position: relative; padding: 6px 11px;
-    font-size: 0.7rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase;
-    color: var(--muted); border-radius: var(--radius);
-    transition: color 0.15s ease;
+  .nb-logo-mark {
+    position: relative;
+    width: 26px; height: 26px;
+    flex-shrink: 0;
   }
-  .nb-link span { position: relative; z-index: 1; }
-  .nb-link:hover { color: var(--text); }
-  .nb-link.active { color: var(--text); }
-  .nb-link.active::after {
+  .nb-logo-mark img {
+    width: 100%; height: 100%;
+    object-fit: contain;
+    border-radius: 6px;
+    display: block;
+  }
+  /* Micro-glow en hover sobre el logo */
+  .nb-logo-mark::after {
     content: '';
     position: absolute;
-    bottom: 2px; left: 50%;
+    inset: -3px;
+    border-radius: 9px;
+    box-shadow: 0 0 10px rgba(56,182,255,0.25);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+  }
+  .nb-logo:hover .nb-logo-mark::after { opacity: 1; }
+
+  .nb-logo-text {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.01em;
+    transition: opacity 0.15s ease;
+  }
+  .nb-logo:hover .nb-logo-text { opacity: 0.85; }
+  .nb-logo-accent { color: var(--accent); }
+
+  /* ════════════════════════════════════════
+     NAV DESKTOP
+  ════════════════════════════════════════ */
+  .nb-nav {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    /* Centrado absoluto respecto al inner para que no se mueva
+       cuando el contenido del lado derecho es más o menos ancho */
+    position: absolute;
+    left: 50%;
     transform: translateX(-50%);
-    width: 14px; height: 1.5px;
+  }
+
+  .nb-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .nb-link {
+    position: relative;
+    padding: 5px 10px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-radius: var(--radius);
+    transition: color 0.15s ease;
+    white-space: nowrap;
+    outline: none;
+  }
+  .nb-link:hover { color: var(--text); }
+  .nb-link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* Indicador de sección activa: línea debajo */
+  .nb-link::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 50%;
+    transform: translateX(-50%) scaleX(0);
+    width: 16px; height: 1.5px;
     background: var(--accent);
     border-radius: 1px;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+    opacity: 0;
+  }
+  .nb-link.active {
+    color: var(--text);
+  }
+  .nb-link.active::after {
+    transform: translateX(-50%) scaleX(1);
+    opacity: 1;
   }
 
   /* Lápiz de edición admin */
-  .nb-edit-pencil {
-    display: flex; align-items: center; justify-content: center;
-    width: 16px; height: 16px; margin-left: -2px;
-    border-radius: 3px;
+  .nb-edit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px; height: 14px;
+    margin-left: -4px;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
     color: var(--muted);
-    opacity: 0; transform: scale(0.85);
+    border-radius: 3px;
+    opacity: 0;
+    transform: scale(0.8);
     transition: opacity 0.15s, transform 0.15s, color 0.15s;
-    background: none; border: none; padding: 0; cursor: pointer; font: inherit;
   }
-  .nb-edit-pencil .ti { font-size: 10px; }
-  .nb-link-wrap:hover .nb-edit-pencil { opacity: 1; transform: scale(1); }
-  .nb-edit-pencil:hover { color: var(--accent); }
-  .nb-edit-pencil:focus-visible { opacity: 1; transform: scale(1); outline: 1px solid var(--border-accent); }
+  .nb-edit .ti { font-size: 9px; }
+  .nb-item:hover .nb-edit { opacity: 1; transform: scale(1); }
+  .nb-edit:hover { color: var(--accent); }
+  .nb-edit:focus-visible { opacity: 1; transform: scale(1); outline: 1px solid var(--border-accent); }
 
-  /* Right */
-  .nb-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-
-  /* Guest */
-  .nb-guest { display: flex; align-items: center; gap: 9px; }
-  .nb-guest-label {
-    display: flex; align-items: center; gap: 4px;
-    font-size: 0.64rem; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
-    color: var(--muted); border: 1px solid var(--border);
-    border-radius: 20px; padding: 3px 9px;
+  /* ════════════════════════════════════════
+     LADO DERECHO
+  ════════════════════════════════════════ */
+  .nb-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
   }
-  .nb-guest-label .ti { font-size: 10px; color: var(--muted); }
+
+  /* ── Invitado ── */
+  .nb-guest {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .nb-guest-pill {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+  }
+  .nb-guest-pill .ti { font-size: 10px; }
+
   .nb-login-btn {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 7px 14px;
-    font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
-    color: var(--accent); background: var(--accent-dim);
-    border: 1px solid var(--border-accent); border-radius: var(--radius);
-    transition: background 0.15s, border-color 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-dim, rgba(56,182,255,0.07));
+    border: 1px solid var(--border-accent);
+    border-radius: var(--radius);
+    transition: background 0.15s ease, border-color 0.15s ease;
+    white-space: nowrap;
   }
   .nb-login-btn:hover {
-    background: rgba(56, 182, 255, 0.13);
-    border-color: rgba(56, 182, 255, 0.3);
+    background: rgba(56,182,255,0.13);
+    border-color: rgba(56,182,255,0.35);
   }
   .nb-login-btn .ti { font-size: 13px; }
 
-  /* User */
-  .nb-user { position: relative; display: flex; align-items: center; gap: 4px; }
-
-  /* Botón principal de panel */
-  .nb-panel-btn {
+  /* ── Usuario ── */
+  .nb-user {
     position: relative;
-    display: flex; align-items: center; gap: 8px;
-    padding: 5px 10px 5px 6px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  /* Botón principal (abre panel) */
+  .nb-panel-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 8px 4px 4px;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius); cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
+    border-radius: var(--radius);
+    cursor: pointer;
     font-family: inherit;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    outline: none;
   }
   .nb-panel-btn:hover {
     background: var(--surface-2);
-    border-color: rgba(56, 182, 255, 0.2);
+    border-color: rgba(56,182,255,0.2);
   }
-  .nb-panel-btn:active { opacity: 0.85; }
-  .nb-panel-btn-avatar {
-    width: 22px; height: 22px; border-radius: 50%;
-    object-fit: cover; border: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-  .nb-panel-btn .ti { font-size: 14px; color: var(--muted-2); flex-shrink: 0; }
-  .nb-panel-btn-label {
-    font-size: 0.74rem; font-weight: 600; letter-spacing: 0.03em;
-    color: var(--text); white-space: nowrap;
-    max-width: 80px; overflow: hidden; text-overflow: ellipsis;
-  }
-  .nb-panel-btn-chevron {
-    font-size: 11px !important;
-    color: var(--muted);
-    transition: transform 0.2s;
-  }
-  .nb-panel-btn:hover .nb-panel-btn-chevron { transform: translateX(2px); }
-  .nb-admin-dot {
-    position: absolute; bottom: -1px; right: -1px;
-    width: 7px; height: 7px; border-radius: 50%;
-    background: #f59e0b; border: 1.5px solid var(--bg);
-  }
-  .nb-admin-dot--btn {
-    position: absolute; top: 4px; left: 4px;
-    width: 6px; height: 6px;
-    border: 1.5px solid var(--bg);
+  .nb-panel-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 
-  /* Botón de opciones */
-  .nb-user-btn--opts {
-    display: flex; align-items: center; justify-content: center;
+  .nb-panel-avatar {
+    position: relative;
+    width: 24px; height: 24px;
+    border-radius: 6px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .nb-panel-avatar img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
+  }
+  .nb-panel-avatar .ti { font-size: 13px; color: var(--muted-2); }
+
+  /* Pip admin (punto ámbar sobre el avatar) */
+  .nb-admin-pip {
+    position: absolute;
+    bottom: -1px; right: -1px;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #f59e0b;
+    border: 1.5px solid var(--bg, #07090f);
+  }
+
+  .nb-panel-name {
+    font-size: 0.73rem;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    max-width: 72px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .nb-panel-chevron {
+    font-size: 11px !important;
+    color: var(--muted);
+    transition: transform 0.18s ease;
+  }
+  .nb-panel-btn:hover .nb-panel-chevron { transform: translateX(2px); }
+
+  /* Botón de opciones (tres puntos) */
+  .nb-opts-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     width: 28px; height: 28px;
     background: none;
     border: 1px solid var(--border);
-    border-radius: var(--radius); cursor: pointer;
+    border-radius: var(--radius);
+    cursor: pointer;
     color: var(--muted);
-    transition: background 0.15s, color 0.15s;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     font-family: inherit;
+    outline: none;
   }
-  .nb-user-btn--opts:hover {
+  .nb-opts-btn:hover {
     background: var(--surface);
     color: var(--muted-2);
   }
-  .nb-user-btn--opts[aria-expanded="true"] {
+  .nb-opts-btn[aria-expanded="true"] {
     background: var(--surface);
     border-color: var(--border-accent);
     color: var(--accent);
   }
-  .nb-user-btn--opts .ti { font-size: 14px; }
+  .nb-opts-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .nb-opts-btn .ti { font-size: 14px; }
 
-  /* Dropdown */
+  /* ── Dropdown ── */
   .nb-dropdown {
-    position: absolute; top: calc(100% + 8px); right: 0;
-    min-width: 210px; z-index: 300;
-    background: var(--surface-2); border: 1px solid var(--border);
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 220px;
+    z-index: 300;
+    background: var(--surface-2);
+    border: 1px solid rgba(255,255,255,0.07);
     border-radius: var(--radius-lg);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    box-shadow:
+      0 4px 6px rgba(0,0,0,0.15),
+      0 16px 40px rgba(0,0,0,0.45),
+      inset 0 1px 0 rgba(255,255,255,0.05);
     overflow: hidden;
-    opacity: 0; visibility: hidden; transform: translateY(-4px);
-    transform-origin: top right;
-    transition: opacity 0.15s, transform 0.15s, visibility 0.15s;
-  }
-  .nb-dropdown.open {
-    opacity: 1; visibility: visible; transform: translateY(0);
-  }
-  .nb-dropdown-header { padding: 12px 14px 10px; }
-  .nb-dropdown-email { display: block; font-size: 0.7rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .nb-dropdown-badge {
-    display: inline-flex; align-items: center; margin-top: 4px;
-    padding: 2px 8px; border-radius: 20px; font-size: 0.58rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-    background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25); color: #f59e0b;
-  }
-  .nb-dropdown-sep { height: 1px; background: var(--border); margin: 0; }
-  .nb-dropdown-maintenance {
-    display: flex; align-items: center; gap: 8px;
-    margin: 2px 8px 8px; padding: 8px 10px;
-    border-radius: var(--radius); font-size: 0.7rem; font-weight: 600;
-    background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2); color: #f59e0b;
-    text-decoration: none; transition: background 0.12s;
-  }
-  .nb-dropdown-maintenance:hover { background: rgba(245,158,11,0.14); }
-  .nb-dropdown-maintenance .ti { font-size: 12px; flex-shrink: 0; }
-  .nb-dropdown-item {
-    display: flex; align-items: center; gap: 9px;
-    width: 100%; padding: 9px 14px;
-    font-size: 0.8rem; font-weight: 500; color: var(--text);
-    background: none; border: none; cursor: pointer;
-    font-family: inherit; text-align: left; text-decoration: none;
-    transition: background 0.12s;
-  }
-  .nb-dropdown-item .ti { font-size: 13px; color: var(--muted); flex-shrink: 0; }
-  .nb-dropdown-item:hover { background: rgba(255,255,255,0.04); }
-  .nb-dropdown-item--danger:hover { background: rgba(248,113,113,0.07); color: #f87171; }
-  .nb-dropdown-item--danger:hover .ti { color: #f87171; }
-  .nb-panel-arrow { margin-left: auto; opacity: 0.3; font-size: 12px !important; }
-
-  /* Toggle */
-  .nb-toggle {
-    display: none; flex-direction: column; gap: 5px;
-    padding: 8px; background: none; border: none; cursor: pointer;
-    width: 38px; height: 38px; align-items: center; justify-content: center;
-  }
-  .nb-toggle span {
-    display: block; width: 18px; height: 1.5px;
-    background: var(--muted); border-radius: 2px;
-    transition: transform 0.22s ease, opacity 0.22s ease, background 0.15s;
-  }
-  .nb-toggle:hover span { background: var(--text); }
-  .nb-toggle[aria-expanded="true"] span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
-  .nb-toggle[aria-expanded="true"] span:nth-child(2) { opacity: 0; transform: scaleX(0); }
-  .nb-toggle[aria-expanded="true"] span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
-
-  /* Mobile menu */
-  .nb-mobile {
-    display: flex;
-    position: absolute; top: 60px; left: 0; right: 0;
-    background: rgba(7,9,15,0.98); border-bottom: 1px solid var(--border);
-    padding: 8px 16px 16px; flex-direction: column; gap: 4px;
+    /* Estado cerrado */
     opacity: 0;
     visibility: hidden;
-    transform: translateY(-6px);
-    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+    transform: translateY(-6px) scale(0.98);
+    transform-origin: top right;
+    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+  }
+  .nb-dropdown.open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+  }
+
+  /* Línea accent superior del dropdown */
+  .nb-dropdown::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(56,182,255,0.3) 50%, transparent);
+    pointer-events: none;
+  }
+
+  .nb-dd-head {
+    padding: 12px 14px 10px;
+  }
+  .nb-dd-email {
+    display: block;
+    font-size: 0.68rem;
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .nb-dd-badge {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 5px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    background: rgba(245,158,11,0.1);
+    border: 1px solid rgba(245,158,11,0.2);
+    color: #f59e0b;
+  }
+
+  .nb-dd-sep {
+    height: 1px;
+    background: rgba(255,255,255,0.05);
+  }
+
+  .nb-dd-maintenance {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 6px 8px;
+    padding: 8px 10px;
+    border-radius: var(--radius);
+    font-size: 0.7rem;
+    font-weight: 600;
+    background: rgba(245,158,11,0.07);
+    border: 1px solid rgba(245,158,11,0.18);
+    color: #f59e0b;
+    text-decoration: none;
+    transition: background 0.12s;
+  }
+  .nb-dd-maintenance:hover { background: rgba(245,158,11,0.13); }
+  .nb-dd-maintenance .ti { font-size: 12px; flex-shrink: 0; }
+
+  .nb-dd-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 9px 14px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    text-decoration: none;
+    transition: background 0.1s ease, color 0.1s ease;
+  }
+  .nb-dd-item .ti {
+    font-size: 13px;
+    color: var(--muted);
+    flex-shrink: 0;
+    transition: color 0.1s ease;
+  }
+  .nb-dd-item:hover { background: rgba(255,255,255,0.04); }
+  .nb-dd-item--danger { color: var(--muted-2); }
+  .nb-dd-item--danger:hover { background: rgba(248,113,113,0.07); color: #f87171; }
+  .nb-dd-item--danger:hover .ti { color: #f87171; }
+
+  .nb-dd-arrow {
+    margin-left: auto;
+    font-size: 11px !important;
+    opacity: 0.25;
+    transition: opacity 0.1s ease, transform 0.1s ease;
+  }
+  .nb-dd-item:hover .nb-dd-arrow { opacity: 0.5; transform: translateX(2px); }
+
+  /* ════════════════════════════════════════
+     HAMBURGER
+  ════════════════════════════════════════ */
+  .nb-burger {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    width: 36px; height: 36px;
+    padding: 8px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+  .nb-burger:hover { border-color: rgba(255,255,255,0.15); }
+  .nb-burger:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .nb-burger span {
+    display: block;
+    width: 16px; height: 1.5px;
+    background: var(--muted);
+    border-radius: 2px;
+    transition: transform 0.22s ease, opacity 0.22s ease, background 0.15s;
+  }
+  .nb-burger:hover span { background: var(--text); }
+  .nb-burger[aria-expanded="true"] span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+  .nb-burger[aria-expanded="true"] span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+  .nb-burger[aria-expanded="true"] span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+
+  /* ════════════════════════════════════════
+     MOBILE MENU
+  ════════════════════════════════════════ */
+  .nb-mobile {
+    position: absolute;
+    top: 58px; left: 0; right: 0;
+    background: rgba(6, 8, 14, 0.98);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    padding: 6px 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    /* Estado cerrado */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px);
+    transition: opacity 0.22s ease, transform 0.22s ease, visibility 0.22s;
     pointer-events: none;
   }
   .nb-mobile.open {
@@ -485,301 +834,343 @@ const SECTION_ADMIN_MAP: Record<string, string> = {
     transform: translateY(0);
     pointer-events: auto;
   }
-  .nb-mobile-links { display: flex; flex-direction: column; gap: 2px; }
+
+  .nb-mobile-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
   .nb-mobile-link {
-    display: flex; align-items: center; gap: 12px;
-    padding: 11px 12px;
-    font-size: 0.85rem; font-weight: 500; color: var(--muted);
-    border-radius: var(--radius); transition: color 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--muted);
+    border-radius: var(--radius);
+    transition: color 0.15s ease, background 0.15s ease;
   }
-  .nb-mobile-link:hover { color: var(--text); }
-  .nb-mobile-link .ti { font-size: 16px; color: var(--muted); flex-shrink: 0; }
+  .nb-mobile-link .ti { font-size: 15px; flex-shrink: 0; }
+  .nb-mobile-link:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+
   .nb-mobile-foot {
-    margin-top: 8px; padding-top: 12px;
-    border-top: 1px solid var(--border);
-    display: flex; flex-direction: column; gap: 6px;
+    margin-top: 8px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
   }
+
   .nb-mobile-account {
-    display: flex; align-items: center; gap: 12px;
-    padding: 10px 12px; border-radius: var(--radius);
-    background: var(--surface); border: 1px solid var(--border);
-    transition: background 0.12s; cursor: pointer;
-    width: 100%; text-align: left; font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-family: inherit;
+    width: 100%;
+    text-align: left;
+    transition: background 0.15s ease, border-color 0.15s ease;
   }
-  .nb-mobile-account:hover { background: var(--surface-2); }
-  .nb-mobile-avatar {
-    width: 34px; height: 34px; border-radius: 50%;
-    background: var(--surface-2); border: 1px solid var(--border);
+  .nb-mobile-account:hover { background: var(--surface-2); border-color: rgba(56,182,255,0.15); }
+
+  .nb-mobile-ava {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
     display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; overflow: hidden; color: var(--muted);
-    font-size: 15px;
+    flex-shrink: 0;
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 14px;
   }
-  .nb-mobile-avatar img { width: 100%; height: 100%; object-fit: cover; }
-  .nb-mobile-name { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text); }
-  .nb-mobile-role { display: block; font-size: 0.65rem; color: var(--muted); margin-top: 1px; }
-  .nb-mobile-maintenance {
-    display: flex; align-items: center; gap: 9px;
-    padding: 10px 12px; border-radius: var(--radius);
-    font-size: 0.76rem; font-weight: 600; color: #f59e0b;
-    background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2);
+  .nb-mobile-ava img { width: 100%; height: 100%; object-fit: cover; }
+
+  .nb-mobile-info { display: flex; flex-direction: column; gap: 1px; }
+  .nb-mobile-name { font-size: 0.82rem; font-weight: 600; color: var(--text); }
+  .nb-mobile-role { font-size: 0.62rem; color: var(--muted); }
+
+  .nb-mobile-warn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    border-radius: var(--radius);
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: #f59e0b;
+    background: rgba(245,158,11,0.07);
+    border: 1px solid rgba(245,158,11,0.18);
     transition: background 0.12s;
   }
-  .nb-mobile-maintenance:hover { background: rgba(245,158,11,0.14); }
-  .nb-mobile-maintenance .ti { font-size: 14px; flex-shrink: 0; }
+  .nb-mobile-warn:hover { background: rgba(245,158,11,0.13); }
+  .nb-mobile-warn .ti { font-size: 13px; flex-shrink: 0; }
+
   .nb-mobile-edit {
-    display: flex; align-items: center; gap: 9px;
-    padding: 10px 12px; border-radius: var(--radius);
-    font-size: 0.78rem; font-weight: 600; color: var(--accent);
-    background: var(--accent-dim); border: 1px solid var(--border-accent);
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 12px;
+    border-radius: var(--radius);
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--accent-dim, rgba(56,182,255,0.07));
+    border: 1px solid var(--border-accent);
     transition: background 0.12s;
   }
-  .nb-mobile-edit:hover { background: rgba(56, 182, 255, 0.12); }
+  .nb-mobile-edit:hover { background: rgba(56,182,255,0.12); }
   .nb-mobile-edit .ti { font-size: 14px; flex-shrink: 0; }
+
   .nb-mobile-logout {
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    padding: 11px; border-radius: var(--radius);
-    font-size: 0.8rem; font-weight: 600; color: #f87171;
-    background: rgba(248,113,113,0.05); border: 1px solid rgba(248,113,113,0.12);
-    cursor: pointer; transition: background 0.12s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px;
+    border-radius: var(--radius);
+    font-size: 0.78rem;
+    font-weight: 600;
+    font-family: inherit;
+    color: #f87171;
+    background: rgba(248,113,113,0.05);
+    border: 1px solid rgba(248,113,113,0.1);
+    cursor: pointer;
+    transition: background 0.12s;
   }
   .nb-mobile-logout:hover { background: rgba(248,113,113,0.1); }
+
   .nb-mobile-login {
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    padding: 12px; border-radius: var(--radius);
-    font-size: 0.85rem; font-weight: 700; color: var(--accent);
-    background: var(--accent-dim); border: 1px solid var(--border-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px;
+    border-radius: var(--radius);
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--accent);
+    background: var(--accent-dim, rgba(56,182,255,0.07));
+    border: 1px solid var(--border-accent);
     transition: background 0.12s;
   }
-  .nb-mobile-login:hover { background: rgba(56, 182, 255, 0.13); }
+  .nb-mobile-login:hover { background: rgba(56,182,255,0.12); }
 
-  /* Overlay */
+  /* ════════════════════════════════════════
+     OVERLAY
+  ════════════════════════════════════════ */
   .nb-overlay {
-    display: none; position: fixed; inset: 60px 0 0 0;
-    z-index: 199; background: rgba(0,0,0,0.5);
+    display: none;
+    position: fixed;
+    inset: 58px 0 0;
+    z-index: 199;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(2px);
   }
   .nb-overlay.open { display: block; }
 
+  /* ════════════════════════════════════════
+     RESPONSIVE
+  ════════════════════════════════════════ */
   @media (max-width: 900px) {
-    .nb-links { display: none; }
-    .nb-toggle { display: flex; }
-    .nb-guest-label { display: none; }
-    .nb-panel-btn-label { display: none; }
-    .nb-panel-btn-chevron { display: none; }
-    .nb-panel-btn { padding: 5px 7px; gap: 0; }
+    .nb-nav { display: none; }
+    .nb-burger { display: flex; }
+    .nb-guest-pill { display: none; }
+    .nb-panel-name { display: none; }
+    .nb-panel-chevron { display: none; }
+    .nb-panel-btn { padding: 4px 6px; gap: 0; }
   }
   @media (max-width: 480px) {
-    .nb-user-btn--opts { display: none; }
+    .nb-opts-btn { display: none; }
+  }
+
+  /* ════════════════════════════════════════
+     REDUCED MOTION
+  ════════════════════════════════════════ */
+  @media (prefers-reduced-motion: reduce) {
+    .nb, .nb-mobile, .nb-dropdown,
+    .nb-link::after, .nb-panel-chevron,
+    .nb-burger span, .nb-logo-mark::after,
+    .nb-dd-arrow, .nb-opts-btn,
+    .nb-panel-btn { transition: none; }
   }
 </style>
 
 <script>
-  // ─── Helpers ───────────────────────────────────────────────────────────────
-  const nb        = document.getElementById('nb')!;
-  const progress  = document.getElementById('nbProgress')!;
-  const logo      = document.getElementById('nbLogo')!;
-  const toggle    = document.getElementById('nbToggle')!;
-  const menu      = document.getElementById('nbMenu')!;
-  const overlay   = document.getElementById('nbOverlay')!;
-  const userBtn   = document.getElementById('nbUserBtn') as HTMLButtonElement | null;
-  const dropdown  = document.getElementById('nbUserMenu');
-  const panelBtn  = document.getElementById('nbPanelBtn') as HTMLButtonElement | null;
-  const links     = document.querySelectorAll<HTMLAnchorElement>('.nb-link');
-  const mobileLinks = document.querySelectorAll<HTMLAnchorElement>('.nb-mobile-link');
-  const sections  = Array.from(document.querySelectorAll<HTMLElement>('section[id]'));
+  (function () {
+    /* ── Refs ── */
+    const nb         = document.getElementById('nb')!;
+    const progress   = document.getElementById('nbProgress')!;
+    const logo       = document.getElementById('nbLogo')!;
+    const toggle     = document.getElementById('nbToggle')!;
+    const menu       = document.getElementById('nbMenu')!;
+    const overlay    = document.getElementById('nbOverlay')!;
+    const userBtn    = document.getElementById('nbUserBtn')    as HTMLButtonElement | null;
+    const dropdown   = document.getElementById('nbUserMenu');
+    const panelBtn   = document.getElementById('nbPanelBtn')   as HTMLButtonElement | null;
+    const mobilePanelBtn = document.getElementById('nbMobilePanelBtn') as HTMLButtonElement | null;
+    const navLinks   = document.querySelectorAll<HTMLAnchorElement>('.nb-link');
+    const mobileLinks = document.querySelectorAll<HTMLAnchorElement>('.nb-mobile-link');
+    const sections   = Array.from(document.querySelectorAll<HTMLElement>('section[id]'));
 
-  // ─── Scroll: progress bar + scrolled class ─────────────────────────────────
-  // Un solo rAF por scroll; no importa cuán rápido sea el monitor.
-  let scrollRaf: number | null = null;
-
-  function onScrollFrame() {
-    const y    = window.scrollY;
-    const docH = document.documentElement.scrollHeight - window.innerHeight;
-
-    nb.classList.toggle('scrolled', y > 24);
-    progress.style.width = docH > 0 ? `${Math.min((y / docH) * 100, 100)}%` : '0%';
-
-    scrollRaf = null;
-  }
-
-  window.addEventListener('scroll', () => {
-    if (!scrollRaf) scrollRaf = requestAnimationFrame(onScrollFrame);
-  }, { passive: true });
-
-  onScrollFrame();
-
-  // ─── Active link — IntersectionObserver (robusto, sin magia de offsets) ────
-  // Observamos cuándo cada sección cruza el centro superior de la viewport.
-  // rootMargin: "-60px 0px -50% 0px"
-  //   → arriba: 60px (altura del navbar fijo)
-  //   → abajo: -50% (solo activa cuando la sección ocupa al menos el 50% superior)
-  // Esto evita el "salto" de sección activa que daba el polling con offsetTop.
-  let activeSection: string | null = null;
-
-  const sectionObserver = new IntersectionObserver(
-    (entries) => {
-      // Procesamos todas las entradas y quedamos con la más alta en la página
-      // que esté intersectando, para que cuando hay varias a la vez siempre
-      // gane la que el usuario está leyendo (la más arriba).
-      entries.forEach(entry => {
-        if (entry.isIntersecting) activeSection = entry.target.id;
-      });
-
-      links.forEach(l => l.classList.toggle('active', l.dataset.section === activeSection));
-    },
-    { rootMargin: '-60px 0px -50% 0px', threshold: 0 }
-  );
-
-  sections.forEach(s => sectionObserver.observe(s));
-
-  // ─── Logo → scroll suave al top ────────────────────────────────────────────
-  logo.addEventListener('click', () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    closeMenu();
-  });
-
-  // ─── Mobile menu ───────────────────────────────────────────────────────────
-  // Usamos clases + transición CSS (ver estilos) en lugar de display:none/flex
-  // para que la apertura/cierre tenga animación suave.
-  function openMenu() {
-    menu.classList.add('open');
-    overlay.classList.add('open');
-    toggle.setAttribute('aria-expanded', 'true');
-    menu.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden'; // evita scroll de fondo en móvil
-  }
-  function closeMenu() {
-    menu.classList.remove('open');
-    overlay.classList.remove('open');
-    toggle.setAttribute('aria-expanded', 'false');
-    menu.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
-  }
-
-  toggle.addEventListener('click', () =>
-    menu.classList.contains('open') ? closeMenu() : openMenu()
-  );
-  overlay.addEventListener('click', closeMenu);
-
-  // Links del menú mobile → scroll suave + cierre del menú
-  mobileLinks.forEach(link => {
-    link.addEventListener('click', e => {
-      const href = link.getAttribute('href') ?? '';
-      if (href.startsWith('#')) {
-        e.preventDefault();
-        closeMenu();
-        const target = document.getElementById(href.slice(1));
-        if (target) {
-          // Pequeño delay para que el menú cierre antes de hacer scroll
-          setTimeout(() => {
-            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }, 120);
-        }
-      } else {
-        closeMenu();
-      }
-    });
-  });
-
-  // Links del nav desktop → scroll suave también
-  links.forEach(link => {
-    link.addEventListener('click', e => {
-      const href = link.getAttribute('href') ?? '';
-      if (href.startsWith('#')) {
-        e.preventDefault();
-        const target = document.getElementById(href.slice(1));
-        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    });
-  });
-
-  // ─── Dropdown usuario ──────────────────────────────────────────────────────
-  // Problema original: el click en el botón propagaba al document, que
-  // inmediatamente lo cerraba. Solución: usamos un flag para ignorar
-  // el primer click en document después de abrir.
-  let dropdownJustOpened = false;
-
-  function openDropdown() {
-    dropdown?.classList.add('open');
-    userBtn?.setAttribute('aria-expanded', 'true');
-    dropdown?.setAttribute('aria-hidden', 'false');
-    dropdownJustOpened = true;
-    // Limpiar flag después del frame actual
-    requestAnimationFrame(() => { dropdownJustOpened = false; });
-  }
-  function closeDropdown() {
-    dropdown?.classList.remove('open');
-    userBtn?.setAttribute('aria-expanded', 'false');
-    dropdown?.setAttribute('aria-hidden', 'true');
-  }
-
-  userBtn?.addEventListener('click', e => {
-    e.stopPropagation();
-    dropdown?.classList.contains('open') ? closeDropdown() : openDropdown();
-  });
-
-  document.addEventListener('click', e => {
-    if (dropdownJustOpened) return;
-    if (!dropdown?.classList.contains('open')) return;
-    const outside = !userBtn?.contains(e.target as Node) && !dropdown?.contains(e.target as Node);
-    if (outside) closeDropdown();
-  });
-
-  // Cerrar con Escape
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeMenu(); closeDropdown(); }
-  });
-
-  // ─── Panel botón principal ─────────────────────────────────────────────────
-  // Espera a que SlidePanel esté disponible (puede cargar después del navbar)
-  function openPanel(url: string, title: string) {
-    if (typeof (window as any).openSlidePanel === 'function') {
-      (window as any).openSlidePanel(url, title);
-    } else {
-      // Fallback: navegar directo si el panel no cargó
-      window.location.href = url;
+    /* ── Scroll: progress + scrolled class ── */
+    let scrollRaf: number | null = null;
+    function onScrollFrame() {
+      const y    = window.scrollY;
+      const docH = document.documentElement.scrollHeight - window.innerHeight;
+      nb.classList.toggle('scrolled', y > 24);
+      progress.style.width = docH > 0 ? `${Math.min((y / docH) * 100, 100)}%` : '0%';
+      scrollRaf = null;
     }
-  }
+    window.addEventListener('scroll', () => {
+      if (!scrollRaf) scrollRaf = requestAnimationFrame(onScrollFrame);
+    }, { passive: true });
+    onScrollFrame();
 
-  panelBtn?.addEventListener('click', () => {
-    const url   = panelBtn.dataset.panelUrl   ?? '/usuario';
-    const title = panelBtn.dataset.panelTitle ?? 'Panel';
-    openPanel(url, title);
-  });
+    /* ── Active link con IntersectionObserver ── */
+    let activeSection: string | null = null;
+    const observer = new IntersectionObserver(
+      entries => {
+        entries.forEach(e => { if (e.isIntersecting) activeSection = e.target.id; });
+        navLinks.forEach(l => l.classList.toggle('active', l.dataset.section === activeSection));
+      },
+      { rootMargin: '-58px 0px -50% 0px', threshold: 0 }
+    );
+    sections.forEach(s => observer.observe(s));
 
-  // Links del dropdown que abren el slide panel
-  document.querySelectorAll<HTMLElement>('[data-panel-url]:not(#nbPanelBtn):not(#nbMobilePanelBtn)').forEach(el => {
-    el.addEventListener('click', e => {
-      e.preventDefault();
-      const url   = el.dataset.panelUrl   ?? '/usuario';
-      const title = el.dataset.panelTitle ?? 'Panel';
-      closeDropdown();
+    /* ── Logo: scroll al top ── */
+    logo.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       closeMenu();
-      openPanel(url, title);
     });
-  });
 
-  // Botón mobile de panel
-  const mobilePanelBtn = document.getElementById('nbMobilePanelBtn') as HTMLButtonElement | null;
-  mobilePanelBtn?.addEventListener('click', () => {
-    const url   = mobilePanelBtn.dataset.panelUrl   ?? '/usuario';
-    const title = mobilePanelBtn.dataset.panelTitle ?? 'Panel';
-    openPanel(url, title);
-    closeMenu();
-  });
+    /* ── Menu mobile ── */
+    function openMenu() {
+      menu.classList.add('open');
+      overlay.classList.add('open');
+      toggle.setAttribute('aria-expanded', 'true');
+      toggle.setAttribute('aria-label', 'Cerrar menú');
+      menu.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeMenu() {
+      menu.classList.remove('open');
+      overlay.classList.remove('open');
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.setAttribute('aria-label', 'Abrir menú');
+      menu.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
 
-  // Lápices de edición admin
-  document.querySelectorAll<HTMLButtonElement>('.nb-edit-pencil[data-panel-url]').forEach(btn => {
-    btn.addEventListener('click', e => {
+    toggle.addEventListener('click', () =>
+      menu.classList.contains('open') ? closeMenu() : openMenu()
+    );
+    overlay.addEventListener('click', closeMenu);
+
+    /* Scroll suave en mobile links */
+    mobileLinks.forEach(link => {
+      link.addEventListener('click', e => {
+        const href = link.getAttribute('href') ?? '';
+        if (href.startsWith('#')) {
+          e.preventDefault();
+          closeMenu();
+          const target = document.getElementById(href.slice(1));
+          if (target) setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
+        } else {
+          closeMenu();
+        }
+      });
+    });
+
+    /* Scroll suave en desktop links */
+    navLinks.forEach(link => {
+      link.addEventListener('click', e => {
+        const href = link.getAttribute('href') ?? '';
+        if (href.startsWith('#')) {
+          e.preventDefault();
+          const target = document.getElementById(href.slice(1));
+          if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+
+    /* ── Dropdown usuario ── */
+    let ddJustOpened = false;
+
+    function openDropdown() {
+      dropdown?.classList.add('open');
+      userBtn?.setAttribute('aria-expanded', 'true');
+      dropdown?.setAttribute('aria-hidden', 'false');
+      ddJustOpened = true;
+      requestAnimationFrame(() => { ddJustOpened = false; });
+    }
+    function closeDropdown() {
+      dropdown?.classList.remove('open');
+      userBtn?.setAttribute('aria-expanded', 'false');
+      dropdown?.setAttribute('aria-hidden', 'true');
+    }
+
+    userBtn?.addEventListener('click', e => {
       e.stopPropagation();
-      openPanel(btn.dataset.panelUrl ?? '/admin', btn.dataset.panelTitle ?? 'Panel Admin');
+      dropdown?.classList.contains('open') ? closeDropdown() : openDropdown();
     });
-  });
+    document.addEventListener('click', e => {
+      if (ddJustOpened || !dropdown?.classList.contains('open')) return;
+      if (!userBtn?.contains(e.target as Node) && !dropdown?.contains(e.target as Node)) closeDropdown();
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { closeMenu(); closeDropdown(); }
+    });
 
-  // ─── Logout ────────────────────────────────────────────────────────────────
-  async function doLogout() {
-    await fetch('/api/signin', { method: 'DELETE' });
-    window.location.reload();
-  }
-  document.getElementById('nbLogout')?.addEventListener('click', doLogout);
-  document.getElementById('nbLogoutMobile')?.addEventListener('click', doLogout);
+    /* ── Slide panel ── */
+    function openPanel(url: string, title: string) {
+      if (typeof (window as any).openSlidePanel === 'function') {
+        (window as any).openSlidePanel(url, title);
+      } else {
+        window.location.href = url;
+      }
+    }
+
+    panelBtn?.addEventListener('click', () => {
+      openPanel(panelBtn.dataset.panelUrl ?? '/usuario', panelBtn.dataset.panelTitle ?? 'Panel');
+    });
+
+    mobilePanelBtn?.addEventListener('click', () => {
+      openPanel(mobilePanelBtn.dataset.panelUrl ?? '/usuario', mobilePanelBtn.dataset.panelTitle ?? 'Panel');
+      closeMenu();
+    });
+
+    /* Links con data-panel-url (dropdown + mobile) */
+    document.querySelectorAll<HTMLElement>('[data-panel-url]:not(#nbPanelBtn):not(#nbMobilePanelBtn)').forEach(el => {
+      el.addEventListener('click', e => {
+        e.preventDefault();
+        closeDropdown();
+        closeMenu();
+        openPanel(el.dataset.panelUrl ?? '/usuario', el.dataset.panelTitle ?? 'Panel');
+      });
+    });
+
+    /* Lápices de edición admin */
+    document.querySelectorAll<HTMLButtonElement>('.nb-edit[data-panel-url]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        openPanel(btn.dataset.panelUrl ?? '/admin', btn.dataset.panelTitle ?? 'Panel Admin');
+      });
+    });
+
+    /* ── Logout ── */
+    async function doLogout() {
+      await fetch('/api/signin', { method: 'DELETE' });
+      window.location.reload();
+    }
+    document.getElementById('nbLogout')?.addEventListener('click', doLogout);
+    document.getElementById('nbLogoutMobile')?.addEventListener('click', doLogout);
+  })();
 </script>
