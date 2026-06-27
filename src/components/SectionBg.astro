@@ -1,10 +1,9 @@
 ---
 /**
- * SectionBg — Versión minimalista
- * Mantiene la API pero reduce todo a casi invisible.
- * Sólo un pattern de puntos muy sutil, sin glow, sin noise agresivo.
+ * SectionBg — v2
+ * Misma API que antes, pero con patrones reales y glow funcional.
+ * Todo CSS puro, sin JS, sin animaciones que rompan reduced-motion.
  */
-
 interface Props {
   variant?:   'dots' | 'grid' | 'crosshair' | 'diagonal' | 'scanlines' | 'circuit';
   glowPos?:   'top-left' | 'top-right' | 'center' | 'bottom-left' | 'bottom-right' | 'none';
@@ -14,59 +13,294 @@ interface Props {
 
 const {
   variant   = 'dots',
-  glowPos   = 'none',  // Default a none en la versión limpia
-  glowColor,
-  noise     = false,   // Noise desactivado por defecto
+  glowPos   = 'none',
+  glowColor = 'var(--accent)',
+  noise     = false,
 } = Astro.props;
+
+// Mapeamos glowPos a coordenadas CSS para el radial-gradient
+const glowCoords: Record<string, string> = {
+  'top-left':     '0% 0%',
+  'top-right':    '100% 0%',
+  'center':       '50% 50%',
+  'bottom-left':  '0% 100%',
+  'bottom-right': '100% 100%',
+  'none':         '50% 50%',
+};
+const glowAt = glowCoords[glowPos] ?? '50% 50%';
+const hasGlow = glowPos !== 'none';
 ---
 
-<div class={`sec-bg sec-bg--${variant}`} aria-hidden="true">
+<div
+  class={`sec-bg sec-bg--${variant}`}
+  aria-hidden="true"
+  data-noise={noise ? 'true' : 'false'}
+  style={hasGlow ? `--glow-pos: ${glowAt}; --glow-color: ${glowColor};` : ''}
+>
+  <!-- Patrón de fondo -->
   <div class="sec-pattern"></div>
+
+  <!-- Glow: sólo se renderiza si hay posición distinta de 'none' -->
+  {hasGlow && <div class="sec-glow"></div>}
+
+  <!-- Noise: capa de textura muy sutil encima de todo -->
+  {noise && <div class="sec-noise"></div>}
 </div>
 
 <style>
+  /* ── Contenedor ── */
   .sec-bg {
     position: absolute;
     inset: 0;
     pointer-events: none;
     z-index: 0;
+    overflow: hidden;
   }
 
-  /* Patrón de puntos: mínimo, casi invisible */
-  .sec-bg--dots .sec-pattern,
-  .sec-bg--crosshair .sec-pattern {
+  /* ══════════════════════════════════════════
+     PATRONES
+  ══════════════════════════════════════════ */
+
+  /* Puntos: el más usado, cuadrícula de puntos suaves */
+  .sec-bg--dots .sec-pattern {
     position: absolute;
     inset: 0;
     background-image: radial-gradient(
       circle,
-      rgba(255, 255, 255, 0.05) 1px,
+      rgba(255, 255, 255, 0.09) 1px,
       transparent 1px
     );
-    background-size: 32px 32px;
-    mask-image: radial-gradient(ellipse at 50% 0%, black 0%, transparent 65%);
-    -webkit-mask-image: radial-gradient(ellipse at 50% 0%, black 0%, transparent 65%);
+    background-size: 28px 28px;
+    /*
+      Mask en degradado para que el patrón aparezca
+      con suavidad desde la parte superior de la sección
+      y desaparezca antes del borde inferior.
+    */
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      black 12%,
+      black 70%,
+      transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      black 12%,
+      black 70%,
+      transparent 100%
+    );
+    opacity: 0.55;
   }
 
-  /* Grid: líneas muy tenues */
+  /* Grid: líneas horizontales y verticales sutiles */
   .sec-bg--grid .sec-pattern {
     position: absolute;
     inset: 0;
     background-image:
-      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-    background-size: 48px 48px;
-    mask-image: radial-gradient(ellipse at 50% 0%, black 0%, transparent 60%);
+      linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      black 10%,
+      black 75%,
+      transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      black 10%,
+      black 75%,
+      transparent 100%
+    );
+    opacity: 0.6;
   }
 
-  /* Diagonal, scanlines, circuit: vacíos */
-  .sec-bg--diagonal .sec-pattern,
-  .sec-bg--scanlines .sec-pattern,
+  /*
+    Crosshair: puntos más grandes + líneas que se cruzan
+    en cada intersección. Produce la estética "mira telescópica".
+  */
+  .sec-bg--crosshair .sec-pattern {
+    position: absolute;
+    inset: 0;
+    /* Fondo: cuadrícula de líneas muy finas */
+    background-image:
+      /* Líneas de cuadrícula */
+      linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+      /* Punto de intersección más visible */
+      radial-gradient(circle, rgba(255, 255, 255, 0.1) 1.2px, transparent 1.2px);
+    background-size:
+      48px 48px,
+      48px 48px,
+      48px 48px;
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      black 8%,
+      black 72%,
+      transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      black 8%,
+      black 72%,
+      transparent 100%
+    );
+    opacity: 0.5;
+  }
+
+  /* Diagonal: líneas inclinadas 45° */
+  .sec-bg--diagonal .sec-pattern {
+    position: absolute;
+    inset: -50%;  /* más grande para que las diagonales no se corten */
+    background-image: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 22px,
+      rgba(255, 255, 255, 0.04) 22px,
+      rgba(255, 255, 255, 0.04) 23px
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      black 15%,
+      black 70%,
+      transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      black 15%,
+      black 70%,
+      transparent 100%
+    );
+    opacity: 0.7;
+  }
+
+  /* Scanlines: líneas horizontales muy juntas, efecto CRT */
+  .sec-bg--scanlines .sec-pattern {
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent,
+      transparent 3px,
+      rgba(255, 255, 255, 0.03) 3px,
+      rgba(255, 255, 255, 0.03) 4px
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      black 10%,
+      black 80%,
+      transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      black 10%,
+      black 80%,
+      transparent 100%
+    );
+    opacity: 0.8;
+  }
+
+  /*
+    Circuit: puntos + cuadrícula, como una PCB.
+    Combina los dos para simular trazados de circuito.
+  */
   .sec-bg--circuit .sec-pattern {
     position: absolute;
     inset: 0;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+      radial-gradient(circle, rgba(255, 255, 255, 0.12) 1.5px, transparent 1.5px);
+    background-size:
+      32px 32px,
+      32px 32px,
+      64px 64px;
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      black 8%,
+      black 75%,
+      transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      black 8%,
+      black 75%,
+      transparent 100%
+    );
+    opacity: 0.5;
   }
 
+  /* ══════════════════════════════════════════
+     GLOW
+     Radial gradient que parte de --glow-pos.
+     El color viene de --glow-color (normalmente
+     --accent que cada sección puede sobreescribir).
+  ══════════════════════════════════════════ */
+  .sec-glow {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      ellipse 75% 55% at var(--glow-pos, 50% 50%),
+      color-mix(in srgb, var(--glow-color, #38b6ff) 12%, transparent) 0%,
+      transparent 70%
+    );
+    /*
+      BUGFIX original: el glow anterior usaba box-shadow / filter:blur
+      que en el primer frame causaba un flash blanco. Al usar
+      radial-gradient puro no hay reflow ni paint flash.
+    */
+    pointer-events: none;
+  }
+
+  /* ══════════════════════════════════════════
+     NOISE (opcional)
+     SVG fractal tiny pattern encima de todo.
+     Sólo se renderiza si noise=true.
+  ══════════════════════════════════════════ */
+  .sec-noise {
+    position: absolute;
+    inset: 0;
+    /*
+      Truco: usamos un SVG data-uri con feTurbulence.
+      Es mucho más ligero que una imagen PNG de ruido.
+    */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    background-size: 200px 200px;
+    opacity: 0.35;
+    mix-blend-mode: overlay;
+    pointer-events: none;
+  }
+
+  /* ══════════════════════════════════════════
+     ACCESIBILIDAD
+  ══════════════════════════════════════════ */
   @media (forced-colors: active) {
     .sec-bg { display: none; }
+  }
+
+  /*
+    reduced-motion: quitamos el fondo que algunas veces
+    viene con transition implícita de la sección padre.
+    Los patrones son estáticos así que no hay animación
+    que cortar, pero lo dejamos por completitud.
+  */
+  @media (prefers-reduced-motion: reduce) {
+    .sec-glow,
+    .sec-pattern,
+    .sec-noise {
+      transition: none !important;
+      animation: none !important;
+    }
   }
 </style>
