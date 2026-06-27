@@ -3,9 +3,10 @@ export const prerender = false;
 import type { APIRoute } from 'astro';
 import { requireAdmin, jsonResponse } from '../../lib/api';
 import { execute } from '../../lib/db';
+import { logAdminAction } from '../../lib/audit-log';
 
 export const DELETE: APIRoute = async ({ request, cookies }) => {
-  const { user, error } = await requireAdmin(request, cookies);
+  const { user, profile, error } = await requireAdmin(request, cookies);
   if (error) return error;
 
   let body: { userId?: string };
@@ -21,6 +22,19 @@ export const DELETE: APIRoute = async ({ request, cookies }) => {
   } catch (err) {
     console.error('[delete-user]', err);
     return jsonResponse({ error: 'Error al eliminar el usuario' }, 500);
+  }
+
+  try {
+    await logAdminAction({
+      adminId: user!.id,
+      adminUsername: profile?.username ?? undefined,
+      action: 'user.delete',
+      targetType: 'user',
+      targetId: body.userId,
+      request,
+    });
+  } catch (logErr) {
+    console.warn('[delete-user] audit log failed:', logErr);
   }
 
   return jsonResponse({ ok: true });

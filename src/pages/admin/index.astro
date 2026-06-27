@@ -897,13 +897,13 @@ const avatarUrl   = profile?.avatar_url ?? '';
         </div>
 
         {reports.length === 0 ? (
-          <div class="empty-state">
+          <div class="empty">
             <i class="ti ti-mood-happy"></i>
             <p>Sin reportes todavía.</p>
           </div>
         ) : (
-          <div class="table-wrap">
-            <table class="data-table">
+          <div class="tbl-wrap">
+            <table class="tbl">
               <thead>
                 <tr>
                   <th>Nick reportado</th>
@@ -918,17 +918,17 @@ const avatarUrl   = profile?.avatar_url ?? '';
               <tbody>
                 {reports.map(r => (
                   <tr>
-                    <td><code style="font-size:0.8rem">{r.reported_nick}</code></td>
+                    <td><code class="mono" style="font-size:0.8rem">{r.reported_nick}</code></td>
                     <td>
                       <span class={`tag ${r.tipo === 'hack' || r.tipo === 'trampa' ? 'danger' : r.tipo === 'insultos' ? 'accent' : 'muted'}`}>
                         {r.tipo.replace('_', ' ')}
                       </span>
                     </td>
-                    <td style="max-width:260px;font-size:0.78rem;color:var(--muted-2)">{r.descripcion.slice(0, 120)}{r.descripcion.length > 120 ? '…' : ''}</td>
-                    <td style="font-size:0.78rem;color:var(--muted)">{r.reporter_email}</td>
-                    <td style="font-size:0.75rem;color:var(--muted);white-space:nowrap">{formatDateShort(r.created_at)}</td>
+                    <td style="max-width:260px;font-size:0.78rem">{r.descripcion.slice(0, 120)}{r.descripcion.length > 120 ? '…' : ''}</td>
+                    <td class="dim" style="font-size:0.78rem">{r.reporter_email}</td>
+                    <td class="mono dim" style="white-space:nowrap;font-size:0.75rem">{formatDateShort(r.created_at)}</td>
                     <td>
-                      <select class="inp report-status-sel" data-id={r.id} style="font-size:0.75rem;padding:4px 8px;width:auto;background:var(--surface-0)">
+                      <select class="select report-status-sel" data-id={r.id} style="font-size:0.75rem;padding:4px 8px;width:auto">
                         <option value="pendiente"  selected={r.status==='pendiente'}>Pendiente</option>
                         <option value="revisando"  selected={r.status==='revisando'}>Revisando</option>
                         <option value="resuelto"   selected={r.status==='resuelto'}>Resuelto</option>
@@ -936,7 +936,7 @@ const avatarUrl   = profile?.avatar_url ?? '';
                       </select>
                     </td>
                     <td>
-                      <button class="btn-icon-danger report-del-btn" data-id={r.id} title="Eliminar reporte">
+                      <button class="icon-btn danger report-del-btn" data-id={r.id} title="Eliminar reporte">
                         <i class="ti ti-trash"></i>
                       </button>
                     </td>
@@ -962,18 +962,21 @@ const avatarUrl   = profile?.avatar_url ?? '';
           <div class="form-row" style="padding:16px 20px;gap:12px">
             <div class="field">
               <label>Admin</label>
-              <div class="iw"><i class="ti ti-user ii"></i><input type="text" class="inp" id="logQ" placeholder="Buscar por username…" /></div>
+              <div class="search" style="width:100%">
+                <i class="ti ti-user ii"></i>
+                <input type="text" id="logQ" placeholder="Buscar por username…" />
+              </div>
             </div>
             <div class="field">
               <label>Acción</label>
-              <select class="inp" id="logAction">
+              <select class="select" id="logAction" style="width:100%">
                 <option value="">Todas</option>
                 {[...new Set(auditLogs.map(l => l.action))].map(a => <option value={a}>{a}</option>)}
               </select>
             </div>
             <div class="field">
               <label>Tipo</label>
-              <select class="inp" id="logType">
+              <select class="select" id="logType" style="width:100%">
                 <option value="">Todos</option>
                 {[...new Set(auditLogs.map(l => l.targetType))].map(t => <option value={t}>{t}</option>)}
               </select>
@@ -982,36 +985,37 @@ const avatarUrl   = profile?.avatar_url ?? '';
         </div>
 
         {auditLogs.length === 0 ? (
-          <div class="empty-state">
+          <div class="empty">
             <i class="ti ti-history"></i>
             <p>No hay registros de auditoría todavía.</p>
           </div>
         ) : (
-          <div class="table-wrap">
-            <table class="data-table" id="logsTable">
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Admin</th>
-                  <th>Acción</th>
-                  <th>Tipo</th>
-                  <th>Target ID</th>
-                </tr>
-              </thead>
-              <tbody id="logsBody">
-                {auditLogs.map(log => (
-                  <tr data-admin={log.adminUsername ?? ''} data-action={log.action} data-type={log.targetType}>
-                    <td style="font-size:0.75rem;white-space:nowrap;color:var(--muted)">{formatDate(log.createdAt)}</td>
-                    <td>
-                      <span style="font-family:var(--font-mono);font-size:0.78rem">{log.adminUsername ?? log.adminId}</span>
-                    </td>
-                    <td><span class="tag accent">{log.action}</span></td>
-                    <td><span class="tag muted">{log.targetType}</span></td>
-                    <td style="font-family:var(--font-mono);font-size:0.72rem;color:var(--muted)">{log.targetId ?? '—'}</td>
+          <div class="card">
+            <div class="tbl-wrap">
+              <table class="tbl" id="logsTable">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Admin</th>
+                    <th>Acción</th>
+                    <th>Tipo</th>
+                    <th>Target ID</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody id="logsBody">
+                  {auditLogs.map(log => (
+                    <tr data-admin={log.adminUsername ?? ''} data-action={log.action} data-type={log.targetType}>
+                      <td class="mono dim" style="white-space:nowrap;font-size:0.75rem">{formatDate(log.createdAt)}</td>
+                      <td><span class="mono" style="font-size:0.78rem">{log.adminUsername ?? log.adminId}</span></td>
+                      <td><span class="tag accent">{log.action}</span></td>
+                      <td><span class="tag muted">{log.targetType}</span></td>
+                      <td class="mono dim" style="font-size:0.72rem">{log.targetId ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div class="tbl-foot"><span class="mono dim">{auditLogs.length} registro{auditLogs.length !== 1 ? 's' : ''}</span></div>
           </div>
         )}
       </section>
@@ -1242,6 +1246,12 @@ const avatarUrl   = profile?.avatar_url ?? '';
   --danger-soft:   #311515;
 
 
+    /* Colores de estado adicionales */
+    --olive:       #4ade80;
+    --olive-soft:  rgba(74, 222, 128, 0.10);
+    --violet:      #a78bfa;
+    --violet-soft: rgba(167, 139, 250, 0.10);
+
     --radius-sm: 5px;
     --radius:    9px;
     --font-mono: 'JetBrains Mono', monospace;
@@ -1437,23 +1447,20 @@ const avatarUrl   = profile?.avatar_url ?? '';
   /* ══ Buttons ══ */
   .btn-primary {
     position: relative; display: inline-flex; align-items: center; gap: 6px;
-    padding: 9px 16px; background: var(--accent); color: #fff;
+    padding: 9px 16px; background: var(--accent); color: #0b1220;
     font-family: inherit; font-weight: 700; font-size: 0.78rem;
     border-radius: var(--radius-sm); border: none; cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
   }
   .btn-primary:hover:not(:disabled) { background: var(--accent-dark); }
   .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-  .btn-primary::before, .btn-primary::after { content: ''; position: absolute; width: 7px; height: 7px; opacity: 0; transition: opacity 0.15s; }
-  .btn-primary::before { top: -3px; left: -3px; border-top: 2px solid rgba(255,255,255,0.85); border-left: 2px solid rgba(255,255,255,0.85); }
-  .btn-primary::after  { bottom: -3px; right: -3px; border-bottom: 2px solid rgba(255,255,255,0.85); border-right: 2px solid rgba(255,255,255,0.85); }
-  .btn-primary:hover::before, .btn-primary:hover::after { opacity: 1; }
   .btn-ok { display: none; align-items: center; gap: 6px; }
   .btn-primary.loading .btn-label { display: none; }
   .btn-primary.loading .btn-spin  { display: block; }
   .btn-primary.success .btn-label { display: none; }
   .btn-primary.success .btn-ok    { display: inline-flex; }
-  .btn-primary.success { background: var(--olive); }
-  .btn-spin { display: none; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  .btn-primary.success { background: var(--olive); color: #fff; }
+  .btn-spin { display: none; width: 14px; height: 14px; border: 2px solid rgba(0,0,0,0.2); border-top-color: #0b1220; border-radius: 50%; animation: spin 0.7s linear infinite; }
 
   .btn-ghost { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--ink-soft); font-family: inherit; font-size: 0.78rem; cursor: pointer; text-decoration: none; }
   .btn-icon-danger { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); border-radius: var(--radius-sm); color: #f87171; cursor: pointer; font-size: 13px; transition: background 0.15s; }
@@ -2678,9 +2685,9 @@ const avatarUrl   = profile?.avatar_url ?? '';
       row.style.display = show ? '' : 'none';
     });
   }
-  ['logQ','logAction','logType'].forEach(id =>
-    document.getElementById(id)?.addEventListener('input', filterLogs)
-  );
+  document.getElementById('logQ')?.addEventListener('input', filterLogs);
+  document.getElementById('logAction')?.addEventListener('change', filterLogs);
+  document.getElementById('logType')?.addEventListener('change', filterLogs);
 
   // ── Report status update ────────────────────────────────────
   document.querySelectorAll<HTMLSelectElement>('.report-status-sel').forEach(sel => {
@@ -2700,7 +2707,7 @@ const avatarUrl   = profile?.avatar_url ?? '';
   // ── Report delete ───────────────────────────────────────────
   document.querySelectorAll<HTMLButtonElement>('.report-del-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!confirm('¿Eliminar este reporte?')) return;
+      if (!await confirmAction('¿Eliminar este reporte? No se puede deshacer.')) return;
       const id = btn.dataset.id!;
       try {
         const res = await fetch('/api/admin-reports', {
@@ -2708,8 +2715,15 @@ const avatarUrl   = profile?.avatar_url ?? '';
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id }),
         });
-        if (res.ok) btn.closest('tr')?.remove();
-      } catch { /* silencioso */ }
+        if (res.ok) {
+          btn.closest('tr')?.remove();
+          toast('Reporte eliminado');
+        } else {
+          toast('Error al eliminar', 'err');
+        }
+      } catch {
+        toast('Error de conexión', 'err');
+      }
     });
   });
 </script>
