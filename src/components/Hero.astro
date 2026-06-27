@@ -6,8 +6,17 @@ const subtitleLines = h.subtitle.split('\n');
 ---
 <section class="hero" id="inicio">
 
+  <!-- Fondo decorativo -->
+  <div class="hero-bg" aria-hidden="true">
+    <div class="hero-bg-glow hero-bg-glow-1"></div>
+    <div class="hero-bg-glow hero-bg-glow-2"></div>
+    <div class="hero-bg-grid"></div>
+    <div class="hero-bg-scanline"></div>
+  </div>
+
   <div class="container hero-inner">
 
+    <!-- Eyebrow badge -->
     <div class="hero-eyebrow-wrap">
       <div class="eyebrow">
         <span class="eyebrow-dot" aria-hidden="true"></span>
@@ -22,6 +31,12 @@ const subtitleLines = h.subtitle.split('\n');
 
     <div class="hero-content">
 
+      <!-- Logo decorativo sobre el título -->
+      <div class="hero-logo-wrap" aria-hidden="true">
+        <img src="/trigger_fondo.webp" alt="" width="56" height="56" loading="eager" class="hero-logo-img" />
+        <div class="hero-logo-ring"></div>
+      </div>
+
       <h1 class="hero-title">
         {h.title.includes('.') ? (
           <>
@@ -29,6 +44,13 @@ const subtitleLines = h.subtitle.split('\n');
           </>
         ) : h.title}
       </h1>
+
+      <!-- Tagline decorativa -->
+      <div class="hero-tagline-bar" aria-hidden="true">
+        <span class="tagline-line"></span>
+        <span class="tagline-label">Counter-Strike 1.6</span>
+        <span class="tagline-line"></span>
+      </div>
 
       <p class="hero-sub">
         {subtitleLines.map((line, i) => (
@@ -54,6 +76,7 @@ const subtitleLines = h.subtitle.split('\n');
         </button>
       </div>
 
+      <!-- Stats card mejorado -->
       <div class="hero-stats">
         <div class="stat">
           <span class="stat-val" id="hero-live-players" data-count data-target={h.stat1_val}>{h.stat1_val}</span>
@@ -81,26 +104,89 @@ const subtitleLines = h.subtitle.split('\n');
         </span>
       </div>
 
+      <!-- Scroll indicator -->
+      <div class="hero-scroll-hint" aria-hidden="true">
+        <div class="scroll-line"></div>
+        <span class="scroll-label">Scroll</span>
+      </div>
+
     </div>
   </div>
 
 </section>
 
 <style>
+  /* ── Sección base ── */
   .hero {
     position: relative;
     min-height: 100svh;
     display: flex;
     align-items: center;
     padding-top: 62px;
-    /* Fondo limpio: un solo gradiente radial muy sutil arriba */
-    background:
-      radial-gradient(ellipse 70% 40% at 50% -5%, rgba(56, 182, 255, 0.055) 0%, transparent 65%);
+    overflow: hidden;
+  }
+
+  /* ── Fondo decorativo ── */
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .hero-bg-glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+  }
+  .hero-bg-glow-1 {
+    width: 600px;
+    height: 400px;
+    top: -100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: radial-gradient(ellipse, rgba(56, 189, 248, 0.08) 0%, transparent 70%);
+  }
+  .hero-bg-glow-2 {
+    width: 400px;
+    height: 300px;
+    bottom: 80px;
+    right: -80px;
+    background: radial-gradient(ellipse, rgba(14, 165, 233, 0.05) 0%, transparent 70%);
+  }
+
+  /* Grid sutil tipo gaming */
+  .hero-bg-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(56, 189, 248, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56, 189, 248, 0.025) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black 20%, transparent 80%);
+  }
+
+  /* Línea scanline animada */
+  .hero-bg-scanline {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.15), transparent);
+    animation: scanline 6s linear infinite;
+    top: 0;
+  }
+  @keyframes scanline {
+    0%   { top: 0%; opacity: 0; }
+    5%   { opacity: 1; }
+    95%  { opacity: 1; }
+    100% { top: 100%; opacity: 0; }
   }
 
   /* ── Layout ── */
   .hero-inner {
     position: relative;
+    z-index: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -110,7 +196,7 @@ const subtitleLines = h.subtitle.split('\n');
   }
 
   /* ── Eyebrow ── */
-  .hero-eyebrow-wrap { margin-bottom: 32px; }
+  .hero-eyebrow-wrap { margin-bottom: 28px; }
   .eyebrow {
     display: inline-flex;
     align-items: center;
@@ -125,6 +211,7 @@ const subtitleLines = h.subtitle.split('\n');
     border: 1px solid var(--border);
     border-radius: 999px;
     background: var(--surface);
+    backdrop-filter: blur(8px);
   }
   .eyebrow-dot {
     width: 5px;
@@ -158,6 +245,37 @@ const subtitleLines = h.subtitle.split('\n');
     animation: pulse 1.8s ease-in-out infinite;
   }
 
+  /* ── Logo decorativo ── */
+  .hero-logo-wrap {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+  }
+  .hero-logo-img {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    border-radius: 10px;
+    position: relative;
+    z-index: 1;
+    filter: drop-shadow(0 0 12px rgba(56, 189, 248, 0.35));
+  }
+  .hero-logo-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 1px solid rgba(56, 189, 248, 0.2);
+    animation: ring-pulse 3s ease-in-out infinite;
+  }
+  @keyframes ring-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50%       { transform: scale(1.15); opacity: 1; }
+  }
+
   /* ── Hero content ── */
   .hero-content {
     display: flex;
@@ -169,22 +287,53 @@ const subtitleLines = h.subtitle.split('\n');
 
   .hero-title {
     font-family: var(--font-display);
-    font-size: clamp(3.2rem, 10vw, 6.5rem);
+    font-size: clamp(3.2rem, 10vw, 6.8rem);
     font-weight: 700;
     letter-spacing: -0.025em;
     line-height: 1;
     color: var(--text);
-    margin-bottom: 20px;
+    margin-bottom: 16px;
+    /* Sutil text-shadow tipo neón */
+    text-shadow:
+      0 0 40px rgba(56, 189, 248, 0.12),
+      0 2px 0 rgba(0, 0, 0, 0.4);
   }
   .title-dot {
     color: var(--accent);
+    text-shadow: 0 0 20px rgba(56, 189, 248, 0.5);
+  }
+
+  /* ── Tagline bar ── */
+  .hero-tagline-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .tagline-line {
+    display: block;
+    width: 40px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border));
+  }
+  .hero-tagline-bar .tagline-line:last-child {
+    background: linear-gradient(90deg, var(--border), transparent);
+  }
+  .tagline-label {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    opacity: 0.7;
   }
 
   .hero-sub {
     font-size: 0.95rem;
     color: var(--muted-2);
     line-height: 1.8;
-    max-width: 380px;
+    max-width: 400px;
     margin: 0 auto 36px;
   }
 
@@ -195,7 +344,7 @@ const subtitleLines = h.subtitle.split('\n');
     justify-content: center;
     align-items: center;
     flex-wrap: wrap;
-    margin-bottom: 44px;
+    margin-bottom: 40px;
   }
 
   .hero-btn-main {
@@ -203,7 +352,7 @@ const subtitleLines = h.subtitle.split('\n');
     align-items: center;
     justify-content: center;
     gap: 7px;
-    padding: 11px 26px;
+    padding: 12px 28px;
     width: fit-content;
     background: var(--accent);
     color: #07090f;
@@ -216,25 +365,25 @@ const subtitleLines = h.subtitle.split('\n');
     border: 1px solid var(--accent);
     text-decoration: none;
     cursor: pointer;
-    transition: opacity 0.15s ease;
+    transition: opacity 0.15s ease, box-shadow 0.2s ease;
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.25);
   }
   .hero-btn-main:hover {
-    opacity: 0.88;
+    opacity: 0.9;
+    box-shadow: 0 0 32px rgba(56, 189, 248, 0.4);
   }
   .hero-btn-main svg {
     flex-shrink: 0;
     transition: transform 0.18s ease;
   }
-  .hero-btn-main:hover svg {
-    transform: translateX(3px);
-  }
+  .hero-btn-main:hover svg { transform: translateX(3px); }
 
   .hero-btn-rules {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    padding: 11px 20px;
+    padding: 12px 20px;
     width: fit-content;
     background: none;
     color: var(--muted-2);
@@ -246,11 +395,12 @@ const subtitleLines = h.subtitle.split('\n');
     border-radius: var(--radius);
     border: 1px solid var(--border);
     cursor: pointer;
-    transition: color 0.15s ease, border-color 0.15s ease;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
   }
   .hero-btn-rules:hover {
     color: var(--text);
     border-color: rgba(56, 182, 255, 0.3);
+    background: rgba(56, 189, 248, 0.04);
   }
 
   /* ── Stats ── */
@@ -259,12 +409,26 @@ const subtitleLines = h.subtitle.split('\n');
     align-items: center;
     justify-content: center;
     gap: 36px;
-    padding: 18px 40px;
-    max-width: 440px;
+    padding: 20px 44px;
+    max-width: 460px;
     width: 100%;
     border-radius: var(--radius-lg);
     border: 1px solid var(--border);
-    background: var(--surface);
+    background: rgba(20, 32, 56, 0.6);
+    backdrop-filter: blur(12px);
+    position: relative;
+    overflow: hidden;
+  }
+  /* Línea de acento superior en stats */
+  .hero-stats::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 20%;
+    right: 20%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.4;
   }
 
   .stat {
@@ -276,7 +440,7 @@ const subtitleLines = h.subtitle.split('\n');
   .stat-val {
     display: block;
     font-family: var(--font-display);
-    font-size: 1.3rem;
+    font-size: 1.4rem;
     font-weight: 700;
     color: var(--accent);
     letter-spacing: 0.02em;
@@ -294,7 +458,7 @@ const subtitleLines = h.subtitle.split('\n');
   }
   .stat-sep {
     width: 1px;
-    height: 24px;
+    height: 28px;
     background: var(--border);
     flex-shrink: 0;
   }
@@ -324,25 +488,57 @@ const subtitleLines = h.subtitle.split('\n');
     animation: pulse 1.8s ease-in-out infinite;
   }
 
+  /* ── Scroll hint ── */
+  .hero-scroll-hint {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin-top: 48px;
+    opacity: 0.35;
+    animation: scroll-fade 2.5s ease-in-out infinite;
+  }
+  .scroll-line {
+    width: 1px;
+    height: 32px;
+    background: linear-gradient(to bottom, var(--accent), transparent);
+  }
+  .scroll-label {
+    font-family: var(--font-mono);
+    font-size: 0.52rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  @keyframes scroll-fade {
+    0%, 100% { opacity: 0.2; transform: translateY(0); }
+    50%       { opacity: 0.5; transform: translateY(4px); }
+  }
+
+  /* ── Keyframes ── */
   @keyframes pulse {
     0%, 100% { opacity: 0.5; }
     50%       { opacity: 1; }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .eyebrow-dot, .live-dot, .map-badge-dot { animation: none; }
+    .eyebrow-dot, .live-dot, .map-badge-dot,
+    .hero-bg-scanline, .hero-logo-ring,
+    .hero-scroll-hint { animation: none; }
   }
 
   @media (max-width: 540px) {
-    .hero-stats { gap: 20px; padding: 14px 22px; max-width: 320px; }
-    .stat-val { font-size: 1.1rem; }
-    .hero-actions { margin-bottom: 36px; }
+    .hero-stats { gap: 20px; padding: 16px 22px; max-width: 320px; }
+    .stat-val { font-size: 1.15rem; }
+    .hero-actions { margin-bottom: 32px; }
     .hero-sub { font-size: 0.88rem; }
+    .hero-logo-wrap { width: 52px; height: 52px; }
+    .hero-logo-img { width: 40px; height: 40px; }
+    .hero-scroll-hint { display: none; }
   }
 </style>
 
 <script>
-  // Mismo fix que el resto — ver comentario en SlidePanel.astro.
   function initHero() {
     function parseTarget(raw: string): { prefix: string; num: number; suffix: string } {
       const match = raw.match(/^([^\d]*)(\d+(?:\.\d+)?)(.*)$/);
@@ -367,9 +563,8 @@ const subtitleLines = h.subtitle.split('\n');
     }
 
     const counters = Array.from(document.querySelectorAll<HTMLElement>('[data-count]'));
-    if (counters.length === 0) return; // Hero no presente en esta página
+    if (counters.length === 0) return;
 
-    // ── Botón principal: scroll suave con offset del navbar ──────
     document.getElementById('heroBtnMain')?.addEventListener('click', () => {
       const target = document.getElementById('servidores');
       if (!target) return;
@@ -384,7 +579,6 @@ const subtitleLines = h.subtitle.split('\n');
     }, { threshold: 0.5 });
     counters.forEach(c => obs.observe(c));
 
-    // ── Live server stats ────────────────────────────────────────
     (async () => {
       try {
         const res  = await fetch('/api/servers.json');

@@ -893,6 +893,7 @@ const avatarUrl   = profile?.avatar_url ?? '';
             <p>{reportesPendientes} pendiente{reportesPendientes !== 1 ? 's' : ''} de revisión</p>
           </div>
           <a href="/quejas" target="_blank" class="btn-ghost"><i class="ti ti-external-link"></i> Ver formulario público</a>
+          <a href="/admin/bans" class="btn-ghost" style="color:var(--text)"><i class="ti ti-ban" style="color:#ef4444"></i> Gestionar Bans</a>
         </div>
 
         {reports.length === 0 ? (
@@ -911,6 +912,7 @@ const avatarUrl   = profile?.avatar_url ?? '';
                   <th>Reportado por</th>
                   <th>Fecha</th>
                   <th>Estado</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -926,9 +928,17 @@ const avatarUrl   = profile?.avatar_url ?? '';
                     <td style="font-size:0.78rem;color:var(--muted)">{r.reporter_email}</td>
                     <td style="font-size:0.75rem;color:var(--muted);white-space:nowrap">{formatDateShort(r.created_at)}</td>
                     <td>
-                      <span class={`tag ${r.status === 'pendiente' ? 'danger' : r.status === 'revisando' ? 'accent' : r.status === 'resuelto' ? 'olive' : 'muted'}`}>
-                        {r.status}
-                      </span>
+                      <select class="inp report-status-sel" data-id={r.id} style="font-size:0.75rem;padding:4px 8px;width:auto;background:var(--surface-0)">
+                        <option value="pendiente"  selected={r.status==='pendiente'}>Pendiente</option>
+                        <option value="revisando"  selected={r.status==='revisando'}>Revisando</option>
+                        <option value="resuelto"   selected={r.status==='resuelto'}>Resuelto</option>
+                        <option value="descartado" selected={r.status==='descartado'}>Descartado</option>
+                      </select>
+                    </td>
+                    <td>
+                      <button class="btn-icon-danger report-del-btn" data-id={r.id} title="Eliminar reporte">
+                        <i class="ti ti-trash"></i>
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -1446,6 +1456,8 @@ const avatarUrl   = profile?.avatar_url ?? '';
   .btn-spin { display: none; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
 
   .btn-ghost { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--ink-soft); font-family: inherit; font-size: 0.78rem; cursor: pointer; text-decoration: none; }
+  .btn-icon-danger { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); border-radius: var(--radius-sm); color: #f87171; cursor: pointer; font-size: 13px; transition: background 0.15s; }
+  .btn-icon-danger:hover { background: rgba(239,68,68,0.2); }
   .btn-ghost:hover { border-color: var(--border-strong); color: var(--ink); background: var(--surface-2); }
 
   .btn-danger { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: var(--danger); color: #fff; border: none; border-radius: var(--radius-sm); font-family: inherit; font-size: 0.78rem; cursor: pointer; }
@@ -2669,4 +2681,35 @@ const avatarUrl   = profile?.avatar_url ?? '';
   ['logQ','logAction','logType'].forEach(id =>
     document.getElementById(id)?.addEventListener('input', filterLogs)
   );
+
+  // ── Report status update ────────────────────────────────────
+  document.querySelectorAll<HTMLSelectElement>('.report-status-sel').forEach(sel => {
+    sel.addEventListener('change', async () => {
+      const id = sel.dataset.id!;
+      const status = sel.value;
+      try {
+        await fetch('/api/admin-reports', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, status }),
+        });
+      } catch { /* silencioso */ }
+    });
+  });
+
+  // ── Report delete ───────────────────────────────────────────
+  document.querySelectorAll<HTMLButtonElement>('.report-del-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('¿Eliminar este reporte?')) return;
+      const id = btn.dataset.id!;
+      try {
+        const res = await fetch('/api/admin-reports', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id }),
+        });
+        if (res.ok) btn.closest('tr')?.remove();
+      } catch { /* silencioso */ }
+    });
+  });
 </script>

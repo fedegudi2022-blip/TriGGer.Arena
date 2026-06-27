@@ -13,7 +13,7 @@ const isOperativo = (Astro.locals.siteSettings?.site_status ?? 'operativo') === 
     <div class="footer-col footer-brand">
       <button class="footer-logo back-to-top" id="back-to-top" aria-label="Volver al inicio de la página">
         <img src="/trigger_fondo.webp" alt="TriGGer.Arena" width="28" height="28" loading="lazy" fetchpriority="low" />
-        <span>TriGGer<span class="accent">.Arena</span></span>
+        <span>Tri<span class="accent">GG</span>er<span class="accent">.Arena</span></span>
       </button>
       <p class="footer-tagline">{f.tagline}</p>
     </div>
@@ -54,7 +54,7 @@ const isOperativo = (Astro.locals.siteSettings?.site_status ?? 'operativo') === 
   <div class="footer-divider" aria-hidden="true"></div>
 
   <div class="container footer-bottom">
-    <p class="footer-copy">© {year} TriGGer.Arena | Todos los derechos reservados.</p>
+    <p class="footer-copy">© {year} Tri<span class="footer-copy-gg">GG</span>er<span class="footer-copy-arena">.Arena</span> | Todos los derechos reservados.</p>
   </div>
 </footer>
 
@@ -240,6 +240,7 @@ const isOperativo = (Astro.locals.siteSettings?.site_status ?? 'operativo') === 
     opacity: 0.5;
     letter-spacing: 0.04em;
     text-align: center;
+  .footer-copy-gg, .footer-copy-arena { color: var(--accent); }
   }
 
   /* ── prefers-reduced-motion ── */

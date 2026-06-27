@@ -1,0 +1,440 @@
+---
+export const prerender = false;
+import Layout from '../../layouts/Layout.astro';
+import Navbar from '../../components/Navbar.astro';
+import Footer from '../../components/Footer.astro';
+import { requireAdmin } from '../../lib/api';
+
+// Verificar que sea admin
+const { error } = await requireAdmin(Astro.request, Astro.cookies);
+if (error) return Astro.redirect('/');
+---
+
+<Layout title="Gestionar Bans — TriGGer.Arena" noindex>
+  <Navbar />
+
+  <main class="ab-main">
+
+    <div class="ab-hero">
+      <div class="ab-hero-bg" aria-hidden="true"></div>
+      <div class="container">
+        <div class="ab-breadcrumb">
+          <a href="/admin">Panel Admin</a>
+          <i class="ti ti-chevron-right"></i>
+          <span>Bans</span>
+        </div>
+        <h1 class="ab-title"><i class="ti ti-ban"></i> Gestionar Bans</h1>
+        <p class="ab-sub">Agregá, desactivá o eliminá sanciones. Los cambios se reflejan en <a href="/baneados" target="_blank">/baneados</a> de inmediato.</p>
+      </div>
+    </div>
+
+    <div class="container ab-body">
+      <div class="ab-grid">
+
+        <!-- Formulario agregar ban -->
+        <div class="ab-card">
+          <div class="ab-card-head">
+            <h2><i class="ti ti-plus"></i> Nuevo Ban</h2>
+          </div>
+          <div class="ab-form">
+
+            <div class="ab-row-2">
+              <div class="field">
+                <label for="b-nick">Nick <span class="req">*</span></label>
+                <div class="iw"><i class="ti ti-user-x ii"></i><input id="b-nick" type="text" class="inp" placeholder="NickDelJugador" maxlength="80" /></div>
+              </div>
+              <div class="field">
+                <label for="b-tag">Tag del clan</label>
+                <div class="iw"><i class="ti ti-tag ii"></i><input id="b-tag" type="text" class="inp" placeholder="|TAG|" maxlength="40" /></div>
+              </div>
+            </div>
+
+            <div class="ab-row-2">
+              <div class="field">
+                <label for="b-steam">Steam ID</label>
+                <div class="iw"><i class="ti ti-brand-steam ii"></i><input id="b-steam" type="text" class="inp" placeholder="STEAM_0:1:12345678" maxlength="30" /></div>
+              </div>
+              <div class="field">
+                <label for="b-ip">IP <span class="hint-inline">(opcional)</span></label>
+                <div class="iw"><i class="ti ti-network ii"></i><input id="b-ip" type="text" class="inp" placeholder="192.168.1.1" maxlength="45" /></div>
+              </div>
+            </div>
+
+            <div class="ab-row-2">
+              <div class="field">
+                <label for="b-tipo">Tipo de infracción <span class="req">*</span></label>
+                <select id="b-tipo" class="inp">
+                  <option value="hack">Hack / Cheat</option>
+                  <option value="insultos">Insultos / Toxicidad</option>
+                  <option value="bug_abuse">Bug Abuse</option>
+                  <option value="trampa">Trampa / Fullbright</option>
+                  <option value="otro">Otro</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="b-dur">Duración <span class="hint-inline">(vacío = permanente)</span></label>
+                <div class="iw"><i class="ti ti-clock ii"></i><input id="b-dur" type="text" class="inp" placeholder="ej: 7 días, 1 mes…" maxlength="40" /></div>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="b-motivo">Motivo <span class="req">*</span></label>
+              <textarea id="b-motivo" class="inp" rows="3" placeholder="Describí brevemente la razón del ban…" maxlength="2000" style="resize:vertical;min-height:80px"></textarea>
+            </div>
+
+            <p class="ab-err" id="b-err"></p>
+            <button class="btn-primary" id="addBanBtn">
+              <i class="ti ti-ban"></i> Agregar Ban
+            </button>
+          </div>
+        </div>
+
+        <!-- Lista de bans -->
+        <div class="ab-card ab-list-card">
+          <div class="ab-card-head">
+            <h2><i class="ti ti-list"></i> Bans activos</h2>
+            <div class="ab-head-actions">
+              <input type="search" id="banSearch" class="inp inp-sm" placeholder="Filtrar…" />
+              <button class="btn-ghost" id="refreshBans"><i class="ti ti-refresh"></i></button>
+            </div>
+          </div>
+
+          <div id="banListWrap">
+            <div class="ab-loading"><i class="ti ti-loader-2 spin"></i> Cargando…</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <Footer />
+</Layout>
+
+<style>
+  .ab-main { min-height: 80vh; padding-bottom: 80px; }
+
+  .ab-hero {
+    position: relative; padding: 48px 0 36px;
+    border-bottom: 1px solid var(--border);
+  }
+  .ab-hero-bg {
+    position: absolute; inset: 0; z-index: 0;
+    background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(239,68,68,0.05) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+  .ab-breadcrumb {
+    display: flex; align-items: center; gap: 6px; margin-bottom: 12px;
+    font-size: 0.75rem; color: var(--muted);
+  }
+  .ab-breadcrumb a { color: var(--accent); text-decoration: none; }
+  .ab-breadcrumb a:hover { text-decoration: underline; }
+  .ab-breadcrumb i { font-size: 12px; }
+
+  .ab-title {
+    font-family: var(--font-display); font-size: 2rem; font-weight: 700;
+    color: var(--text); display: flex; align-items: center; gap: 10px; margin-bottom: 6px;
+  }
+  .ab-title i { color: #ef4444; }
+  .ab-sub { font-size: 0.85rem; color: var(--muted-2); }
+  .ab-sub a { color: var(--accent); }
+
+  .ab-body { padding-top: 28px; }
+  .ab-grid { display: grid; grid-template-columns: 380px 1fr; gap: 20px; align-items: start; }
+
+  .ab-card {
+    background: var(--surface, #142038); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); overflow: hidden;
+  }
+  .ab-card-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 18px; border-bottom: 1px solid var(--border);
+    background: var(--surface-2, #18233b);
+  }
+  .ab-card-head h2 {
+    font-size: 0.8rem; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text);
+    display: flex; align-items: center; gap: 7px;
+  }
+  .ab-card-head h2 i { color: var(--accent); font-size: 15px; }
+  .ab-head-actions { display: flex; align-items: center; gap: 8px; }
+
+  .ab-form { padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+  .ab-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  label { font-size: 0.72rem; font-weight: 600; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
+  .hint-inline { font-size: 0.65rem; text-transform: none; opacity: 0.7; letter-spacing: 0; }
+  .req { color: #ef4444; }
+  .iw { position: relative; display: flex; align-items: center; }
+  .ii { position: absolute; left: 10px; font-size: 14px; color: var(--muted); pointer-events: none; }
+  .inp {
+    width: 100%; padding: 9px 11px; background: var(--surface-2, #18233b);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--text); font-size: 0.83rem; font-family: var(--font-body);
+    transition: border-color 0.15s; outline: none;
+  }
+  .iw .inp { padding-left: 32px; }
+  .inp:focus { border-color: var(--accent); }
+  .inp-sm { width: 160px; padding: 6px 10px; font-size: 0.78rem; }
+  select.inp { cursor: pointer; }
+  textarea.inp { resize: vertical; }
+
+  .ab-err { font-size: 0.78rem; color: #ef4444; min-height: 1em; }
+
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 10px 20px; background: var(--accent); color: #06080d;
+    font-weight: 700; font-size: 0.8rem; border: none; border-radius: var(--radius);
+    cursor: pointer; letter-spacing: 0.07em; text-transform: uppercase;
+    transition: opacity 0.15s, transform 0.12s; width: 100%; justify-content: center;
+  }
+  .btn-primary:hover:not(:disabled) { opacity: 0.85; transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .btn-ghost {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 6px 12px; border: 1px solid var(--border);
+    border-radius: var(--radius); background: none; color: var(--muted);
+    font-size: 0.78rem; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--accent); }
+
+  .btn-danger {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px; background: rgba(239,68,68,0.1); color: #f87171;
+    border: 1px solid rgba(239,68,68,0.25); border-radius: var(--radius);
+    font-size: 0.72rem; font-weight: 600; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-danger:hover { background: rgba(239,68,68,0.2); }
+
+  .btn-muted {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px; background: none; color: var(--muted);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    font-size: 0.72rem; font-weight: 600; cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .btn-muted:hover { color: var(--text); border-color: var(--muted); }
+
+  .ab-loading { padding: 32px; text-align: center; color: var(--muted); font-size: 0.85rem; }
+  .spin { animation: spin 0.7s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Ban list table */
+  .ban-tbl-wrap { overflow-x: auto; }
+  .ban-tbl { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  .ban-tbl th {
+    font-size: 0.63rem; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--muted); padding: 9px 12px;
+    border-bottom: 1px solid var(--border); text-align: left;
+    white-space: nowrap;
+  }
+  .ban-tbl td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .ban-tbl tr:last-child td { border-bottom: none; }
+  .ban-tbl tr.inactive td { opacity: 0.4; }
+
+  .td-nick { font-family: var(--font-mono); font-weight: 600; white-space: nowrap; }
+  .td-tag  { font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent); white-space: nowrap; }
+  .td-steam { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted-2); white-space: nowrap; }
+  .td-ip    { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); }
+  .td-motivo { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted-2); }
+  .td-actions { white-space: nowrap; display: flex; gap: 6px; align-items: center; }
+  .td-dur { font-size: 0.75rem; color: var(--muted-2); white-space: nowrap; }
+  .perm-badge { color: #f87171; font-size: 0.72rem; font-weight: 600; }
+
+  .ban-tipo-tag {
+    display: inline-block; font-size: 0.62rem; font-weight: 700;
+    letter-spacing: 0.07em; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 999px; white-space: nowrap; border: 1px solid transparent;
+  }
+  .tipo-hack, .tipo-trampa { background: rgba(239,68,68,0.12); color: #f87171; border-color: rgba(239,68,68,0.25); }
+  .tipo-insultos { background: rgba(249,115,22,0.12); color: #fb923c; border-color: rgba(249,115,22,0.25); }
+  .tipo-bug_abuse { background: rgba(234,179,8,0.12); color: #facc15; border-color: rgba(234,179,8,0.25); }
+  .tipo-otro { background: var(--surface-2, #18233b); color: var(--muted); border-color: var(--border); }
+
+  .ab-empty { padding: 40px; text-align: center; color: var(--muted); font-size: 0.85rem; }
+
+  @media (max-width: 900px) {
+    .ab-grid { grid-template-columns: 1fr; }
+    .ab-list-card { order: -1; }
+  }
+  @media (max-width: 540px) {
+    .ab-row-2 { grid-template-columns: 1fr; }
+    .ban-tbl th:nth-child(4), .ban-tbl td:nth-child(4) { display: none; }
+  }
+</style>
+
+<script>
+  const $ = (id: string) => document.getElementById(id)!;
+
+  const TIPO_LABELS: Record<string,string> = {
+    hack: 'Hack', insultos: 'Insultos', bug_abuse: 'Bug Abuse', trampa: 'Trampa', otro: 'Otro'
+  };
+
+  // ── Cargar lista ──────────────────────────────────────────────
+  async function loadBans() {
+    const wrap = $('banListWrap');
+    wrap.innerHTML = '<div class="ab-loading"><i class="ti ti-loader-2 spin"></i> Cargando…</div>';
+    try {
+      const res = await fetch('/api/admin-bans');
+      const j = await res.json();
+      if (!j.ok) { wrap.innerHTML = `<div class="ab-empty">Error: ${j.error}</div>`; return; }
+      renderBans(j.bans, wrap);
+    } catch {
+      wrap.innerHTML = '<div class="ab-empty">Error de red.</div>';
+    }
+  }
+
+  function renderBans(bans: any[], wrap: HTMLElement) {
+    const q = (($('banSearch') as HTMLInputElement)?.value ?? '').toLowerCase();
+    const filtered = q
+      ? bans.filter(b =>
+          b.nick?.toLowerCase().includes(q) ||
+          b.tag?.toLowerCase().includes(q) ||
+          b.steam_id?.toLowerCase().includes(q) ||
+          b.ip?.toLowerCase().includes(q)
+        )
+      : bans;
+
+    if (!filtered.length) {
+      wrap.innerHTML = '<div class="ab-empty">No hay bans para mostrar.</div>';
+      return;
+    }
+
+    const rows = filtered.map(b => `
+      <tr class="${b.activo ? '' : 'inactive'}" data-id="${b.id}">
+        <td class="td-nick">${esc(b.nick)}</td>
+        <td class="td-tag">${b.tag ? esc(b.tag) : '<span style="opacity:.3">—</span>'}</td>
+        <td class="td-steam">${b.steam_id ? esc(b.steam_id) : '<span style="opacity:.3">—</span>'}</td>
+        <td class="td-ip">${b.ip ? esc(b.ip) : '<span style="opacity:.3">—</span>'}</td>
+        <td><span class="ban-tipo-tag tipo-${b.tipo}">${TIPO_LABELS[b.tipo] ?? b.tipo}</span></td>
+        <td class="td-motivo" title="${esc(b.motivo)}">${esc(b.motivo)}</td>
+        <td class="td-dur">${b.duracion ? esc(b.duracion) : '<span class="perm-badge">∞ Perm.</span>'}</td>
+        <td class="td-actions">
+          <button class="btn-muted btn-toggle" data-id="${b.id}" data-activo="${b.activo}" title="${b.activo ? 'Desactivar' : 'Activar'}">
+            <i class="ti ${b.activo ? 'ti-eye-off' : 'ti-eye'}"></i>
+          </button>
+          <button class="btn-danger btn-del" data-id="${b.id}" title="Eliminar permanentemente">
+            <i class="ti ti-trash"></i>
+          </button>
+        </td>
+      </tr>
+    `).join('');
+
+    wrap.innerHTML = `
+      <div class="ban-tbl-wrap">
+        <table class="ban-tbl">
+          <thead>
+            <tr>
+              <th>Nick</th><th>Tag</th><th>Steam ID</th><th>IP</th>
+              <th>Tipo</th><th>Motivo</th><th>Duración</th><th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+
+    // Events
+    wrap.querySelectorAll('.btn-toggle').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = (btn as HTMLElement).dataset.id!;
+        const activo = (btn as HTMLElement).dataset.activo === '1' ? 0 : 1;
+        await fetch('/api/admin-bans', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, activo }),
+        });
+        loadBans();
+      });
+    });
+
+    wrap.querySelectorAll('.btn-del').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('¿Eliminar este ban permanentemente?')) return;
+        const id = (btn as HTMLElement).dataset.id!;
+        await fetch('/api/admin-bans', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id }),
+        });
+        loadBans();
+      });
+    });
+  }
+
+  // ── Buscar en lista ───────────────────────────────────────────
+  let allBans: any[] = [];
+  async function loadAndStore() {
+    const wrap = $('banListWrap');
+    wrap.innerHTML = '<div class="ab-loading"><i class="ti ti-loader-2 spin"></i> Cargando…</div>';
+    try {
+      const res = await fetch('/api/admin-bans');
+      const j = await res.json();
+      if (!j.ok) { wrap.innerHTML = `<div class="ab-empty">Error: ${j.error}</div>`; return; }
+      allBans = j.bans;
+      renderBans(allBans, wrap);
+    } catch {
+      wrap.innerHTML = '<div class="ab-empty">Error de red.</div>';
+    }
+  }
+
+  $('banSearch').addEventListener('input', () => renderBans(allBans, $('banListWrap')));
+  $('refreshBans').addEventListener('click', loadAndStore);
+
+  // ── Agregar ban ───────────────────────────────────────────────
+  $('addBanBtn').addEventListener('click', async () => {
+    const btn = $('addBanBtn') as HTMLButtonElement;
+    const errEl = $('b-err');
+    errEl.textContent = '';
+
+    const nick     = ($('b-nick') as HTMLInputElement).value.trim();
+    const tag      = ($('b-tag') as HTMLInputElement).value.trim();
+    const steam_id = ($('b-steam') as HTMLInputElement).value.trim();
+    const ip       = ($('b-ip') as HTMLInputElement).value.trim();
+    const tipo     = ($('b-tipo') as HTMLSelectElement).value;
+    const duracion = ($('b-dur') as HTMLInputElement).value.trim();
+    const motivo   = ($('b-motivo') as HTMLTextAreaElement).value.trim();
+
+    if (!nick) { errEl.textContent = 'El nick es obligatorio.'; return; }
+    if (!motivo || motivo.length < 3) { errEl.textContent = 'El motivo es obligatorio.'; return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ti ti-loader-2 spin"></i> Agregando…';
+
+    try {
+      const res = await fetch('/api/admin-bans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nick, tag: tag || null, steam_id: steam_id || null, ip: ip || null, tipo, duracion: duracion || null, motivo }),
+      });
+      const j = await res.json();
+      if (res.ok && j.ok) {
+        // Limpiar form
+        (['b-nick','b-tag','b-steam','b-ip','b-dur'] as string[]).forEach(id => {
+          ($(id) as HTMLInputElement).value = '';
+        });
+        ($('b-motivo') as HTMLTextAreaElement).value = '';
+        loadAndStore();
+      } else {
+        errEl.textContent = j.error || 'Error al agregar el ban.';
+      }
+    } catch {
+      errEl.textContent = 'Error de red.';
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-ban"></i> Agregar Ban';
+  });
+
+  function esc(str: string): string {
+    return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  loadAndStore();
+</script>
