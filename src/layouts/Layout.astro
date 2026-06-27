@@ -57,7 +57,7 @@ const jsonLd = {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{title}</title>
   <meta name="description" content={description} />
-  <meta name="theme-color" content="#07090f" />
+  <meta name="theme-color" content="#0b1220" />
   <meta name="author" content="TriGGer.Arena" />
   <meta name="keywords" content="Counter-Strike 1.6, CS 1.6, servidor, comunidad argentina, gaming" />
   <meta name="robots" content={noindex ? 'noindex, nofollow' : 'index, follow'} />
@@ -156,7 +156,7 @@ const jsonLd = {
       position: fixed;
       inset: 0;
       z-index: 9999;
-      background: #07090f;
+      background: var(--bg);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -304,7 +304,7 @@ const jsonLd = {
       font-size: 0.82rem;
       font-weight: 500;
       color: #e8eeff;
-      background: #0c1018;
+      background: var(--surface);
       border: 1px solid rgba(56,182,255,0.2);
       box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(56,182,255,0.06);
       pointer-events: auto;

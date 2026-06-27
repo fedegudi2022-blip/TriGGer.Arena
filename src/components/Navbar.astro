@@ -357,11 +357,10 @@ const NAV_ITEMS = [
 
   /* ── Inner layout ── */
   .nb-inner {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    justify-content: space-between;
     height: 58px;
-    gap: 8px;
     position: relative;
     z-index: 1;
   }
@@ -427,12 +426,10 @@ const NAV_ITEMS = [
   .nb-nav {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 2px;
-    /* Centrado absoluto respecto al inner para que no se mueva
-       cuando el contenido del lado derecho es más o menos ancho */
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
+    /* La columna central del grid ya garantiza el centrado real
+       sin position absolute, evitando que se superponga al logo o al right */
   }
 
   .nb-item {
@@ -517,6 +514,7 @@ const NAV_ITEMS = [
   .nb-right {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 8px;
     flex-shrink: 0;
   }
@@ -621,7 +619,7 @@ const NAV_ITEMS = [
     width: 6px; height: 6px;
     border-radius: 50%;
     background: #f59e0b;
-    border: 1.5px solid var(--bg, #07090f);
+    border: 1.5px solid var(--bg, #0b1220);
   }
 
   .nb-panel-name {

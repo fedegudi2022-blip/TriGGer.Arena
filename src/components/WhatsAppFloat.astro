@@ -117,7 +117,7 @@ const INSTAGRAM_URL = Astro.locals.siteSettings?.instagram_url ?? DEFAULT_INSTAG
     width: 42px;
     height: 42px;
     border-radius: 50%;
-    background: #0c1018;
+    background: var(--surface);
     border: 1px solid rgba(56,182,255,0.22);
     color: rgba(56,182,255,0.7);
     cursor: pointer;
@@ -149,7 +149,7 @@ const INSTAGRAM_URL = Astro.locals.siteSettings?.instagram_url ?? DEFAULT_INSTAG
     width: 7px; height: 7px;
     border-radius: 50%;
     background: #4ade80;
-    border: 1.5px solid #0c1018;
+    border: 1.5px solid var(--surface);
     box-shadow: 0 0 6px rgba(74,222,128,0.6);
     animation: pulse 2.5s infinite;
   }
@@ -161,7 +161,7 @@ const INSTAGRAM_URL = Astro.locals.siteSettings?.instagram_url ?? DEFAULT_INSTAG
   */
   .float-panel {
     margin-bottom: 10px;
-    background: #0c1018;
+    background: var(--surface);
     border: 1px solid rgba(56,182,255,0.18);
     border-radius: 12px;
     overflow: hidden;

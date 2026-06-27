@@ -10,20 +10,20 @@
 
 /* ── Design tokens ──────────────────────────────────── */
 :root {
-  --bg:           #07090f;
-  --surface:      #0c1018;
-  --surface-2:    #111722;
-  --surface-3:    #161e2c;
-  --border:       #1d2435;
-  --border-accent: rgba(56, 182, 255, 0.14);
+  --bg:           #0b1220;
+  --surface:      #142038;
+  --surface-2:    #18233b;
+  --surface-3:    #1c2942;
+  --border:       #25324f;
+  --border-accent: rgba(56, 189, 248, 0.16);
 
-  --accent:       #38b6ff;
-  --accent-2:     #0ea5ff;
-  --accent-dim:   rgba(56, 182, 255, 0.08);
+  --accent:       #38bdf8;
+  --accent-2:     #0ea5e9;
+  --accent-dim:   rgba(56, 189, 248, 0.10);
 
-  --text:         #e8edf8;
-  --muted:        #4a6680;
-  --muted-2:      #7a96b0;
+  --text:         #f4f8ff;
+  --muted:        #8a98b5;
+  --muted-2:      #a9b8d2;
 
   --green:        #4ade80;
   --green-dim:    rgba(74, 222, 128, 0.08);
