@@ -1,18 +1,8 @@
 ---
 /**
- * SectionBg — Fondo decorativo para secciones
- *
- * Uso básico:
- *   <section style="position: relative; overflow: hidden;">
- *     <SectionBg variant="crosshair" />
- *     ... contenido ...
- *   </section>
- *
- * Props:
- *   variant   — 'dots' | 'grid' | 'crosshair' | 'diagonal' | 'scanlines' | 'circuit'
- *   glowPos   — 'top-left' | 'top-right' | 'center' | 'bottom-left' | 'bottom-right' | 'none'
- *   glowColor — cualquier color CSS (default: usa --accent del sitio)
- *   noise     — mostrar textura de grano (default: true)
+ * SectionBg — Fondo decorativo OPTIMIZADO para secciones
+ * Sin filtros SVG (feTurbulence eliminado — era el mayor cuello de botella)
+ * Mismo efecto visual con CSS puro.
  */
 
 interface Props {
@@ -37,31 +27,7 @@ const glowStyle = glowColor ? `--sec-glow: ${glowColor};` : '';
   style={glowStyle}
   aria-hidden="true"
 >
-  <!--
-    FIX: El SVG de ruido estaba inline en cada instancia del componente,
-    duplicándose hasta 8 veces en el DOM (300+ chars c/u).
-    Ahora usamos un <svg> con <filter> referenciado via url(#sec-noise-filter).
-    El filtro se renderiza UNA sola vez y todos los .sec-noise apuntan a él.
-    Solo se emite en la primera instancia gracias al ID único del filter.
-  -->
-  {noise && (
-    <>
-      <svg class="sec-noise-def" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <defs>
-          <filter id="sec-noise-filter" x="0" y="0" width="100%" height="100%"
-                  color-interpolation-filters="linearRGB">
-            <feTurbulence type="fractalNoise" baseFrequency="0.82" numOctaves="4"
-                          stitchTiles="stitch" result="noise" />
-            <feColorMatrix type="saturate" values="0" in="noise" result="grey" />
-            <feBlend in="SourceGraphic" in2="grey" mode="multiply" />
-          </filter>
-        </defs>
-      </svg>
-      <div class="sec-noise"></div>
-    </>
-  )}
-
-  <!-- Patrón principal (varía según variant) -->
+  <!-- Patrón principal -->
   <div class="sec-pattern"></div>
 
   <!-- Mancha de glow -->
@@ -70,7 +36,7 @@ const glowStyle = glowColor ? `--sec-glow: ${glowColor};` : '';
   <!-- Viñeta oscura en los bordes -->
   <div class="sec-vignette"></div>
 
-  <!-- Esquinas tácticas (solo crosshair y circuit) -->
+  <!-- Esquinas tácticas -->
   {(variant === 'crosshair' || variant === 'circuit') && (
     <>
       <span class="sec-corner sec-corner--tl"></span>
@@ -80,102 +46,55 @@ const glowStyle = glowColor ? `--sec-glow: ${glowColor};` : '';
     </>
   )}
 
-  <!-- Línea central decorativa (crosshair) -->
   {variant === 'crosshair' && (
     <span class="sec-crosshair-h"></span>
   )}
 </div>
 
 <style>
-  /* ── Contenedor ─────────────────────────────────────────────── */
   .sec-bg {
     position: absolute;
     inset: 0;
     pointer-events: none;
     z-index: 0;
-    --sec-glow: var(--accent, #e8ff00);
+    --sec-glow: var(--accent, #38b6ff);
   }
 
-  /* ── Definición del filtro SVG (invisible, solo ocupa 0×0) ── */
-  .sec-noise-def {
-    position: absolute;
-    width: 0;
-    height: 0;
-    overflow: hidden;
-    /* Oculto del flujo pero disponible para referencia CSS */
-  }
-
-  /* ── Ruido / grano ──────────────────────────────────────────── */
-  .sec-noise {
-    position: absolute;
-    inset: 0;
-    opacity: 0.032;
-    /*
-      FIX: En lugar de repetir el SVG base64 inline (300+ chars × 8 instancias),
-      aplicamos el filtro SVG definido arriba. El resultado visual es idéntico
-      y el DOM queda limpio. background-color transparente con el filtro aplicado
-      produce el efecto de grano sobre lo que hay debajo.
-    */
-    background: rgba(128,128,128,0.5);
-    filter: url(#sec-noise-filter);
-    mix-blend-mode: overlay;
-  }
-
-  /* ── Viñeta ─────────────────────────────────────────────────── */
   .sec-vignette {
     position: absolute;
     inset: 0;
-    background: radial-gradient(
-      ellipse at 50% 50%,
-      transparent 40%,
-      color-mix(in srgb, #000 35%, transparent) 100%
-    );
+    background: radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(0,0,0,0.3) 100%);
   }
 
-  /* ══════════════════════════════════════════════════════════════
-     PATRÓN: DOTS
-  ══════════════════════════════════════════════════════════════ */
+  /* DOTS */
   .sec-bg--dots .sec-pattern {
     position: absolute;
     inset: 0;
-    background-image: radial-gradient(
-      circle,
-      color-mix(in srgb, var(--text, #fff) 22%, transparent) 1px,
-      transparent 1px
-    );
+    background-image: radial-gradient(circle, rgba(255,255,255,0.12) 1px, transparent 1px);
     background-size: 28px 28px;
     mask-image: radial-gradient(ellipse at 50% 0%, black 0%, transparent 75%);
   }
 
-  /* ══════════════════════════════════════════════════════════════
-     PATRÓN: GRID (líneas finas tipo papel cuadriculado)
-  ══════════════════════════════════════════════════════════════ */
+  /* GRID */
   .sec-bg--grid .sec-pattern {
     position: absolute;
     inset: 0;
     background-image:
-      linear-gradient(color-mix(in srgb, var(--text, #fff) 6%, transparent) 1px, transparent 1px),
-      linear-gradient(90deg, color-mix(in srgb, var(--text, #fff) 6%, transparent) 1px, transparent 1px);
+      linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
     background-size: 40px 40px;
     mask-image: radial-gradient(ellipse at 50% 0%, black 0%, transparent 70%);
   }
 
-  /* ══════════════════════════════════════════════════════════════
-     PATRÓN: CROSSHAIR (mira táctica)
-  ══════════════════════════════════════════════════════════════ */
+  /* CROSSHAIR */
   .sec-bg--crosshair .sec-pattern {
     position: absolute;
     inset: 0;
-    background-image: radial-gradient(
-      circle,
-      color-mix(in srgb, var(--text, #fff) 14%, transparent) 1px,
-      transparent 1px
-    );
+    background-image: radial-gradient(circle, rgba(255,255,255,0.09) 1px, transparent 1px);
     background-size: 32px 32px;
     mask-image: radial-gradient(ellipse at 50% 50%, black 0%, transparent 72%);
   }
 
-  /* Esquinas en L */
   .sec-corner {
     position: absolute;
     width: 22px;
@@ -187,155 +106,77 @@ const glowStyle = glowColor ? `--sec-glow: ${glowColor};` : '';
   .sec-corner--bl { bottom: 20px; left: 20px;  border-bottom: 1.5px solid var(--sec-glow); border-left:   1.5px solid var(--sec-glow); }
   .sec-corner--br { bottom: 20px; right: 20px; border-bottom: 1.5px solid var(--sec-glow); border-right:  1.5px solid var(--sec-glow); }
 
-  /* Línea horizontal central tenue */
   .sec-crosshair-h {
     position: absolute;
     top: 50%;
     left: 8%;
     right: 8%;
     height: 1px;
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      color-mix(in srgb, var(--sec-glow) 18%, transparent) 30%,
-      color-mix(in srgb, var(--sec-glow) 18%, transparent) 70%,
-      transparent 100%
-    );
+    background: linear-gradient(90deg, transparent 0%, rgba(56,182,255,0.15) 30%, rgba(56,182,255,0.15) 70%, transparent 100%);
     transform: translateY(-50%);
   }
 
-  /* ══════════════════════════════════════════════════════════════
-     PATRÓN: DIAGONAL (rayas diagonales tipo textura táctica)
-  ══════════════════════════════════════════════════════════════ */
+  /* DIAGONAL */
   .sec-bg--diagonal .sec-pattern {
     position: absolute;
     inset: 0;
     background-image: repeating-linear-gradient(
       -45deg,
-      color-mix(in srgb, var(--text, #fff) 4%, transparent) 0px,
-      color-mix(in srgb, var(--text, #fff) 4%, transparent) 1px,
+      rgba(255,255,255,0.025) 0px,
+      rgba(255,255,255,0.025) 1px,
       transparent 1px,
       transparent 18px
     );
     mask-image: radial-gradient(ellipse at 50% 100%, black 0%, transparent 70%);
   }
 
-  /* ══════════════════════════════════════════════════════════════
-     PATRÓN: SCANLINES (líneas horizontales estilo monitor CRT)
-  ══════════════════════════════════════════════════════════════ */
+  /* SCANLINES */
   .sec-bg--scanlines .sec-pattern {
     position: absolute;
     inset: 0;
     background-image: repeating-linear-gradient(
       0deg,
-      color-mix(in srgb, var(--text, #fff) 5%, transparent) 0px,
-      color-mix(in srgb, var(--text, #fff) 5%, transparent) 1px,
+      rgba(255,255,255,0.03) 0px,
+      rgba(255,255,255,0.03) 1px,
       transparent 1px,
       transparent 4px
     );
-    /*
-      FIX: mask-composite: intersect no tiene soporte en Safari < 15.4.
-      Reemplazado con un único radial-gradient que logra el mismo efecto
-      de curvatura CRT (bordes desvanecidos) sin necesitar intersección de máscaras.
-    */
-    mask-image: radial-gradient(
-      ellipse 85% 70% at 50% 50%,
-      black 30%,
-      transparent 100%
-    );
+    mask-image: radial-gradient(ellipse 85% 70% at 50% 50%, black 30%, transparent 100%);
   }
 
-  /* ══════════════════════════════════════════════════════════════
-     PATRÓN: CIRCUIT (trazados de circuito impreso)
-  ══════════════════════════════════════════════════════════════ */
+  /* CIRCUIT */
   .sec-bg--circuit .sec-pattern {
     position: absolute;
     inset: 0;
     background-image:
-      repeating-linear-gradient(
-        90deg,
-        transparent 0px,
-        transparent 59px,
-        color-mix(in srgb, var(--text, #fff) 7%, transparent) 59px,
-        color-mix(in srgb, var(--text, #fff) 7%, transparent) 60px
-      ),
-      repeating-linear-gradient(
-        0deg,
-        transparent 0px,
-        transparent 59px,
-        color-mix(in srgb, var(--text, #fff) 7%, transparent) 59px,
-        color-mix(in srgb, var(--text, #fff) 7%, transparent) 60px
-      ),
-      radial-gradient(
-        circle,
-        color-mix(in srgb, var(--text, #fff) 20%, transparent) 1.5px,
-        transparent 1.5px
-      );
+      repeating-linear-gradient(90deg, transparent 0px, transparent 59px, rgba(255,255,255,0.04) 59px, rgba(255,255,255,0.04) 60px),
+      repeating-linear-gradient(0deg, transparent 0px, transparent 59px, rgba(255,255,255,0.04) 59px, rgba(255,255,255,0.04) 60px),
+      radial-gradient(circle, rgba(255,255,255,0.12) 1.5px, transparent 1.5px);
     background-size: 60px 60px, 60px 60px, 60px 60px;
     mask-image: radial-gradient(ellipse at 50% 50%, black 0%, transparent 78%);
   }
 
-  /* Esquinas del circuit (más grandes que crosshair) */
-  .sec-bg--circuit .sec-corner {
-    width: 30px;
-    height: 30px;
-    opacity: 0.28;
-  }
+  .sec-bg--circuit .sec-corner { width: 30px; height: 30px; opacity: 0.28; }
 
-  /* ══════════════════════════════════════════════════════════════
-     GLOW — posiciones
-  ══════════════════════════════════════════════════════════════ */
+  /* GLOW */
   .sec-glow {
     position: absolute;
     border-radius: 50%;
-    /*
-      FIX: reemplazamos `width: 55%; padding-top: 55%` (hack de aspect-ratio
-      con padding) por dimensiones explícitas. El hack rompía el centrado
-      con `transform: translate` en glowPos="center".
-      aspect-ratio: 1 / 1 con width es más predecible cross-browser.
-    */
     width: 55%;
     aspect-ratio: 1 / 1;
-    background: radial-gradient(
-      circle,
-      color-mix(in srgb, var(--sec-glow) 14%, transparent) 0%,
-      color-mix(in srgb, var(--sec-glow) 5%, transparent) 40%,
+    background: radial-gradient(circle,
+      color-mix(in srgb, var(--sec-glow) 12%, transparent) 0%,
+      color-mix(in srgb, var(--sec-glow) 4%, transparent) 40%,
       transparent 70%
     );
   }
 
-  /* top-left */
   .sec-bg--glow-top-left .sec-glow    { top: -20%; left: -15%; }
-  /* top-right */
   .sec-bg--glow-top-right .sec-glow   { top: -20%; right: -15%; left: auto; }
-  /* center — FIX: translate funciona correctamente con width + aspect-ratio */
   .sec-bg--glow-center .sec-glow      { top: 50%; left: 50%; transform: translate(-50%, -50%); }
-  /* bottom-left */
   .sec-bg--glow-bottom-left .sec-glow { bottom: -20%; top: auto; left: -15%; }
-  /* bottom-right */
   .sec-bg--glow-bottom-right .sec-glow{ bottom: -20%; top: auto; right: -15%; left: auto; }
-  /* none */
   .sec-bg--glow-none .sec-glow        { display: none; }
 
-  /* ── forced-colors (alto contraste Windows/Linux) ── */
-  @media (forced-colors: active) {
-    /*
-      En modo alto contraste, los patrones decorativos y glows pueden
-      interferir con la legibilidad. Los ocultamos completamente;
-      el contenido de la sección no depende de ellos para transmitir
-      ninguna información.
-    */
-    .sec-bg { display: none; }
-  }
-
-  /* ── prefers-reduced-motion ── */
-  @media (prefers-reduced-motion: reduce) {
-    /*
-      SectionBg no tiene animaciones activas, pero el patrón scanlines
-      puede generar sensación de movimiento al hacer scroll en algunos
-      usuarios. Lo atenuamos reduciendo su opacidad.
-    */
-    .sec-bg--scanlines .sec-pattern { opacity: 0.3; }
-    .sec-noise { opacity: 0.015; }
-  }
+  @media (forced-colors: active) { .sec-bg { display: none; } }
 </style>

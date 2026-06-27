@@ -48,7 +48,7 @@ try {
         <div class={`plan-card fade-in${p.featured ? ' plan-featured' : ''}`}>
 
           <!-- Decoraciones internas -->
-          <div class="plan-noise"    aria-hidden="true"></div>
+
           <div class="plan-top-bar" aria-hidden="true"></div>
           <div class="plan-glow"    aria-hidden="true"></div>
 
@@ -188,22 +188,11 @@ try {
 
     transition: border-color 0.22s ease, transform 0.22s ease;
   }
-  .plan-card::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
-    opacity: 0;
-    transition: opacity 0.22s ease;
-    pointer-events: none;
-  }
-
   .plan-card:hover {
     border-color: var(--border-accent);
     transform: translateY(-3px);
+    box-shadow: 0 8px 28px rgba(0,0,0,0.25);
   }
-  .plan-card:hover::after { opacity: 1; }
 
   /* ── Featured card ───────────────────────────────────────────── */
   .plan-card.plan-featured {
@@ -223,31 +212,12 @@ try {
       ),
       var(--surface);
 
-    box-shadow:
-      0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent),
-      0 0 40px color-mix(in srgb, var(--accent) 10%, transparent),
-      0 8px 32px rgba(0,0,0,0.3);
+    box-shadow: 0 0 0 1px rgba(56,182,255,0.2), 0 8px 32px rgba(0,0,0,0.3);
   }
 
-  .plan-card.plan-featured::after {
-    box-shadow:
-      0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent),
-      0 0 55px color-mix(in srgb, var(--accent) 16%, transparent),
-      0 12px 40px rgba(0,0,0,0.35);
-  }
   .plan-card.plan-featured:hover {
     transform: translateY(-12px);
-  }
-
-  /* ── Ruido de la card ────────────────────────────────────────── */
-  .plan-noise {
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    pointer-events: none;
-    opacity: 0.032;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='250' height='250'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='250' height='250' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
-    background-size: 200px 200px;
+    box-shadow: 0 0 0 1px rgba(56,182,255,0.3), 0 12px 40px rgba(0,0,0,0.35);
   }
 
   /* ── Barra superior ──────────────────────────────────────────── */
@@ -468,17 +438,7 @@ try {
     transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
   }
 
-  /* Ripple de hover */
-  .plan-cta::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: rgba(255,255,255,0.07);
-    opacity: 0;
-    transition: opacity 0.18s;
-  }
-  .plan-cta:hover::after { opacity: 1; }
-  .plan-cta:hover { transform: translateY(-2px); }
+  .plan-cta:hover { transform: translateY(-2px); background: color-mix(in srgb, currentColor 5%, transparent); }
   .plan-cta:active { transform: translateY(0) scale(0.98); }
 
   .plan-cta.cta-primary {

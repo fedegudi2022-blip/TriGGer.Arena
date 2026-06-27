@@ -281,22 +281,11 @@ const faqJsonLd = {
     transition: background 0.15s, border-color 0.15s;
     position: relative;
   }
-  /* PERF: box-shadow en ::after con opacity — mismo patrón que Plans/Downloads */
-  .faq-cta-btn::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    box-shadow: 0 0 16px rgba(56,182,255,0.15);
-    opacity: 0;
-    transition: opacity 0.15s;
-    pointer-events: none;
-  }
   .faq-cta-btn:hover {
     background: rgba(56,182,255,0.12);
     border-color: var(--accent);
+    box-shadow: 0 0 16px rgba(56,182,255,0.15);
   }
-  .faq-cta-btn:hover::after { opacity: 1; }
 
   .faq-arrow {
     transition: transform 0.18s;

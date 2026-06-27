@@ -287,16 +287,6 @@ const catLabels: Record<string, string> = {
       var(--surface);
     transition: border-color 0.22s, background 0.22s, transform 0.18s;
   }
-  .dl-card::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    box-shadow: 0 0 28px color-mix(in srgb, var(--card-color) 10%, transparent);
-    opacity: 0;
-    transition: opacity 0.22s;
-    pointer-events: none;
-  }
   .dl-card:hover {
     border-color: color-mix(in srgb, var(--card-color) 45%, transparent);
     background:
@@ -307,8 +297,8 @@ const catLabels: Record<string, string> = {
       ),
       var(--surface);
     transform: translateY(-2px);
+    box-shadow: 0 0 28px color-mix(in srgb, var(--card-color) 10%, transparent);
   }
-  .dl-card:hover::after { opacity: 1; }
   .dl-card.dl-featured {
     border-color: color-mix(in srgb, var(--card-color) 38%, transparent);
   }
@@ -320,7 +310,7 @@ const catLabels: Record<string, string> = {
     border-radius: inherit;
     pointer-events: none;
     opacity: 0.032;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='250' height='250'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='250' height='250' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+    /* noise removed for performance */
     background-size: 180px 180px;
   }
 
