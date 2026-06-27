@@ -360,20 +360,25 @@ const jsonLd = {
     if (history.scrollRestoration) history.scrollRestoration = 'manual';
     window.scrollTo(0, 0);
 
-    /* ── Loader ───────────────────────────────────────── */
-    const loader = document.getElementById('site-loader');
+    /* ── Loader ───────────────────────────────────────────────────────
+       IMPORTANTE: este script vive en Layout.astro, o sea que es
+       idéntico en TODAS las páginas. Con <ClientRouter /> (navegación
+       SPA), Astro reconoce un script inline como "ya ejecutado" y no lo
+       vuelve a correr en transiciones soft — solo en la carga inicial.
+       Por eso NO podemos usar DOMContentLoaded (solo dispara una vez en
+       toda la sesión). Hay que usar el evento de ciclo de vida
+       `astro:page-load`, que Astro dispara tanto en la carga inicial
+       como después de cada transición soft. Y hay que volver a buscar
+       el elemento #site-loader en cada ejecución (no cachearlo afuera),
+       porque cada página trae su propia instancia fresca tras el swap
+       del DOM — la de la página anterior ya fue removida del árbol. ── */
     function hideLoader() {
+      const loader = document.getElementById('site-loader');
       if (!loader) return;
       loader.classList.add('hidden');
       setTimeout(() => loader.remove(), 400);
     }
-    // ✅ OPTIMIZACIÓN: Sin setTimeout de 300ms. El loader se oculta apenas
-    //    DOMContentLoaded dispare. Antes: mínimo 300ms de bloqueo visual innecesario.
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-      hideLoader();
-    } else {
-      document.addEventListener('DOMContentLoaded', hideLoader, { once: true });
-    }
+    document.addEventListener('astro:page-load', hideLoader);
 
     /* ── Indicador lateral de secciones ──────────────── */
     const dotsNav = document.getElementById('sectionDots');
