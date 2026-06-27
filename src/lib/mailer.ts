@@ -1,17 +1,26 @@
 /**
- * Envío de emails transaccionales — SIN nodemailer.
+ * Envío de emails transaccionales — Nodemailer vía SMTP (Gmail u otro proveedor SMTP).
  *
- * Usa la API HTTP de Resend (resend.com) que es serverless-compatible.
- * Si no tenés RESEND_API_KEY, cae a un SMTP vía fetch con el endpoint
- * de tu proveedor (Brevo, Mailgun, etc.).
+ * Gratis, sin verificación de dominio ni DNS: solo necesitás una cuenta
+ * de Gmail con verificación en 2 pasos activada y una "contraseña de
+ * aplicación" (myaccount.google.com/apppasswords).
  *
  * Variables de entorno:
- *   RESEND_API_KEY   → recomendado (resend.com, free tier: 3000 emails/mes)
- *   SMTP_FROM        → "TriGGer.Arena <noreply@trigger.arena>"
+ *   SMTP_HOST     → smtp.gmail.com
+ *   SMTP_PORT     → 465 (SSL) o 587 (STARTTLS)
+ *   SMTP_USER     → tu-cuenta@gmail.com
+ *   SMTP_PASSWORD → contraseña de aplicación de 16 caracteres (sin espacios)
+ *   SMTP_FROM     → "TriGGer.Arena <tu-cuenta@gmail.com>"
  *
- * Migración desde nodemailer: cambiá SMTP_HOST/USER/PASSWORD por RESEND_API_KEY.
- * Resend acepta cualquier dominio verificado o sandbox @resend.dev para testing.
+ * Nota: Gmail gratis permite ~500 destinatarios/día en ventana móvil de 24hs,
+ * de sobra para signup + reset de contraseña de la comunidad. Si en algún
+ * momento se necesita más volumen, migrar a un proveedor con dominio propio
+ * verificado (Resend, SES, etc.) — basta con reescribir sendEmail() acá abajo,
+ * el resto del código no se entera del cambio.
  */
+
+import nodemailer from 'nodemailer';
+import type { Transporter } from 'nodemailer';
 
 function getSiteUrl(): string {
   return import.meta.env.PUBLIC_SITE_URL ?? 'https://trigger.arena';
@@ -19,6 +28,36 @@ function getSiteUrl(): string {
 
 function getFrom(): string {
   return import.meta.env.SMTP_FROM ?? 'TriGGer.Arena <noreply@trigger.arena>';
+}
+
+// ── Transporter (singleton, se reusa entre invocaciones del mismo lambda) ──
+
+let transporter: Transporter | null = null;
+
+function getTransporter(): Transporter {
+  if (transporter) return transporter;
+
+  const host = import.meta.env.SMTP_HOST;
+  const port = Number(import.meta.env.SMTP_PORT ?? 465);
+  const user = import.meta.env.SMTP_USER;
+  const pass = import.meta.env.SMTP_PASSWORD;
+
+  if (!host || !user || !pass) {
+    throw new Error(
+      '[Mailer] Faltan variables SMTP_HOST / SMTP_USER / SMTP_PASSWORD. ' +
+      'Generá una contraseña de aplicación en myaccount.google.com/apppasswords ' +
+      'y configurá las variables en Vercel.'
+    );
+  }
+
+  transporter = nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465, // true para 465 (SSL), false para 587 (STARTTLS)
+    auth: { user, pass },
+  });
+
+  return transporter;
 }
 
 // ── Template base ─────────────────────────────────────────────────────────
@@ -53,35 +92,18 @@ function baseTemplate(title: string, body: string): string {
 </html>`;
 }
 
-// ── Envío vía Resend API (HTTP puro, sin dependencias) ────────────────────
+// ── Envío vía SMTP ──────────────────────────────────────────────────────────
 
 async function sendEmail(to: string, subject: string, html: string): Promise<void> {
-  const apiKey = import.meta.env.RESEND_API_KEY as string | undefined;
-
-  if (!apiKey) {
-    throw new Error(
-      '[Mailer] Falta RESEND_API_KEY en las variables de entorno. ' +
-      'Creá una cuenta gratuita en resend.com y agregá la variable en Vercel.'
-    );
-  }
-
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
+  try {
+    await getTransporter().sendMail({
       from:    getFrom(),
-      to:      [to],
+      to,
       subject,
       html,
-    }),
-  });
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`[Mailer] Resend error ${res.status}: ${body}`);
+    });
+  } catch (err) {
+    throw new Error(`[Mailer] Error SMTP: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
