@@ -44,7 +44,7 @@ export function getPool(): mysql.Pool {
     connectionLimit: DB_CONNECTION_LIMIT ? Number(DB_CONNECTION_LIMIT) : 5,
     queueLimit: 0,
     dateStrings: true,
-    namedPlaceholders: true,
+    namedPlaceholders: true,   // habilita :param en pool.query()
     ssl: DB_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
   });
 
@@ -53,13 +53,21 @@ export function getPool(): mysql.Pool {
 
 /** Ejecuta una query parametrizada y devuelve solo las filas. */
 export async function query<T = any>(sql: string, params?: Record<string, unknown> | unknown[]): Promise<T[]> {
-  const [rows] = await getPool().query(sql, params);
+  const [rows] = await getPool().query(sql, params as any);
   return rows as T[];
 }
 
-/** Ejecuta un INSERT/UPDATE/DELETE y devuelve el resultado (affectedRows, insertId, etc). */
+/**
+ * Ejecuta un INSERT/UPDATE/DELETE con named placeholders (:param) y
+ * devuelve el resultado (affectedRows, insertId, etc).
+ *
+ * FIX: usa pool.query() en vez de pool.execute() porque mysql2's
+ * pool.execute() (prepared statements) NO soporta namedPlaceholders,
+ * aunque esté habilitado en el pool. pool.query() sí los soporta
+ * cuando namedPlaceholders: true está en la config del pool.
+ */
 export async function execute(sql: string, params?: Record<string, unknown> | unknown[]): Promise<mysql.ResultSetHeader> {
-  const [result] = await getPool().execute(sql, params);
+  const [result] = await getPool().query(sql, params as any);
   return result as mysql.ResultSetHeader;
 }
 
