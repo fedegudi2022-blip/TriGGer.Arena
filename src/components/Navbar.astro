@@ -1027,14 +1027,42 @@ const NAV_ITEMS = [
 </style>
 
 <script>
-  (function () {
-    /* ── Refs ── */
-    const nb         = document.getElementById('nb')!;
-    const progress   = document.getElementById('nbProgress')!;
-    const logo       = document.getElementById('nbLogo')!;
-    const toggle     = document.getElementById('nbToggle')!;
-    const menu       = document.getElementById('nbMenu')!;
-    const overlay    = document.getElementById('nbOverlay')!;
+  /*
+   * IMPORTANTE — Astro <ClientRouter /> (navegación SPA):
+   * Este componente vive en CADA página, así que este script es idéntico
+   * en todas. Astro reconoce un script inline repetido como "ya ejecutado"
+   * y no lo vuelve a correr en una transición soft, solo en la carga
+   * inicial real del navegador. Si dejáramos este código corriendo una
+   * sola vez como una IIFE de toda la vida, el navbar de cualquier página
+   * a la que se llegue navegando (sin recargar) quedaría sin ningún
+   * listener — los <a href="#inicio"> harían el comportamiento default
+   * del navegador (anexar el hash a la URL actual) en vez del scroll
+   * suave, y el resto de los botones (menú mobile, dropdown, logout,
+   * slide panel) no responderían a los clicks.
+   *
+   * La solución: envolver todo en initNavbar() y volver a llamarla en
+   * cada `astro:page-load` (evento que Astro dispara tanto en la carga
+   * inicial como después de cada transición). Como el DOM se reemplaza
+   * en cada navegación, hay que volver a buscar todos los elementos
+   * adentro de la función — y usar un AbortController para tirar abajo
+   * TODOS los listeners de la página anterior antes de adjuntar los
+   * nuevos (si no, se acumulan listeners "fantasma" apuntando a nodos
+   * ya removidos del DOM en cada navegación de la sesión).
+   */
+  let navAbort: AbortController | null = null;
+
+  function initNavbar() {
+    navAbort?.abort();
+    navAbort = new AbortController();
+    const { signal } = navAbort;
+
+    /* ── Refs (se re-consultan en cada inicialización) ── */
+    const nb         = document.getElementById('nb');
+    const progress   = document.getElementById('nbProgress');
+    const logo       = document.getElementById('nbLogo');
+    const toggle      = document.getElementById('nbToggle');
+    const menu       = document.getElementById('nbMenu');
+    const overlay    = document.getElementById('nbOverlay');
     const userBtn    = document.getElementById('nbUserBtn')    as HTMLButtonElement | null;
     const dropdown   = document.getElementById('nbUserMenu');
     const panelBtn   = document.getElementById('nbPanelBtn')   as HTMLButtonElement | null;
@@ -1043,18 +1071,20 @@ const NAV_ITEMS = [
     const mobileLinks = document.querySelectorAll<HTMLAnchorElement>('.nb-mobile-link');
     const sections   = Array.from(document.querySelectorAll<HTMLElement>('section[id]'));
 
+    if (!nb || !progress || !logo || !toggle || !menu || !overlay) return; // navbar no presente en esta página (no debería pasar)
+
     /* ── Scroll: progress + scrolled class ── */
     let scrollRaf: number | null = null;
     function onScrollFrame() {
       const y    = window.scrollY;
       const docH = document.documentElement.scrollHeight - window.innerHeight;
-      nb.classList.toggle('scrolled', y > 24);
-      progress.style.width = docH > 0 ? `${Math.min((y / docH) * 100, 100)}%` : '0%';
+      nb!.classList.toggle('scrolled', y > 24);
+      progress!.style.width = docH > 0 ? `${Math.min((y / docH) * 100, 100)}%` : '0%';
       scrollRaf = null;
     }
     window.addEventListener('scroll', () => {
       if (!scrollRaf) scrollRaf = requestAnimationFrame(onScrollFrame);
-    }, { passive: true });
+    }, { passive: true, signal });
     onScrollFrame();
 
     /* ── Active link con IntersectionObserver ── */
@@ -1067,37 +1097,40 @@ const NAV_ITEMS = [
       { rootMargin: '-58px 0px -50% 0px', threshold: 0 }
     );
     sections.forEach(s => observer.observe(s));
+    signal.addEventListener('abort', () => observer.disconnect());
 
     /* ── Logo: scroll al top ── */
     logo.addEventListener('click', () => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       closeMenu();
-    });
+    }, { signal });
 
     /* ── Menu mobile ── */
     function openMenu() {
-      menu.classList.add('open');
-      overlay.classList.add('open');
-      toggle.setAttribute('aria-expanded', 'true');
-      toggle.setAttribute('aria-label', 'Cerrar menú');
-      menu.setAttribute('aria-hidden', 'false');
+      menu!.classList.add('open');
+      overlay!.classList.add('open');
+      toggle!.setAttribute('aria-expanded', 'true');
+      toggle!.setAttribute('aria-label', 'Cerrar menú');
+      menu!.setAttribute('aria-hidden', 'false');
       document.body.style.overflow = 'hidden';
     }
     function closeMenu() {
-      menu.classList.remove('open');
-      overlay.classList.remove('open');
-      toggle.setAttribute('aria-expanded', 'false');
-      toggle.setAttribute('aria-label', 'Abrir menú');
-      menu.setAttribute('aria-hidden', 'true');
+      menu!.classList.remove('open');
+      overlay!.classList.remove('open');
+      toggle!.setAttribute('aria-expanded', 'false');
+      toggle!.setAttribute('aria-label', 'Abrir menú');
+      menu!.setAttribute('aria-hidden', 'true');
       document.body.style.overflow = '';
     }
 
     toggle.addEventListener('click', () =>
       menu.classList.contains('open') ? closeMenu() : openMenu()
-    );
-    overlay.addEventListener('click', closeMenu);
+    , { signal });
+    overlay.addEventListener('click', closeMenu, { signal });
 
-    /* Scroll suave en mobile links */
+    /* Scroll suave en mobile links (incluye "Reportar jugador", que es
+       una página real → href no empieza con '#' → no se intercepta,
+       sigue su navegación normal vía ClientRouter) */
     mobileLinks.forEach(link => {
       link.addEventListener('click', e => {
         const href = link.getAttribute('href') ?? '';
@@ -1109,19 +1142,28 @@ const NAV_ITEMS = [
         } else {
           closeMenu();
         }
-      });
+      }, { signal });
     });
 
-    /* Scroll suave en desktop links */
+    /* Scroll suave en desktop links — si el target no existe en esta
+       página (ej. estás en /quejas y el link es #inicio), NO hacemos
+       preventDefault: dejamos que el link navegue normalmente a "/" y
+       una vez ahí sí va a encontrar la sección y poder hacer scroll. */
     navLinks.forEach(link => {
       link.addEventListener('click', e => {
         const href = link.getAttribute('href') ?? '';
-        if (href.startsWith('#')) {
+        if (!href.startsWith('#')) return; // página real (ej. /quejas), navegación normal
+        const target = document.getElementById(href.slice(1));
+        if (target) {
           e.preventDefault();
-          const target = document.getElementById(href.slice(1));
-          if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+          // No estamos en la home: redirigimos ahí con el hash para que
+          // la home haga el scroll una vez cargada.
+          e.preventDefault();
+          window.location.href = `/${href}`;
         }
-      });
+      }, { signal });
     });
 
     /* ── Dropdown usuario ── */
@@ -1143,14 +1185,14 @@ const NAV_ITEMS = [
     userBtn?.addEventListener('click', e => {
       e.stopPropagation();
       dropdown?.classList.contains('open') ? closeDropdown() : openDropdown();
-    });
+    }, { signal });
     document.addEventListener('click', e => {
       if (ddJustOpened || !dropdown?.classList.contains('open')) return;
       if (!userBtn?.contains(e.target as Node) && !dropdown?.contains(e.target as Node)) closeDropdown();
-    });
+    }, { signal });
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape') { closeMenu(); closeDropdown(); }
-    });
+    }, { signal });
 
     /* ── Slide panel ── */
     function openPanel(url: string, title: string) {
@@ -1163,12 +1205,12 @@ const NAV_ITEMS = [
 
     panelBtn?.addEventListener('click', () => {
       openPanel(panelBtn.dataset.panelUrl ?? '/usuario', panelBtn.dataset.panelTitle ?? 'Panel');
-    });
+    }, { signal });
 
     mobilePanelBtn?.addEventListener('click', () => {
       openPanel(mobilePanelBtn.dataset.panelUrl ?? '/usuario', mobilePanelBtn.dataset.panelTitle ?? 'Panel');
       closeMenu();
-    });
+    }, { signal });
 
     /* Links con data-panel-url (dropdown + mobile) */
     document.querySelectorAll<HTMLElement>('[data-panel-url]:not(#nbPanelBtn):not(#nbMobilePanelBtn)').forEach(el => {
@@ -1177,7 +1219,7 @@ const NAV_ITEMS = [
         closeDropdown();
         closeMenu();
         openPanel(el.dataset.panelUrl ?? '/usuario', el.dataset.panelTitle ?? 'Panel');
-      });
+      }, { signal });
     });
 
     /* Lápices de edición admin */
@@ -1185,7 +1227,7 @@ const NAV_ITEMS = [
       btn.addEventListener('click', e => {
         e.stopPropagation();
         openPanel(btn.dataset.panelUrl ?? '/admin', btn.dataset.panelTitle ?? 'Panel Admin');
-      });
+      }, { signal });
     });
 
     /* ── Logout ── */
@@ -1193,7 +1235,10 @@ const NAV_ITEMS = [
       await fetch('/api/signin', { method: 'DELETE' });
       window.location.reload();
     }
-    document.getElementById('nbLogout')?.addEventListener('click', doLogout);
-    document.getElementById('nbLogoutMobile')?.addEventListener('click', doLogout);
-  })();
+    document.getElementById('nbLogout')?.addEventListener('click', doLogout, { signal });
+    document.getElementById('nbLogoutMobile')?.addEventListener('click', doLogout, { signal });
+  }
+
+  initNavbar();
+  document.addEventListener('astro:page-load', initNavbar);
 </script>
