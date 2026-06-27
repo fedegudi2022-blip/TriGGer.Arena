@@ -8,18 +8,7 @@ const INSTAGRAM_URL = Astro.locals.siteSettings?.instagram_url ?? DEFAULT_INSTAG
 
 <div class="float-wrap" id="floatWrap" role="group" aria-label="Comunidad TriGGer.Arena">
 
-  <!-- Trigger: siempre visible, un solo botón pequeño -->
-  <button class="float-trigger" id="floatTrigger" aria-label="Comunidad" aria-expanded="false">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-      <circle cx="9" cy="7" r="4"/>
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-    </svg>
-    <span class="trigger-dot" aria-hidden="true"></span>
-  </button>
-
-  <!-- Panel que aparece al hover/focus -->
+  <!-- Panel encima del trigger en el DOM, pero visualmente abajo gracias a flex-direction:column-reverse -->
   <div class="float-panel" id="floatPanel" role="menu" aria-hidden="true">
     <div class="panel-top">
       <span class="panel-label">Comunidad</span>
@@ -83,18 +72,43 @@ const INSTAGRAM_URL = Astro.locals.siteSettings?.instagram_url ?? DEFAULT_INSTAG
     </a>
   </div>
 
+  <!-- Trigger DESPUÉS del panel en el DOM (flex-direction: column-reverse lo pone visualmente abajo) -->
+  <button class="float-trigger" id="floatTrigger" aria-label="Comunidad" aria-expanded="false">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+    <span class="trigger-dot" aria-hidden="true"></span>
+  </button>
+
 </div>
 
 <style>
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.5); }
+    50%       { box-shadow: 0 0 0 4px rgba(74,222,128,0); }
+  }
+
   .float-wrap {
     position: fixed;
     bottom: max(24px, env(safe-area-inset-bottom, 24px));
     right: max(24px, env(safe-area-inset-right, 24px));
     z-index: 100;
+    /*
+      column-reverse: el trigger queda visualmente abajo aunque en el DOM
+      esté después del panel. Así el panel es "hijo anterior" en flow y
+      el hover del wrap cubre ambos sin gap muerto en el medio.
+    */
     display: flex;
-    flex-direction: column;
+    flex-direction: column-reverse;
     align-items: flex-end;
-    gap: 8px;
+    /*
+      CLAVE: sin gap. El espacio entre panel y trigger lo maneja
+      margin-bottom en .float-panel para que sea parte del área hoverable.
+    */
+    gap: 0;
   }
 
   /* ── Trigger ── */
@@ -111,10 +125,14 @@ const INSTAGRAM_URL = Astro.locals.siteSettings?.instagram_url ?? DEFAULT_INSTAG
     align-items: center;
     justify-content: center;
     box-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 12px rgba(56,182,255,0.08);
-    transition: border-color 0.15s, color 0.15s, box-shadow 0.15s;
+    transition: border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+    /* El trigger está en z-index mayor para que el punto verde
+       no quede tapado por el panel cuando éste aparece */
+    position: relative;
+    z-index: 1;
   }
-  .float-trigger:hover,
-  .float-wrap:hover .float-trigger {
+  .float-wrap:hover .float-trigger,
+  .float-wrap:focus-within .float-trigger {
     border-color: rgba(56,182,255,0.5);
     color: #38b6ff;
     box-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 18px rgba(56,182,255,0.18);
@@ -124,7 +142,7 @@ const INSTAGRAM_URL = Astro.locals.siteSettings?.instagram_url ?? DEFAULT_INSTAG
     outline-offset: 3px;
   }
 
-  /* Punto verde "activo" */
+  /* Punto verde */
   .trigger-dot {
     position: absolute;
     top: 4px; right: 4px;
@@ -136,20 +154,27 @@ const INSTAGRAM_URL = Astro.locals.siteSettings?.instagram_url ?? DEFAULT_INSTAG
     animation: pulse 2.5s infinite;
   }
 
-  /* ── Panel ── */
+  /* ── Panel ──
+     margin-bottom: el espacio visual entre panel y trigger.
+     Al ser margin (no gap), el área de hover del .float-wrap
+     lo cubre completamente — el mouse nunca cae en un "hueco".
+  */
   .float-panel {
+    margin-bottom: 10px;
     background: #0c1018;
     border: 1px solid rgba(56,182,255,0.18);
     border-radius: 12px;
     overflow: hidden;
     box-shadow: 0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(56,182,255,0.05);
     width: 210px;
+    position: relative;
 
-    /* Estado oculto */
+    /* Estado inicial: oculto */
     opacity: 0;
     transform: translateY(6px) scale(0.97);
+    transform-origin: bottom right;
     pointer-events: none;
-    transition: opacity 0.18s ease, transform 0.18s ease;
+    transition: opacity 0.2s ease, transform 0.2s ease;
   }
 
   /* Línea accent superior */
@@ -158,9 +183,10 @@ const INSTAGRAM_URL = Astro.locals.siteSettings?.instagram_url ?? DEFAULT_INSTAG
     position: absolute;
     top: 0; left: 0; right: 0; height: 1px;
     background: linear-gradient(90deg, transparent, rgba(56,182,255,0.45) 50%, transparent);
+    pointer-events: none;
   }
 
-  /* Abrir con hover sobre el wrap O el panel mismo */
+  /* Abierto: hover sobre cualquier parte del wrap O focus dentro */
   .float-wrap:hover .float-panel,
   .float-wrap:focus-within .float-panel {
     opacity: 1;
@@ -168,7 +194,7 @@ const INSTAGRAM_URL = Astro.locals.siteSettings?.instagram_url ?? DEFAULT_INSTAG
     pointer-events: auto;
   }
 
-  /* ── Header del panel ── */
+  /* ── Header ── */
   .panel-top {
     padding: 9px 13px 6px;
     border-bottom: 1px solid rgba(255,255,255,0.04);
@@ -189,7 +215,7 @@ const INSTAGRAM_URL = Astro.locals.siteSettings?.instagram_url ?? DEFAULT_INSTAG
     padding: 10px 13px;
     text-decoration: none;
     color: #6a8aaa;
-    transition: background 0.12s, color 0.12s;
+    transition: background 0.12s ease, color 0.12s ease;
     border-bottom: 1px solid rgba(255,255,255,0.03);
   }
   .float-link:last-child { border-bottom: none; }
@@ -200,11 +226,10 @@ const INSTAGRAM_URL = Astro.locals.siteSettings?.instagram_url ?? DEFAULT_INSTAG
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
     border: 1px solid transparent;
-    transition: background 0.12s, border-color 0.12s;
+    transition: background 0.12s ease, border-color 0.12s ease;
   }
-
   .link-body  { flex: 1; min-width: 0; }
-  .link-name  { font-size: 0.78rem; font-weight: 600; color: #b8cce0; display: block; transition: color 0.12s; }
+  .link-name  { font-size: 0.78rem; font-weight: 600; color: #b8cce0; display: block; transition: color 0.12s ease; }
   .link-sub   { font-size: 0.6rem; color: #3a5a7a; display: block; margin-top: 1px; }
 
   /* WhatsApp */
@@ -227,14 +252,77 @@ const INSTAGRAM_URL = Astro.locals.siteSettings?.instagram_url ?? DEFAULT_INSTAG
 
   /* ── Mobile ── */
   @media (max-width: 560px) {
-    .float-wrap { bottom: 16px; right: 16px; }
+    .float-wrap    { bottom: 16px; right: 16px; }
     .float-trigger { width: 38px; height: 38px; }
-    .float-panel { width: 190px; }
+    .float-panel   { width: 190px; }
   }
 
+  /* ── Reduced motion ── */
   @media (prefers-reduced-motion: reduce) {
-    .float-panel { transition: none; }
+    .float-panel   { transition: none; }
     .float-trigger { transition: none; }
-    .trigger-dot { animation: none; }
+    .trigger-dot   { animation: none; }
   }
 </style>
+
+<script>
+  /*
+    En mobile no hay hover, así que el panel se abre/cierra
+    con click en el trigger. En desktop el CSS hover lo maneja solo.
+    El script también sincroniza aria-expanded para accesibilidad.
+  */
+  (function () {
+    const wrap    = document.getElementById('floatWrap');
+    const trigger = document.getElementById('floatTrigger') as HTMLButtonElement | null;
+    const panel   = document.getElementById('floatPanel');
+    if (!wrap || !trigger || !panel) return;
+
+    let isOpen = false;
+
+    function setOpen(open: boolean) {
+      isOpen = open;
+      trigger!.setAttribute('aria-expanded', open ? 'true' : 'false');
+      panel!.setAttribute('aria-hidden', open ? 'false' : 'true');
+    }
+
+    // Click: toggle en mobile (en desktop ya lo maneja el hover CSS)
+    trigger.addEventListener('click', () => {
+      // Sólo gestionar por JS en touch devices
+      if (window.matchMedia('(hover: none)').matches) {
+        setOpen(!isOpen);
+        if (isOpen) {
+          // Forzar visibilidad en mobile (el CSS :hover no aplica)
+          panel.style.opacity = '1';
+          panel.style.transform = 'translateY(0) scale(1)';
+          panel.style.pointerEvents = 'auto';
+        } else {
+          panel.style.opacity = '';
+          panel.style.transform = '';
+          panel.style.pointerEvents = '';
+        }
+      }
+    });
+
+    // Cerrar al hacer click fuera
+    document.addEventListener('click', (e) => {
+      if (!wrap.contains(e.target as Node)) {
+        setOpen(false);
+        panel.style.opacity = '';
+        panel.style.transform = '';
+        panel.style.pointerEvents = '';
+      }
+    }, { passive: true });
+
+    // Sincronizar aria cuando el CSS hover abre/cierra el panel
+    wrap.addEventListener('mouseenter', () => setOpen(true));
+    wrap.addEventListener('mouseleave', () => setOpen(false));
+
+    // Cerrar con Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && isOpen) {
+        setOpen(false);
+        trigger.focus();
+      }
+    });
+  })();
+</script>
